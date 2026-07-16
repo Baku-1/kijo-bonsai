@@ -1,0 +1,13 @@
+{
+  "name": "kijo",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "build": "npm run build -w @kijo/shared -w @kijo/engine -w @kijo/voxelizer -w @kijo/server",
+    "test": "npm run test -w @kijo/engine",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev": "npm run dev -w @kijo/web"
+  },
+  "devDependencies": { "typescript": "^5.5.4" }
+}
