@@ -55,3 +55,10 @@ Kijo-specific auditor checks (all mandatory):
 - Never call `clearDirty()` except in the Renderer
 - Never commit (no git commands in task sessions)
 - Never start the next package until the current one is gated and Jeremy says go
+
+## File I/O Rules (prevent truncation)
+
+- **Read tool**: always read the FULL file — never pass a `limit` parameter. A partial Read followed by a rewrite produces a truncated file.
+- **Edit/Write tool**: truncates on multi-byte Unicode characters (`→`, `×`, etc.) in matched content. Use bash heredoc for any file over ~10 lines or containing Unicode.
+- **Heredoc pattern**: `cat > /path/to/file << 'EOF' ... EOF` — use single-quoted delimiter to prevent shell expansion. After every write, verify with `wc -l` and `tail -5`.
+- **Unicode in source files**: keep comments ASCII-only in all engine/voxelizer/shared source. Use `->` not `→`, `x2` not `×`.

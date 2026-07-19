@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Kijo — 3D Bonsai Care</title>
+  <style>
+    :root { --panel: #232719; --edge: #3a4028; --accent: #7ba05b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #1a1d16; color: #cfd8c3; font-family: system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; }
+    header { padding: 8px 16px; display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+    h1 { font-size: 15px; margin: 0; }
+    #meta { font-size: 12px; opacity: .8; }
+    #meta.moisture-bad { color: #e0a050; opacity: 1; }
+    #layout { display: flex; gap: 12px; padding: 0 16px 12px; flex: 1; min-height: 0; }
+    #app { flex: 1; min-width: 0; border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; position: relative; }
+    #app canvas { display: block; }
+    #hint { position: absolute; left: 10px; bottom: 8px; font-size: 11px; opacity: .65; pointer-events: none; z-index: 2; }
+    #panel { width: 250px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; overflow-y: auto; }
+    fieldset { border: 1px solid var(--edge); border-radius: 8px; padding: 8px 10px; margin: 0; background: var(--panel); }
+    legend { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; opacity: .7; }
+    button { background: #2e3520; color: #cfd8c3; border: 1px solid var(--edge); border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 13px; }
+    button:hover { border-color: var(--accent); }
+    button.active { background: var(--accent); color: #141710; }
+    input, select { background: #161a10; color: #cfd8c3; border: 1px solid var(--edge); border-radius: 6px; padding: 5px 8px; font-size: 13px; }
+    input[type=number] { width: 90px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .grow { flex: 1; }
+    #stat-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    #stat-table td { padding: 2px 0; }
+    #stat-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+    #voxel-count { font-size: 11px; opacity: .7; }
+    #fert-status { font-size: 11px; color: #e0c060; min-height: 14px; }
+    textarea { width: 100%; height: 110px; background: #161a10; color: #cfd8c3; border: 1px solid var(--edge); border-radius: 6px; font-family: monospace; font-size: 10px; resize: vertical; }
+    a { color: var(--accent); font-size: 11px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Kijo — bonsai care (3D)</h1>
+    <span id="meta"></span>
+  </header>
+  <div id="layout">
+    <div id="app"><span id="hint"></span></div>
+    <div id="panel">
+      <fieldset>
+        <legend>Tree</legend>
+        <div class="row">
+          <label for="seed">seed</label>
+          <input id="seed" type="number" value="464497" />
+          <select id="species">
+            <option value="hardwood">hardwood</option>
+            <option value="evergreen" selected>evergreen</option>
+            <option value="tropical">tropical</option>
+          </select>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="btn-new" class="grow">New tree</button>
+          <a href="index.html">2D view</a>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Care</legend>
+        <div class="row">
+          <button id="btn-water" class="grow">Water</button>
+          <button id="btn-fertilize" class="grow">Fertilize</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="btn-prune" class="grow">Prune…</button>
+          <button id="btn-rotate" class="grow">Rotate 90°</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="btn-day" class="grow">Advance day ▶</button>
+          <span>×</span>
+          <input id="days-multi" type="number" value="1" min="1" max="30" style="width:56px" />
+        </div>
+        <div id="fert-status"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Derived stats (live)</legend>
+        <div id="voxel-count"></div>
+        <table id="stat-table"></table>
+        <div class="row" style="margin-top:6px">
+          <button id="btn-ghost" class="grow">Ideal-form hint</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Export fighter</legend>
+        <div class="row">
+          <button id="btn-export" class="grow">Generate fighter JSON</button>
+          <button id="btn-copy">Copy</button>
+        </div>
+        <textarea id="export-out" readonly placeholder="fighter JSON appears here — drop into res://fixtures/ to fight with it"></textarea>
+      </fieldset>
+    </div>
+  </div>
+  <script type="module" src="/src/main3d.ts"></script>
+</body>
+</html>

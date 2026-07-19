@@ -44,4 +44,5 @@ V6 ✓ Pipeline determinism — CareLogReplay rebuild → voxelize → byte-iden
 
 ## Dependencies
 
-- `@kij
+- `@kijo/shared`
+- `@kijo/engine`

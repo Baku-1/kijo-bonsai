@@ -67,7 +67,7 @@ Kijo is composed of five concerns that must stay decoupled so the parametric tre
 **Contains:**
 - `BonsaiTree` — holds parametric tree, care state (moisture/health/age), care log, dirty flag
 - `GrowthEngine` — stateless. `growTick()`, Leonardo's Rule thickening, fork logic
-- `StatDeriver` — structural stats (morphology) + terrain bonuses (seed coordinate map)
+- `StatDeriver` — structural stats (morphology) + terrain bonuses (seed coordinate map). **Role-based (B02, implemented 2026-07-17, D1-D7 pass):** branches are classified by role (TRUNK / ARM / LEG / HEAD) via `attachmentY` (per ATTACHY-01 — lower third of trunk → LEG, upper → ARM), and stats are accumulated per role before combining into the StatBlock. Replaces the older voxel-role counting approach; ARM/LEG/HEAD remain derived, not stored (D-BODYTYPE2).
 - `StatTerrain` — lazy coordinate → stat function, ideal-path proximity, match %
 - `PruneEngine` — prune execution, growth-energy redistribution
 - `CareLogReplay` — reconstruct a tree from seed + care log
@@ -268,4 +268,4 @@ kijo/
 
 ---
 
-*Reconcile this document against the actual repository as it evolves. When a package boundary or data-flow path changes in code, update this doc in the same commit. ALWAYS*
+*Reconcile this document against the actual repository as it evolves. When a package boundary or data-flow path changes in code, update this doc in the same commit.*

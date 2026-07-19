@@ -7,6 +7,6 @@
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": { "@kijo/engine": "*", "@kijo/shared": "*" },
-  "devDependencies": { "vite": "^5.4.0" }
+  "dependencies": { "@kijo/engine": "*", "@kijo/shared": "*", "@kijo/voxelizer": "*", "three": "^0.166.0" },
+  "devDependencies": { "vite": "^5.4.0", "@types/three": "^0.166.0" }
 }

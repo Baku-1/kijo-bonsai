@@ -3,6 +3,11 @@ import type { Branch } from '@kijo/shared';
 import { SPECIES } from './species.js'; // fallback for forkChance, thickenRate (absent from shared SPECIES_PARAMS)
 import { BonsaiTree } from './BonsaiTree.js';
 
+// Minimum trunk length (voxel units) before the first depth-1 branch may fork.
+// Enforces the one-third / bare-lower-third bonsai structural rule (KIJO-TECH-SPEC s4.6).
+// Flagged for playtest tuning -- logged in DECISIONS.md 2026-07-18 (R-ATTACHY).
+const MIN_TRUNK_FOR_FIRST_BRANCH = 20;
+
 export class GrowthEngine {
   /**
    * Advance tree one full day.
@@ -48,7 +53,7 @@ export class GrowthEngine {
       // ---- Tip: extend ----
       const depthFalloff = Math.max(0.1, 1.0 - b.depth * 0.15);
       const day = tree.getAge(); // already incremented by applyDailyUpdate
-      // Per-branch RNG seeded by identity + day (spec §Growth)
+      // Per-branch RNG seeded by identity + day (spec s4.2)
       const rng = new SeededRNG(tree.getSeed() + b.id * 7919 + day * 37);
       const ext = round4((1.2 + rng.next() * 2.8) * rate * depthFalloff);
       b.length = round4(b.length + ext);
@@ -57,10 +62,26 @@ export class GrowthEngine {
       const sp  = SPECIES_PARAMS[tree.getSpecies()];
       const spE = SPECIES[tree.getSpecies()]; // forkChance from engine species
       // G6 calibration: spec values (16+depth*7, 0.38 factor) yield only ~3 branches with
-      // seed 464497 in 200 days; adjusted to 8+depth*5 and (1.0-depth*0.1) to satisfy count≥5.
+      // seed 464497 in 200 days; adjusted to 8+depth*5 and (1.0-depth*0.1) to satisfy count>=5.
       const forkThresh = 8 + b.depth * 5;
 
       if (b.length > forkThresh && b.depth < 6) {
+        // One-third rule (KIJO-TECH-SPEC s4.6, R-ATTACHY): the bare lower third of the trunk
+        // must stay branchless. Only allow the first depth-1 fork when trunk is long enough.
+        if (b.depth === 0) {
+          const existingDepth1 = branches.filter(
+            (br: Branch) => br.depth === 1 && !br.pruned
+          ).length;
+          if (existingDepth1 === 0 && b.length < MIN_TRUNK_FOR_FIRST_BRANCH) {
+            // Trunk not long enough yet -- skip this fork opportunity.
+            // Continue recursion (pre-order) even though we did not fork.
+            for (const id of b.children) {
+              GrowthEngine.extendAndFork(branches[id], tree, rate);
+            }
+            return;
+          }
+        }
+
         const forkRng = new SeededRNG(tree.getSeed() + b.id * 7919 + day * 37 + 1);
         const forkP   = spE.forkChance * (1.0 - b.depth * 0.1) * rate;
 
@@ -74,18 +95,30 @@ export class GrowthEngine {
             const spread   = sp.forkSpreadMin + angleRng.next() * (sp.forkSpreadMax - sp.forkSpreadMin);
             const childId  = tree._allocBranchId();
 
+            // attachmentY: position along parent axis where this child attaches (voxel units).
+            // depth-1 primary (i=0): one-third rule -- lower third of trunk bare, first branch at 33%.
+            // depth-1 secondary (i=1): attaches at current trunk tip.
+            // depth-2+: always attach at parent tip (round4(parent.length)).
+            let attachmentY: number;
+            if (b.depth === 0 && i === 0) {
+              attachmentY = round4(b.length * 0.33);
+            } else {
+              attachmentY = round4(b.length);
+            }
+
             // growthBoost and bornDay are engine-level extensions not in shared Branch type
             const child = {
-              id:        childId,
-              parent:    b.id,
-              depth:     b.depth + 1,
-              angle:     round4(side * spread),
-              length:    round4(1.0),
-              thickness: round4(Math.max(0.3, b.thickness * 0.5)),
-              pruned:    false,
-              children:  [] as number[],
+              id:          childId,
+              parent:      b.id,
+              depth:       b.depth + 1,
+              angle:       round4(side * spread),
+              length:      round4(1.0),
+              thickness:   round4(Math.max(0.3, b.thickness * 0.5)),
+              pruned:      false,
+              children:    [] as number[],
+              attachmentY,
               growthBoost: 0,
-              bornDay:   tree.getAge(),
+              bornDay:     tree.getAge(),
             } as unknown as Branch;
 
             tree._pushBranch(child);
@@ -95,7 +128,7 @@ export class GrowthEngine {
       }
     }
 
-    // Pre-order recursion — newly forked children are iterated too (intentional)
+    // Pre-order recursion -- newly forked children are iterated too (intentional)
     for (const id of b.children) {
       GrowthEngine.extendAndFork(branches[id], tree, rate);
     }
@@ -103,7 +136,7 @@ export class GrowthEngine {
 
   /**
    * Post-order thickening pass implementing Leonardo's Rule:
-   *   parent.thickness² ≥ Σ(child.thickness²)
+   *   parent.thickness^2 >= sum(child.thickness^2)
    * Returns the branch's resulting thickness (used by parent to accumulate child mass).
    */
   private static thickeningPass(b: Branch, tree: BonsaiTree, rate: number): number {

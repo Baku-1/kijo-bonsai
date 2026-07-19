@@ -1,0 +1,16 @@
+{
+  "seed": 891234,
+  "species": "TROPICAL",
+  "ageDays": 200,
+  "generatedAt": "2026-07-17T00:00:00Z",
+  "stats": {
+    "hp": 220.12,
+    "power": 51.86,
+    "endurance": 0.32,
+    "ki": 99.35,
+    "skillSlots": 4,
+    "skillPoints": 112.75,
+    "wisdom": 2,
+    "matchPct": 0.018
+  }
+}

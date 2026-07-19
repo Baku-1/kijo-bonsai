@@ -1,44 +1,63 @@
-import { createTree, tick, applyAction } from '@kijo/engine';
-import type { TreeState, Branch } from '@kijo/shared';
+import { BonsaiTree } from '@kijo/engine';
+import type { SpeciesClass } from '@kijo/shared';
+import { createScene } from './renderer/scene.js';
+import { buildTreeMesh } from './renderer/tree_mesh.js';
+import { CareBridge } from './bridge/care_bridge.js';
+import { CareHud } from './ui/hud.js';
 
-// Demo: grow a hardwood 200 days with regular watering, render the result.
-let tree: TreeState = createTree(42, 'hardwood');
-for (let d = 0; d < 200; d++) {
-  if (d % 3 === 0) tree = applyAction(tree, { type: 'water' });
-  tree = tick(tree);
+// ---------------------------------------------------------------------------
+// Kijo care client — Layer 1 boot.
+//
+// Wiring only. The engine (@kijo/engine) owns ALL growth logic; the web
+// client never computes growth itself. Flow per action:
+//   UI event → CareBridge → engine call → tree marks dirty →
+//   afterAction → rebuild mesh (renderer clears dirty) → HUD refresh.
+// ---------------------------------------------------------------------------
+
+const params = new URLSearchParams(location.search);
+const seed = Number(params.get('seed')) || 464497;
+const speciesParam = params.get('species');
+const species: SpeciesClass =
+  speciesParam === 'evergreen' || speciesParam === 'tropical' ? speciesParam : 'hardwood';
+
+const tree = new BonsaiTree(seed, species);
+
+const container = document.getElementById('scene-container')!;
+const careScene = createScene(container);
+
+function livingBranchCount(): number {
+  return tree.getBranches().filter((b) => !b.pruned).length;
 }
 
-const canvas = document.getElementById('tree') as HTMLCanvasElement;
-const ctx = canvas.getContext('2d')!;
-const meta = document.getElementById('meta')!;
-meta.textContent = `seed 42 · hardwood · day ${tree.day} · health ${tree.health.toFixed(0)} · ${tree.branches.length} branches`;
-
-function drawBranch(b: Branch, x: number, y: number, absAngle: number): void {
-  if (b.pruned) return;
-  const rad = (absAngle * Math.PI) / 180;
-  const scale = 3;
-  const ex = x + Math.sin(rad) * b.length * scale;
-  const ey = y - Math.cos(rad) * b.length * scale;
-
-  ctx.strokeStyle = '#6b4f2a';
-  ctx.lineCap = 'round';
-  ctx.lineWidth = Math.max(1, b.thickness);
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(ex, ey);
-  ctx.stroke();
-
-  const living = b.children.filter((c) => !tree.branches[c].pruned);
-  if (living.length === 0 && b.depth >= 1) {
-    ctx.fillStyle = '#5a8f3c';
-    ctx.beginPath();
-    ctx.arc(ex, ey, 4 + b.length * 0.3, 0, Math.PI * 2);
-    ctx.fill();
+function refreshView(): void {
+  // Dirty-flag handshake (DECISIONS.md): the renderer — and only the
+  // renderer — clears the flag, after rebuilding from engine truth.
+  if (tree.isDirty()) {
+	buildTreeMesh(careScene.treeRoot, tree);
+	tree.clearDirty();
   }
-  for (const c of living) drawBranch(tree.branches[c], ex, ey, absAngle + tree.branches[c].angle);
+  hud.update(tree, livingBranchCount());
 }
 
-// Pot
-ctx.fillStyle = '#8a4b2d';
-ctx.fillRect(340, 560, 120, 30);
-drawBranch(tree.branches[0], 400, 560, 0);
+const bridge = new CareBridge(tree, refreshView);
+
+const hud = new CareHud({
+  onWater: () => bridge.water(),
+  onNextDay: () => bridge.nextDay(),
+  onToggleAuto: () => bridge.toggleAuto(),
+});
+
+// First paint: trunk exists from creation, but isDirty() starts false —
+// build the initial mesh explicitly.
+buildTreeMesh(careScene.treeRoot, tree);
+hud.update(tree, livingBranchCount());
+console.log(`[kijo-care] boot seed=${seed} species=${species}`);
+
+// Render loop — OrbitControls damping requires continuous update; the tree
+// mesh itself only rebuilds on the dirty-flag handshake above.
+function animate(): void {
+  requestAnimationFrame(animate);
+  careScene.controls.update();
+  careScene.renderer.render(careScene.scene, careScene.camera);
+}
+animate();

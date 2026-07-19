@@ -1,0 +1,16 @@
+{
+  "seed": 464497,
+  "species": "hardwood",
+  "ageDays": 200,
+  "generatedAt": "2026-07-17T00:00:00.000Z",
+  "stats": {
+    "hp": 252.1415,
+    "power": 168.5325,
+    "endurance": 64.9425,
+    "ki": 336.4575,
+    "skillSlots": 7,
+    "skillPoints": 135.125,
+    "wisdom": 2,
+    "matchPct": 0.023
+  }
+}

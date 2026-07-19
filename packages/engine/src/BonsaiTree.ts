@@ -2,6 +2,7 @@ import { SeededRNG, round4 } from '@kijo/shared';
 import type { TreeState, Branch, SpeciesClass, CareLogEntry } from '@kijo/shared';
 import { createTree } from './tree.js';
 import { PruneEngine } from './PruneEngine.js';
+import { WireEngine } from './WireEngine.js';
 
 export class BonsaiTree {
   private state: TreeState;
@@ -53,6 +54,15 @@ export class BonsaiTree {
     this.state.fertilizerDays = 5;
     this.state.fertilizerCooldown = 8;
     this.careLog.push({ day: this.state.day, action: { type: 'fertilize' } });
+  }
+
+  /**
+   * Wire-bend a depth-1 branch (Gu Ahao's Tied and Cut Toolkit).
+   * Delegates to WireEngine (stateless, same pattern as prune).
+   * angleDelta is caregiver-chosen, clamped to +/-45 per action.
+   */
+  wire(branchId: number, angleDelta: number) {
+    return WireEngine.wire(this, branchId, angleDelta);
   }
 
   rotate(): void {

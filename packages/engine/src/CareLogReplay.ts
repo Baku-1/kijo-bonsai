@@ -2,6 +2,7 @@ import type { SpeciesClass, CareLogEntry } from '@kijo/shared';
 import { BonsaiTree } from './BonsaiTree.js';
 import { GrowthEngine } from './GrowthEngine.js';
 import { PruneEngine } from './PruneEngine.js';
+import { WireEngine } from './WireEngine.js';
 
 export class CareLogReplay {
   /**
@@ -27,6 +28,7 @@ export class CareLogReplay {
           else if (a.type === 'fertilize') tree.fertilize();
           else if (a.type === 'rotate') tree.rotate();
           else if (a.type === 'prune') PruneEngine.prune(tree, a.branchId);
+          else if (a.type === 'wire') WireEngine.wire(tree, a.branchId, a.angleDelta);
         }
       }
       GrowthEngine.growTick(tree);

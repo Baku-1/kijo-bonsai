@@ -169,4 +169,5 @@ if (failed === 0) {
   console.log('ALL GATE TESTS PASS ✓');
 } else {
   console.log('GATE FAILED — fix before proceeding');
-  process.e
+  process.exit(1);
+}

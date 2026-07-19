@@ -2,17 +2,93 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Kijo — Bonsai Prototype</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Kijo — Bonsai Care</title>
   <style>
-    body { margin: 0; background: #1a1d16; color: #cfd8c3; font-family: system-ui, sans-serif; }
-    header { padding: 12px 16px; } h1 { font-size: 16px; margin: 0; }
-    #meta { font-size: 12px; opacity: .7; }
-    canvas { display: block; margin: 0 auto; background: #232719; border-radius: 8px; }
+    :root {
+      --cream: #F4EDE2;
+      --ink: #3A2E22;
+      --panel: rgba(255, 252, 246, 0.92);
+      --edge: #D8CDBC;
+      --accent: #7ba05b;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--cream); color: var(--ink); font-family: Georgia, 'Times New Roman', serif; }
+    #scene-container { position: fixed; inset: 0; }
+    #scene-container canvas { display: block; touch-action: none; }
+
+    /* --- Top status bar --- */
+    #hud-top {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      padding: 8px 12px;
+      background: var(--panel); border-bottom: 1px solid var(--edge);
+      font-size: 13px; z-index: 10;
+    }
+    #hud-top h1 { font-size: 15px; margin: 0; font-weight: normal; letter-spacing: 0.04em; }
+    .stat { display: flex; align-items: center; gap: 6px; }
+    .bar { width: 110px; height: 10px; background: #E4DACA; border: 1px solid var(--edge); border-radius: 5px; overflow: hidden; }
+    .bar > div { height: 100%; width: 0%; transition: width 0.25s ease; }
+    #moisture-fill { background: #4A90D8; }
+    #health-fill { background: #5CAA50; }
+    #season-label { font-style: italic; }
+    #warning { color: #B0542A; font-weight: bold; min-height: 1em; }
+
+    /* --- Bottom controls --- */
+    #hud-bottom {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      background: var(--panel); border-top: 1px solid var(--edge);
+      z-index: 10;
+    }
+    #buttons { display: flex; gap: 10px; }
+    button {
+      font-family: inherit; font-size: 16px; color: var(--ink);
+      background: #FFFDF8; border: 1px solid var(--edge); border-radius: 10px;
+      padding: 12px 18px; min-width: 88px; min-height: 48px; cursor: pointer;
+    }
+    button:hover { border-color: var(--accent); }
+    button:active { background: #EFE7D6; }
+    button.primary { background: #EAF2E0; border-color: var(--accent); }
+    #info-line { font-size: 12px; opacity: 0.75; }
+    #page-links { position: fixed; right: 8px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 10; }
+    #page-links a { font-size: 11px; color: var(--ink); background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 4px 8px; text-decoration: none; }
+    #page-links a:hover { border-color: var(--accent); }
+
+    @media (max-width: 480px) {
+      .bar { width: 72px; }
+      #hud-top { gap: 8px; font-size: 12px; }
+      button { min-width: 76px; padding: 12px 12px; font-size: 15px; }
+    }
   </style>
 </head>
 <body>
-  <header><h1>Kijo — growth engine demo</h1><div id="meta"></div></header>
-  <canvas id="tree" width="800" height="600"></canvas>
+  <div id="scene-container"></div>
+
+  <div id="hud-top">
+    <h1>Kijonsai</h1>
+    <div class="stat">💧 <div class="bar"><div id="moisture-fill"></div></div></div>
+    <div class="stat">🌱 <div class="bar"><div id="health-fill"></div></div></div>
+    <div class="stat" id="day-label">Day 0</div>
+    <div class="stat" id="season-label">Spring</div>
+    <div id="warning"></div>
+  </div>
+
+  <div id="hud-bottom">
+    <div id="buttons">
+      <button id="btn-water">💧 Water</button>
+      <button id="btn-next-day" class="primary">☀️ Next Day</button>
+      <button id="btn-auto">▶ Auto</button>
+    </div>
+    <div id="info-line">Seed #— · — branches · —</div>
+  </div>
+
+  <nav id="page-links">
+    <a href="/index3d.html">voxel view</a>
+    <a href="/index2d.html">2d debug</a>
+  </nav>
+
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

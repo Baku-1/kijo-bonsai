@@ -1,0 +1,258 @@
+[gd_scene format=3 uid="uid://cdycj1fkck8kh"]
+
+[ext_resource type="Script" uid="uid://dyyi06s281isw" path="res://scripts/fighter.gd" id="1_5kujn"]
+[ext_resource type="Script" uid="uid://dllrhjgutivtl" path="res://scripts/health_bar.gd" id="2_6lq7p"]
+[ext_resource type="Texture2D" uid="uid://ctkr72fcckt5w" path="res://assets/images/img-50c1a866-89b1-49e6-b32a-3c209187b117-1784259732288-0_1784259732289_pyabfhtw.png" id="3_hardwood"]
+[ext_resource type="Texture2D" uid="uid://dvo4itaellxl2" path="res://assets/images/img-50c1a866-89b1-49e6-b32a-3c209187b117-1784259733393-0_1784259733393_x5g53i7y.png" id="4_tropical"]
+[ext_resource type="Texture2D" uid="uid://c3pblfgjkq8hd" path="res://assets/images/img-50c1a866-89b1-49e6-b32a-3c209187b117-1784260626590-0_1784260626590_cw509v5i.png" id="5_background"]
+[ext_resource type="Script" uid="uid://cgy4yhx8ucyun" path="res://scripts/match_manager.gd" id="6_mm"]
+[ext_resource type="Script" uid="uid://xs13n68s35c0" path="res://scripts/ki_bar.gd" id="7_kibar"]
+[ext_resource type="Script" uid="uid://ckmnqlrgpgns0" path="res://scripts/move_hud.gd" id="8_movehud"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_h2t9n"]
+size = Vector2(1280, 50)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_3v8da"]
+size = Vector2(40, 90)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_g4k1m"]
+size = Vector2(100, 80)
+
+[node name="Main" type="Node2D" unique_id=173358424]
+script = ExtResource("6_mm")
+
+[node name="Background" type="TextureRect" parent="." unique_id=605925856]
+z_index = -10
+offset_left = -200.0
+offset_top = -200.0
+offset_right = 1800.0
+offset_bottom = 1000.0
+texture = ExtResource("5_background")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Ground" type="StaticBody2D" parent="." unique_id=2094362137]
+position = Vector2(640, 550)
+
+[node name="GroundVisual" type="TextureRect" parent="Ground" unique_id=776967230]
+visible = false
+offset_left = -640.0
+offset_top = -25.0
+offset_right = 640.0
+offset_bottom = 25.0
+texture = ExtResource("5_background")
+
+[node name="GroundShape" type="CollisionShape2D" parent="Ground" unique_id=1610871186]
+shape = SubResource("RectangleShape2D_h2t9n")
+
+[node name="Player1" type="CharacterBody2D" parent="." unique_id=844725604]
+position = Vector2(300, 200)
+script = ExtResource("1_5kujn")
+stats_path = "res://fixtures/hardwood_real.json"
+
+[node name="Collision" type="CollisionShape2D" parent="Player1" unique_id=1843333660]
+position = Vector2(0, -45)
+shape = SubResource("RectangleShape2D_3v8da")
+
+[node name="Sprite2D" type="Sprite2D" parent="Player1" unique_id=1958943363]
+position = Vector2(20, -55)
+texture = ExtResource("3_hardwood")
+
+[node name="PunchHitbox" type="Area2D" parent="Player1" unique_id=904949928]
+position = Vector2(50, -30)
+
+[node name="PunchCollision" type="CollisionShape2D" parent="Player1/PunchHitbox" unique_id=2058556503]
+shape = SubResource("RectangleShape2D_g4k1m")
+disabled = true
+
+[node name="AnimationTimer" type="Timer" parent="Player1" unique_id=1490194444]
+wait_time = 0.15
+one_shot = true
+
+[node name="Player2" type="CharacterBody2D" parent="." unique_id=1675477471]
+position = Vector2(980, 200)
+script = ExtResource("1_5kujn")
+is_player_one = false
+stats_path = "res://fixtures/tropical_real.json"
+
+[node name="Collision" type="CollisionShape2D" parent="Player2" unique_id=1929474141]
+position = Vector2(0, -45)
+shape = SubResource("RectangleShape2D_3v8da")
+
+[node name="Sprite2D" type="Sprite2D" parent="Player2" unique_id=591492422]
+position = Vector2(20, -55)
+texture = ExtResource("4_tropical")
+
+[node name="PunchHitbox" type="Area2D" parent="Player2" unique_id=564014751]
+position = Vector2(50, -30)
+
+[node name="PunchCollision" type="CollisionShape2D" parent="Player2/PunchHitbox" unique_id=1775350642]
+shape = SubResource("RectangleShape2D_g4k1m")
+disabled = true
+
+[node name="AnimationTimer" type="Timer" parent="Player2" unique_id=922342465]
+wait_time = 0.15
+one_shot = true
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=667847300]
+position = Vector2(640, 360)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=641488002]
+
+[node name="P1HealthBar" type="Control" parent="CanvasLayer" unique_id=890557127]
+layout_mode = 3
+anchor_left = 0.02
+anchor_top = 0.02
+anchor_right = 0.35
+anchor_bottom = 0.1
+script = ExtResource("2_6lq7p")
+target_node_path = NodePath("../../Player1")
+
+[node name="BarContainer" type="Control" parent="CanvasLayer/P1HealthBar" unique_id=1630572267]
+anchors_preset = 0
+anchor_top = 0.4
+anchor_right = 1.0
+anchor_bottom = 0.9
+
+[node name="BarBg" type="ColorRect" parent="CanvasLayer/P1HealthBar/BarContainer" unique_id=508102123]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="BarFill" type="ColorRect" parent="CanvasLayer/P1HealthBar/BarContainer" unique_id=1096906710]
+layout_mode = 0
+anchor_bottom = 1.0
+color = Color(0.1, 0.8, 0.1, 1)
+
+[node name="Label" type="Label" parent="CanvasLayer/P1HealthBar" unique_id=98893100]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "P1: 1000 / 1000"
+
+[node name="P1KiBar" type="Control" parent="CanvasLayer" unique_id=1190630386]
+layout_mode = 3
+anchor_left = 0.02
+anchor_top = 0.1
+anchor_right = 0.35
+anchor_bottom = 0.14
+script = ExtResource("7_kibar")
+target_node_path = NodePath("../../Player1")
+
+[node name="BarContainer" type="Control" parent="CanvasLayer/P1KiBar" unique_id=1938515983]
+anchors_preset = 0
+anchor_top = 0.4
+anchor_right = 1.0
+anchor_bottom = 0.9
+
+[node name="BarBg" type="ColorRect" parent="CanvasLayer/P1KiBar/BarContainer" unique_id=372566733]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="BarFill" type="ColorRect" parent="CanvasLayer/P1KiBar/BarContainer" unique_id=89119174]
+layout_mode = 0
+anchor_bottom = 1.0
+color = Color(0, 0.9, 1, 1)
+
+[node name="Label" type="Label" parent="CanvasLayer/P1KiBar" unique_id=489230787]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "Ki: 400 / 400"
+
+[node name="P2HealthBar" type="Control" parent="CanvasLayer" unique_id=1396422684]
+layout_mode = 3
+anchor_left = 0.63
+anchor_top = 0.02
+anchor_right = 0.98
+anchor_bottom = 0.1
+script = ExtResource("2_6lq7p")
+target_node_path = NodePath("../../Player2")
+is_player_one_health = false
+
+[node name="BarContainer" type="Control" parent="CanvasLayer/P2HealthBar" unique_id=397762455]
+anchors_preset = 0
+anchor_top = 0.4
+anchor_right = 1.0
+anchor_bottom = 0.9
+
+[node name="BarBg" type="ColorRect" parent="CanvasLayer/P2HealthBar/BarContainer" unique_id=112077035]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="BarFill" type="ColorRect" parent="CanvasLayer/P2HealthBar/BarContainer" unique_id=880444593]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.1, 0.8, 0.1, 1)
+
+[node name="Label" type="Label" parent="CanvasLayer/P2HealthBar" unique_id=677008139]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "P2: 1000 / 1000"
+
+[node name="P2KiBar" type="Control" parent="CanvasLayer" unique_id=1439670214]
+layout_mode = 3
+anchor_left = 0.63
+anchor_top = 0.1
+anchor_right = 0.98
+anchor_bottom = 0.14
+script = ExtResource("7_kibar")
+target_node_path = NodePath("../../Player2")
+is_player_one_ki = false
+
+[node name="BarContainer" type="Control" parent="CanvasLayer/P2KiBar" unique_id=876863243]
+anchors_preset = 0
+anchor_top = 0.4
+anchor_right = 1.0
+anchor_bottom = 0.9
+
+[node name="BarBg" type="ColorRect" parent="CanvasLayer/P2KiBar/BarContainer" unique_id=1113810441]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.3, 0.3, 0.3, 1)
+
+[node name="BarFill" type="ColorRect" parent="CanvasLayer/P2KiBar/BarContainer" unique_id=782151668]
+layout_mode = 0
+anchor_bottom = 1.0
+color = Color(0, 0.9, 1, 1)
+
+[node name="Label" type="Label" parent="CanvasLayer/P2KiBar" unique_id=303182015]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "Ki: 400 / 400"
+
+[node name="P1MoveHUD" type="Control" parent="CanvasLayer" unique_id=1059543081]
+layout_mode = 3
+anchor_left = 0.02
+anchor_top = 0.15
+anchor_right = 0.22
+anchor_bottom = 0.45
+script = ExtResource("8_movehud")
+target_node_path = NodePath("../../Player1")
+
+[node name="P2MoveHUD" type="Control" parent="CanvasLayer" unique_id=357742948]
+layout_mode = 3
+anchor_left = 0.78
+anchor_top = 0.15
+anchor_right = 0.98
+anchor_bottom = 0.45
+script = ExtResource("8_movehud")
+target_node_path = NodePath("../../Player2")
+is_player_one_hud = false

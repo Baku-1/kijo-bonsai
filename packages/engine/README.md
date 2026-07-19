@@ -35,6 +35,18 @@ Owns the full lifecycle of a BonsaiTree: daily growth, care actions, branch fork
   - Replays day-by-day: apply care actions for day N, then growTick
   - Backbone of NFT verification
 
+**`StatTerrain`** (stateless)
+- `static getStatAt(seed, x, y, z): TerrainStat` — lazy per-coordinate stat lookup
+- `static calculateMatch(voxels: VoxelReader, seed): number` — match ∈ [0,1]
+- `static proximityCurve(distance): number`
+- `static distanceToIdealPath(seed, x, y, z): number`
+
+**`StatDeriver`** (stateless)
+- `static derive(tree, voxels: VoxelSet, seed, ageDays): StatSheet` — full dual-layer stat derivation
+- `static deriveStructural(voxels, tree): StructuralStats` — Layer 1: TRUNK→HP, ARM→Power, LEG→Endurance, CANOPY→Ki (role-based, exact); depth-2+ branch count→skillSlots
+- `static deriveTerrain(voxels, seed): TerrainBonuses` — Layer 2: per-voxel StatTerrain accumulation
+- `static wisdomFromAge(ageDays): number` — age tier 0–4 (thresholds: 100/200/365/500)
+
 ## Gate Status
 
 G1 ✓ BonsaiTree constructs, trunk exists  
@@ -49,6 +61,19 @@ P3 ✓ Trunk guard (returns false)
 P4 ✓ Re-prune guard (returns false)  
 P5 ✓ Cascade marks all descendants pruned  
 P6 ✓ CareLogReplay determinism with prune (4,275 voxels byte-identical)  
+T1 ✓ StatTerrain getStatAt determinism  
+T2 ✓ Distribution uniform across 6 buckets  
+T3 ✓ Proximity multipliers correct  
+T4 ✓ Match range ∈ [0,1]  
+T5 ✓ Match determinism  
+T6 ✓ Cross-seed (Chokkan-clamp caveat noted)  
+D1 ✓ Structural stats all > 0, role-based (hp=959, power=390, endurance=170, ki=294)  
+D2 ✓ Terrain stacks additively on structural  
+D3 ✓ Wisdom tiers correct (5/5)  
+D4 ✓ Determinism: same inputs → identical StatSheet  
+D5 ✓ CareLogReplay end-to-end: byte-identical StatSheet  
+D6 ✓ HP=961.26 ∈ [800,1500], all keys present, matchPct ∈ [0,1]  
+D7 ✓ Morphology fidelity: arm-heavy→Power>Endurance, leg-heavy→Endurance>Power (cross-tree ✓)  
 
 ## Dependencies
 

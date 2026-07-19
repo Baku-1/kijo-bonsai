@@ -11,6 +11,12 @@ export interface Branch {
   // NOTE: engine API spec shows Branch.children as embedded std::vector<Branch> (C++ style);
   // we use a flat index array instead -- indices into TreeState.branches -- for serialisation safety.
   children: number[];    // indices into TreeState.branches
+  // attachmentY: Y-coordinate along the PARENT axis where this branch forks (voxel units).
+  // Recorded at fork time. depth-0 trunk: 0.
+  // depth-1: round4(trunk.length * 0.33) for primary, round4(trunk.length) for secondary.
+  // depth-2+: round4(parent.length) at fork time.
+  // Drives ARM/LEG split in voxelizer (real morphology, closes R-ATTACHY proxy).
+  attachmentY: number;
 }
 
 export interface TreeState {
@@ -30,7 +36,11 @@ export type CareAction =
   | { type: 'water' }
   | { type: 'rotate' }
   | { type: 'prune'; branchId: number }
-  | { type: 'fertilize' };
+  | { type: 'fertilize' }
+  // WIRE (2026-07-19): bend a depth-1 branch. angleDelta is the replay input
+  // (degrees, signed); oldAngle/newAngle/wireCost are the historical record so
+  // replay stays independent of tuning constants. See WireEngine.
+  | { type: 'wire'; branchId: number; angleDelta: number; oldAngle: number; newAngle: number; wireCost: number };
 
 export interface CareLogEntry {
   day: number;
@@ -64,6 +74,25 @@ export interface StatSheet {
 }
 
 // ---------------------------------------------------------------------------
+// VoxelRole -- morphology classification, orthogonal to Material (render).
+//
+// Design decision (2026-07-17, DECISIONS.md):
+//   material answers "how does it look" (render-only, unchanged).
+//   role    answers "what body part is it" (morphology -- stats + kijo skeleton).
+// A BARK voxel can simultaneously carry ARM role. Do NOT conflate the two.
+// ---------------------------------------------------------------------------
+
+export enum VoxelRole {
+  TRUNK   = 'trunk',    // torso / HP source
+  ARM     = 'arm',      // upper depth-1 branches / Power
+  LEG     = 'leg',      // lower depth-1 branches / Endurance
+  DIGIT   = 'digit',    // depth-2+ branches / skill slots
+  CANOPY  = 'canopy',   // leaf clusters / Ki
+  ROOT    = 'root',     // root cone
+  SCAR    = 'scar',     // prune scar (reserved)
+}
+
+// ---------------------------------------------------------------------------
 // Deterministic PRNG -- Mulberry32 variant (exact algorithm from prototype)
 // ---------------------------------------------------------------------------
 
@@ -80,23 +109,11 @@ export class SeededRNG {
 
 // ---------------------------------------------------------------------------
 // spatialHash -- maps (seed, x, y, z) to a deterministic uint32
-//
-// Algorithm:
-//   1. Pack x/y/z into a single 24-bit integer: packed = (x<<16)|(y<<8)|z
-//      (each coordinate masked to 8 bits, matching the 256^3 grid).
-//   2. XOR with seed and force to uint32.
-//   3. Run one pass of the SeededRNG mixing function for avalanche diffusion.
-//   4. Return the final uint32.
-//
-// This is a critical determinism surface: the exact bit-pattern of the output
-// must be identical across JS runtimes and across the C++ engine bridge.
-// Do NOT alter the mixing constants (0x6D2B79F5, 15, 7, 61, 14).
 // ---------------------------------------------------------------------------
 
 export function spatialHash(seed: number, x: number, y: number, z: number): number {
   const packed = ((x & 0xFF) << 16) | ((y & 0xFF) << 8) | (z & 0xFF);
   let h = (seed ^ packed) >>> 0;
-  // One pass of the SeededRNG mixing function for avalanche
   h = (h += 0x6D2B79F5) >>> 0;
   h = Math.imul(h ^ (h >>> 15), h | 1) >>> 0;
   h ^= h + (Math.imul(h ^ (h >>> 7), h | 61) >>> 0);

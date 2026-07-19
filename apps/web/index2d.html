@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Kijo — Bonsai Care Loop (2D debug)</title>
+  <style>
+    :root { --panel: #232719; --edge: #3a4028; --accent: #7ba05b; }
+    body { margin: 0; background: #1a1d16; color: #cfd8c3; font-family: system-ui, sans-serif; }
+    header { padding: 10px 16px; display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+    h1 { font-size: 16px; margin: 0; }
+    #meta { font-size: 12px; opacity: .8; }
+    #layout { display: flex; gap: 12px; padding: 0 16px 16px; align-items: flex-start; }
+    #left { display: flex; flex-direction: column; gap: 8px; }
+    canvas { display: block; background: var(--panel); border: 1px solid var(--edge); border-radius: 8px; cursor: crosshair; }
+    #controls, #stats, #export { background: var(--panel); border: 1px solid var(--edge); border-radius: 8px; padding: 10px 12px; width: 340px; }
+    #controls { display: flex; flex-direction: column; gap: 8px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    label { font-size: 12px; }
+    select, input, button {
+      background: #171a11; color: #cfd8c3; border: 1px solid var(--edge);
+      border-radius: 6px; padding: 5px 9px; font-size: 13px;
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: #2c3a1f; border-color: var(--accent); }
+    button.active { outline: 2px solid var(--accent); }
+    #newtree input { width: 90px; }
+    #stats h2, #export h2 { font-size: 13px; margin: 0 0 8px; }
+    table { border-collapse: collapse; font-size: 12px; width: 100%; }
+    td { padding: 2px 4px; }
+    td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+    #export-out { width: 100%; height: 130px; background: #11140c; color: #a8c686; border: 1px solid var(--edge); border-radius: 6px; font-size: 10px; font-family: monospace; }
+    .hint { font-size: 11px; opacity: .65; }
+    .moisture-bad { color: #e0a050; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Kijo — bonsai care loop (2D debug view)</h1>
+    <div id="meta"></div>
+  </header>
+  <div id="layout">
+    <div id="left">
+      <canvas id="tree" width="800" height="600"></canvas>
+      <div class="hint">Prune mode: click a branch to cut it. Trunk is protected. | <a href="/" style="color:#a8c686">← back to 3D care</a></div>
+    </div>
+    <div>
+      <div id="controls">
+        <div class="row" id="newtree">
+          <label>seed <input id="seed" type="number" value="464497" /></label>
+          <select id="species">
+            <option value="hardwood" selected>hardwood</option>
+            <option value="evergreen">evergreen</option>
+            <option value="tropical">tropical</option>
+          </select>
+          <button id="btn-new">New tree</button>
+        </div>
+        <div class="row">
+          <button id="btn-water">Water</button>
+          <button id="btn-fertilize">Fertilize</button>
+          <button id="btn-prune">Prune…</button>
+          <button id="btn-rotate">Rotate 90°</button>
+        </div>
+        <div class="row">
+          <button id="btn-day" class="primary">Advance day ▶</button>
+          <label>× <input id="days-multi" type="number" value="1" min="1" max="30" style="width:56px" /> days</label>
+        </div>
+        <div class="row hint" id="fert-status"></div>
+      </div>
+      <br />
+      <div id="stats">
+        <h2>Derived stats (live)</h2>
+        <div class="hint" id="voxel-count"></div>
+        <table id="stat-table"></table>
+      </div>
+      <br />
+      <div id="export">
+        <h2>Export fighter</h2>
+        <div class="row">
+          <button id="btn-export">Generate fighter JSON</button>
+          <button id="btn-copy">Copy</button>
+        </div>
+        <br />
+        <textarea id="export-out" readonly placeholder="fighter JSON appears here — drop into res://fixtures/ to fight with it"></textarea>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main2d.ts"></script>
+</body>
+</html>

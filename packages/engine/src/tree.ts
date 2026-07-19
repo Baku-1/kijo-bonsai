@@ -1,4 +1,5 @@
 import type { CareAction, SpeciesClass, TreeState } from '@kijo/shared';
+import { round4 } from '@kijo/shared';
 import { nextRand } from './rng.js';
 import { SPECIES } from './species.js';
 
@@ -28,7 +29,7 @@ export function createTree(seed: number, species: SpeciesClass): TreeState {
     fertilizerCooldown: 0,
     rngState: seed | 0,
     branches: [
-      { id: 0, parent: null, depth: 0, angle: 0, length: 8, thickness: 2, pruned: false, children: [] }
+      { id: 0, parent: null, depth: 0, angle: 0, length: 8, thickness: 2, pruned: false, children: [], attachmentY: 0 }
     ]
   };
 }
@@ -117,7 +118,10 @@ export function tick(prev: TreeState): TreeState {
         length: 1,
         thickness: Math.max(0.3, b.thickness * 0.5),
         pruned: false,
-        children: []
+        children: [],
+        // Functional-path fallback: attach at parent tip (depth-2+ rule).
+        // GrowthEngine path applies the one-third rule for depth-1 branches.
+        attachmentY: round4(b.length),
       };
       s.branches.push(child);
       b.children.push(child.id);
