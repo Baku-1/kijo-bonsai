@@ -4,6 +4,7 @@ import { BonsaiTree, GrowthEngine, StatDeriver, StatTerrain } from '@kijo/engine
 import type { SpeciesClass } from '@kijo/shared';
 import { Voxelizer, VoxelRole, Material } from '@kijo/voxelizer';
 import type { SparseVoxelSet } from '@kijo/voxelizer';
+import { mossMat } from './renderer/tree_mesh.js';
 
 // ===========================================================================
 // Kijo 3D care loop — the voxel grid is the truth; this renders it.
@@ -71,13 +72,32 @@ scene.add(fill);
   ground.position.y = -6;
   scene.add(ground);
 }
-// Pot
+// Pot — PBR ceramic material.
 {
-  const g = new THREE.CylinderGeometry(16, 12, 10, 24);
-  const m = new THREE.MeshStandardMaterial({ color: 0x8a4b2d, roughness: 0.9 });
+  const tl = new THREE.TextureLoader();
+  const potBase = tl.load('/textures/Bonsai_LowPoly_Pot_BaseColor.jpg');
+  potBase.colorSpace = THREE.SRGBColorSpace;
+  const potNormal   = tl.load('/textures/Bonsai_LowPoly_Pot_NormalGL.jpg');
+  const potRoughness = tl.load('/textures/Bonsai_LowPoly_Pot_Roughness.jpg');
+  const g = new THREE.CylinderGeometry(16, 12, 10, 32);
+  const m = new THREE.MeshStandardMaterial({
+    map: potBase,
+    normalMap: potNormal,
+    normalScale: new THREE.Vector2(0.8, 0.8),
+    roughnessMap: potRoughness,
+    roughness: 0.85,
+    metalness: 0.0,
+  });
   const pot = new THREE.Mesh(g, m);
   pot.position.y = 0;
   scene.add(pot);
+
+  // Moss soil disc — sits at the top of the pot (y=5 = top rim).
+  const soilGeo = new THREE.CircleGeometry(15.5, 32);
+  const soil = new THREE.Mesh(soilGeo, mossMat);
+  soil.rotation.x = -Math.PI / 2;
+  soil.position.y = 5;
+  scene.add(soil);
 }
 
 // ---------------------------------------------------------------------------
@@ -103,18 +123,52 @@ const ghost = new THREE.Group();
 scene.add(ghost);
 let ghostVisible = true;
 
+// Map populated in the init block below.
+const VOXEL_MATS: Record<number, THREE.MeshStandardMaterial> = {};
+
 // ---------------------------------------------------------------------------
 // Voxel instancing — one InstancedMesh per material, rebuilt after mutations.
 // Stream order: structure (depth ≤2 wood + trunk/root) first, canopy last.
+// PBR textures: trunk/bark share bark maps; leaves get leaf maps; roots/scar
+// stay flat-color (below pot line, rarely visible).
 // ---------------------------------------------------------------------------
-const MATERIAL_COLORS: Record<number, number> = {
-  [Material.HEARTWOOD]: 0x4a3520,
-  [Material.BARK]: 0x6b4f2a,
-  [Material.BRANCH_WOOD]: 0x7a5c33,
-  [Material.LEAF]: 0x5a8f3c,
-  [Material.ROOT]: 0x3d2c1a,
-  [Material.PRUNE_SCAR]: 0x8c8c74,
-};
+{
+  const tl = new THREE.TextureLoader();
+  const srgb = THREE.SRGBColorSpace;
+  const linear = THREE.LinearSRGBColorSpace;
+  const rep = (t: THREE.Texture, rs: THREE.ColorSpace, rS = 2, rT = 4) => {
+    t.colorSpace = rs; t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(rS, rT); return t;
+  };
+  const tBase   = rep(tl.load('/textures/Bonsai_LowPoly_Bonsai_Trunk_BaseColor.jpg'), srgb);
+  const tNormal = rep(tl.load('/textures/Bonsai_LowPoly_Bonsai_Trunk_LowPoly_NormalGL.jpg'), linear);
+  const tAMR    = rep(tl.load('/textures/Bonsai_LowPoly_Bonsai_Trunk_AMR.jpg'), linear);
+  const lBase   = rep(tl.load('/textures/Bonsai_LowPoly_Leaves_BaseColor.jpg'), srgb, 1, 1);
+  const lNormal = rep(tl.load('/textures/Bonsai_LowPoly_Leaves_NormalGL.jpg'), linear, 1, 1);
+  const lRough  = rep(tl.load('/textures/Bonsai_LowPoly_Leaves_Roughness.jpg'), linear, 1, 1);
+
+  // Bark PBR — shared by HEARTWOOD + BARK + BRANCH_WOOD voxel types.
+  const barkMat = new THREE.MeshStandardMaterial({
+    map: tBase, normalMap: tNormal, normalScale: new THREE.Vector2(0.7, 0.7),
+    roughnessMap: tAMR, aoMap: tAMR, roughness: 0.88, metalness: 0.0,
+  });
+  // Leaf PBR.
+  const leafVoxMat = new THREE.MeshStandardMaterial({
+    map: lBase, normalMap: lNormal, normalScale: new THREE.Vector2(0.5, 0.5),
+    roughnessMap: lRough, roughness: 0.75, metalness: 0.0,
+    color: 0x5a8f3c, side: THREE.DoubleSide,
+  });
+  // Flat for root (below soil) and prune scar.
+  const rootMat = new THREE.MeshStandardMaterial({ color: 0x3d2c1a, roughness: 0.95 });
+  const scarVoxMat = new THREE.MeshStandardMaterial({ color: 0x8c8c74, roughness: 0.7 });
+
+  VOXEL_MATS[Material.HEARTWOOD]  = barkMat;
+  VOXEL_MATS[Material.BARK]       = barkMat;
+  VOXEL_MATS[Material.BRANCH_WOOD] = barkMat;
+  VOXEL_MATS[Material.LEAF]       = leafVoxMat;
+  VOXEL_MATS[Material.ROOT]       = rootMat;
+  VOXEL_MATS[Material.PRUNE_SCAR] = scarVoxMat;
+}
 
 const CANOPY_ROLES = new Set<VoxelRole>([VoxelRole.CANOPY, VoxelRole.DIGIT]);
 
@@ -146,10 +200,7 @@ function rebuildVoxels(voxels: SparseVoxelSet): void {
 
   const spawnGroup = (group: Map<number, Array<[number, number, number]>>) => {
     for (const [mat, cells] of group) {
-      const material = new THREE.MeshStandardMaterial({
-        color: MATERIAL_COLORS[mat] ?? 0xffffff,
-        roughness: mat === Material.LEAF ? 0.8 : 0.95,
-      });
+      const material = VOXEL_MATS[mat] ?? new THREE.MeshStandardMaterial({ color: 0xffffff });
       const mesh = new THREE.InstancedMesh(boxGeo, material, cells.length);
       mesh.userData.materialId = mat;
       mesh.count = 0;

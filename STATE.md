@@ -1,6 +1,6 @@
 # KIJO -- Project State
 
-**Last updated:** 2026-07-17 (Task B: StatDeriver role-based refactor complete -- D1-D7 all pass)
+**Last updated:** 2026-07-19 (Texture upgrade: PBR materials applied to both renderers; WireEngine + web app documented)
 
 ---
 
@@ -14,6 +14,7 @@
 | `@kijo/voxelizer` | Built | V1-V9 | All pass (14/14 assertions) |
 | `@kijo/engine` (StatTerrain) | Built | T1-T6 | All pass (7/7 assertions) |
 | `@kijo/engine` (StatDeriver) | ACCEPTED (auditor 2026-07-17) | D1-D7 35/35 | All pass (35/35 assertions) |
+| `@kijo/engine` (WireEngine) | Built (2026-07-19) | W1-W6 | Test file written — gates not yet run |
 
 Stat pipeline (Voxelizer + StatTerrain + StatDeriver): end-to-end complete and auditor-verified.
 
@@ -61,6 +62,15 @@ Stat pipeline (Voxelizer + StatTerrain + StatDeriver): end-to-end complete and a
 - D7 -- Morphology fidelity: arm-heavy (prune id=2 children) -> Power=1399.74 > Endurance=172; leg-heavy (prune id=1 children) -> Endurance=1242.57 > Power=392. Cross-tree Power and Endurance both ordered correctly.
 - NOTE: D7 multi-branch coverage gap deferred to R-ATTACHY task.
 
+**WireEngine W1-W6:** (run via `node packages/engine/test_wire.mjs` from repo root)
+- W1 -- Cannot wire trunk (depth 0)
+- W2 -- Cannot wire depth-2+ (too fragile)
+- W3 -- Thickness limit enforced (WIRE_MAX_THICKNESS exported and > 0)
+- W4 -- Bend applies, clamps to ±WIRE_MAX_ANGLE_DELTA, polar stays in [0.1, 1.4] rad
+- W5 -- Care log records wire; CareLogReplay reconstructs identically
+- W6 -- Thickness-tiered wire cost (thin=1, medium>=2, thick>medium)
+- STATUS: Test file written 2026-07-19. Gates not yet formally run. Export name mismatch (WIRE_MAX_BEND_DEG→WIRE_MAX_ANGLE_DELTA) fixed 2026-07-19 in index.ts.
+
 ---
 
 ## Core Invariant
@@ -71,14 +81,41 @@ Proven through V6 (CareLogReplay roundtrip, 200 days, no prune) and P6 (CareLogR
 
 ---
 
+## Apps Built
+
+### `apps/web` — Care Game Client (Vite + Three.js)
+
+Multi-page app (index.html / index2d.html / index3d.html). All TypeScript compiles clean as of 2026-07-19.
+
+| File | Status | Description |
+|------|--------|-------------|
+| `src/main3d.ts` | Built | 3D voxel viewer: OrbitControls, InstancedMesh voxels, canopy stream, prune raycasting, stat HUD, ghost ideal-path hint, export/copy |
+| `src/main2d.ts` | Built | 2D canvas renderer: recursive branch walk, prune pick, stat panel, export |
+| `src/main.ts` | Built | Entry point |
+| `src/renderer/tree_mesh.ts` | Built | Parametric Three.js mesh builder: tapered cylinders per branch, leaf spheres, prune scars |
+| `src/bridge/care_bridge.ts` | Built | Care action bridge |
+| `src/ui/hud.ts` | Built | HUD component |
+
+**PBR texture upgrade (2026-07-19):**
+- 12 JPG textures copied from `../assets/Bonsai-GLB/` to `apps/web/public/textures/` (~19MB)
+- `tree_mesh.ts`: MeshLambertMaterial → MeshStandardMaterial with BaseColor + NormalGL + AMR maps on trunk/branches; leaf textures with NormalGL + Roughness; moss material exported for pot soil
+- `main3d.ts`: flat-color voxel materials → PBR InstancedMesh materials (bark/leaf/root/scar); pot upgraded from flat clay color → ceramic with BaseColor + NormalGL + Roughness; moss soil disc added at pot top
+- Textures use `SRGBColorSpace` for BaseColor maps, `LinearSRGBColorSpace` for all data maps (normal, roughness, AO)
+
+### `apps/server` — Care Log Service (stub)
+
+`src/index.ts` exists (scaffolded). No meaningful implementation yet.
+
+---
+
 ## Not Yet Built
 
 | Item | Notes |
 |------|-------|
 | `MorphologyMapper` | Voxel regions -> kijo skeleton. See KIJO-ARCHITECTURE.md s2.3 |
-| `web` | Client renderer, care UI, combat interface |
-| `server` | Care log service, day scheduler, combat resolver |
+| `apps/server` | Care log service, day scheduler, combat resolver (stub only) |
 | `contracts` | ERC-721 NFT, delegation, marketplace (chain TBD) |
+| WireEngine W1-W6 gates | Test file written; needs formal run and pass confirmation |
 
 ---
 
@@ -88,6 +125,9 @@ Proven through V6 (CareLogReplay roundtrip, 200 days, no prune) and P6 (CareLogR
 2. ~~Build `StatDeriver`~~ -- Complete (2026-07-17). D1-D6 all pass, 31/31 assertions.
 3. ~~Task A: VoxelRole tagging~~ -- Complete (2026-07-17). V1-V9 all pass, 14/14 assertions.
 4. ~~Task B: StatDeriver refactor~~ -- Complete (2026-07-17). D1-D7 all pass, 35/35 assertions. Role-based counting, mass-ratio approximation retired.
+5. ~~WireEngine~~ -- Built 2026-07-19. Export name fixed. **Run W1-W6 gates to formally accept.**
+6. ~~PBR texture upgrade~~ -- Complete (2026-07-19). Both renderers upgraded.
+7. **Next:** Run W1-W6 wire gates → then `MorphologyMapper`.
 
 ---
 
@@ -99,4 +139,4 @@ Proven through V6 (CareLogReplay roundtrip, 200 days, no prune) and P6 (CareLogR
 | `docs/KIJO-ENGINE-API.md` | Full public API reference for all engine classes |
 | `docs/KIJO-TECH-SPEC.md` | Reconciled constants, formulas, open research register (R6-R19) |
 | `DECISIONS.md` | Append-only log of every architectural decision (read this before coding) |
-| `SESSION-STA
+| `SESSION-START.md` | Quick orientation for new sessions |

@@ -6,7 +6,7 @@ export { BonsaiTree } from './BonsaiTree.js';
 export { GrowthEngine } from './GrowthEngine.js';
 export { CareLogReplay } from './CareLogReplay.js';
 export { PruneEngine } from './PruneEngine.js';
-export { WireEngine, WIRE_MAX_THICKNESS, WIRE_MAX_BEND_DEG } from './WireEngine.js';
+export { WireEngine, WIRE_MAX_THICKNESS, WIRE_MAX_ANGLE_DELTA } from './WireEngine.js';
 export type { WireResult } from './WireEngine.js';
 export { StatTerrain } from './StatTerrain.js';
 export type { TerrainStat } from './StatTerrain.js';
