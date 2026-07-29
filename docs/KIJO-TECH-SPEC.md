@@ -1,8 +1,8 @@
 # KIJO — Spatial Growth Algorithm Technical Spec
 
-**Version:** 0.2 (Reconciled)
-**Date:** July 17, 2026
-**Status:** Active — `shared`, `engine`, `voxelizer` implemented and gate-verified through StatDeriver (G1-G6, P1-P6, V1-V9, T1-T6, D1-D7; see STATE.md and DECISIONS.md)
+**Version:** 0.2
+**Date:** July 14, 2026 (updated July 23, 2026)
+**Status:** In Production — Phase 1 active
 **Parent Document:** KIJO-GDD.md
 
 ---
@@ -230,11 +230,9 @@ function grow_tick(tree, day, seed, conditions):
             extension = (1.2 + rng() * 2.8) * rate * depth_falloff(branch.depth)
             branch.length += extension
             
-            // FORK CHECK — constants reconciled 2026-07-15 (see DECISIONS.md):
-            // the original 16 + depth*7 threshold and 0.38 - depth*0.05 probability
-            // under-branched badly (3 branches in 200 days vs target 15-30).
-            max_length = 8 + branch.depth * 5
-            fork_chance = species_fork_chance * (1.0 - branch.depth * 0.1) * rate
+            // FORK CHECK
+            max_length = 16 + branch.depth * 7
+            fork_chance = max(0, (0.38 - branch.depth * 0.05)) * rate
             
             if branch.length > max_length AND branch.depth < MAX_DEPTH AND rng() < fork_chance:
                 spawn_children(branch, day, rng)
@@ -680,6 +678,141 @@ function apply_growth_boost(branch, rng, conditions):
 
 ---
 
+## 7.3 Wire, Twine, and Weight Mechanics
+
+### Wire Lifecycle
+
+```
+function applyWire(tree, branchId, angle, day):
+    branch = find(tree, branchId)
+    if branch.depth != 1: return ERROR  // depth-1 only
+    if abs(angle) > 0.785: return ERROR  // ±45° = π/4 radians max
+    branch.wired = true
+    branch.wireAppliedDay = day
+    branch.wireAngle = angle
+    branch.angle += angle  // immediate bend
+    log(WIRE_APPLY, day, branchId, angle)
+
+function removeWire(tree, branchId, day):
+    branch = find(tree, branchId)
+    monthsWired = (day - branch.wireAppliedDay) / 30  // game months
+    if monthsWired < 6:
+        // Too early — branch springs back
+        springBackRate = 1.0 - (monthsWired / 6)  // 100% at day 0, 0% at month 6
+        branch.angle -= branch.wireAngle * springBackRate
+    else if monthsWired <= 12:
+        // Perfect window — bend sets permanently
+        branch.wireSet = true
+    // >12 months: already scarred by processWireTick
+    branch.wired = false
+    log(WIRE_REMOVE, day, branchId)
+
+function processWireTick(tree, currentDay):
+    for each wired branch:
+        monthsWired = (currentDay - branch.wireAppliedDay) / 30
+        if monthsWired > 12 AND NOT branch.wireScarred:
+            branch.wireScarred = true
+            // Wire cuts into bark — permanent cosmetic damage
+            // Flower Guild Rank penalty applied during match% calculation
+```
+
+### Twine Lifecycle
+
+```
+function applyTwine(tree, branchId, angle, day):
+    if abs(angle) > 0.35: return ERROR  // ±15-20° max
+    branch.twined = true
+    branch.twineAppliedDay = day
+    branch.twineAngle = angle
+    branch.angle += angle
+    log(TWINE_APPLY, day, branchId, angle)
+
+function processTwineTick(tree, currentDay):
+    for each twined branch:
+        daysApplied = currentDay - branch.twineAppliedDay
+        degradeWindow = 10 + seededRandom(branch.id, 0, 5)  // 10-15 days
+        if daysApplied > degradeWindow:
+            // Twine degrading — branch springs back ~1° per day
+            springBack = min(abs(branch.twineAngle), 0.017)  // ~1° in radians
+            branch.angle -= sign(branch.twineAngle) * springBack
+            branch.twineAngle -= sign(branch.twineAngle) * springBack
+            if abs(branch.twineAngle) < 0.01:
+                branch.twined = false  // fully sprung back
+```
+
+### Weight Mechanics
+
+```
+function applyWeight(tree, branchId, day):
+    branch = find(tree, branchId)
+    branch.weighted = true
+    // Weight pulls downward only — modifies angle toward vertical (π/2 or -π/2)
+    // Max pull: 35% of wire's max arc ≈ 0.275 radians (~15.75°)
+    maxPull = 0.275
+    // Gradual: weight effect increases over time during growth ticks
+    log(WEIGHT_APPLY, day, branchId)
+
+function processWeightGrowth(branch, growthTick):
+    if branch.weighted:
+        // Each growth tick, branch angle shifts slightly downward
+        downwardShift = 0.005  // ~0.3° per tick, gradual
+        // Clamp to max pull
+        totalPull = accumulated downward shift
+        if totalPull < maxPull:
+            branch.angle += downwardShift toward vertical
+```
+
+> **TODO — RESEARCH:** Weight set timing.
+> - Does a weight eventually "set" the branch like wire does? After how long?
+> - Real bonsai: weights can be left indefinitely (gravity doesn't scar)
+> - Suggest: weights set after ~60 game days (2 months), no scarring ever
+
+---
+
+## 7.4 Technique Classification
+
+```
+function classifyTechnique(careLog):
+    wireCount = count(careLog, type == WIRE_APPLY)
+    pruneCount = count(careLog, type == PRUNE)
+    jinCount = count(careLog, type == JIN_STRIP)
+    landscapeCount = count(careLog, type == LANDSCAPE_PLACE)
+    // Note: TWINE_APPLY and WEIGHT_APPLY do NOT count as wire
+
+    // Primary technique
+    if wireCount == 0 AND pruneCount > 0:
+        primary = CLIP_AND_GROW
+    else if wireCount > 0 AND pruneCount > 0:
+        primary = BOUND_AND_CUT
+    else:
+        primary = BOUND_AND_CUT  // default
+
+    // Overlays
+    overlays = []
+    if jinCount >= 1:
+        overlays.push(JIN)
+    if landscapeCount >= 3:  // threshold: at least 3 elements
+        overlays.push(WATER_AND_LAND)
+
+    return { primary, overlays }
+
+function isFirstQualification(careLog, technique):
+    // Check if the MOST RECENT action caused first qualification
+    // Used to trigger the spirit resonance notification once
+    logWithoutLast = careLog[0..length-2]
+    prevClassification = classifyTechnique(logWithoutLast)
+    currClassification = classifyTechnique(careLog)
+    return technique NOT in prev AND technique IN curr
+```
+
+> **R22 — Clip-and-Grow qualification thresholds:**
+> First-pass values (lock after simulation confirms they feel right):
+> - Age ≥ 30 game days AND prune count ≥ 2 AND wire count == 0
+> - This ensures the commitment is real (30 days of no wire + at least 2 deliberate cuts), not accidental (a Day-3 tree with 1 prune and 0 wire is just new, not Lingnan)
+> - Run simulation: grow 100 trees to Day 60, apply random care patterns, confirm Clip-and-Grow fires for ~15-25% of trees that happen to never wire — if it's much higher, the threshold is too loose; if near 0%, too strict
+
+---
+
 ## 8. Performance Considerations
 
 ### 8.1 Voxelization Cost
@@ -762,25 +895,31 @@ The care log must contain EVERY input needed to reconstruct the tree:
 
 | # | Question | Priority | Section |
 |---|---|---|---|
-| R1 | Spatial hash function selection and uniformity testing | HIGH | 2.3 |
-| R2 | Neutral coordinate percentage (25-35% hypothesis) | MEDIUM | 2.4 |
+| R1 | Spatial hash function selection and uniformity testing | ✓ RESOLVED | 2.3 |
+| R2 | Neutral coordinate percentage (1/6 natural, accepted) | ✓ RESOLVED | 2.4 |
 | R3 | Stat distribution weighting across terrain | MEDIUM | 2.5 |
-| R4 | Parametric curves for all 8 bonsai styles | HIGH | 3.2 |
+| R4 | Parametric curves for all 8 bonsai styles (Chokkan only implemented) | HIGH | 3.2 |
 | R5 | Style blending (single style vs weighted blend per seed) | MEDIUM | 3.2 |
-| R6 | Proximity curve steepness tuning | HIGH | 3.3 |
-| R7 | Ideal region size for match % denominator | HIGH | 3.4 |
+| R6 | Proximity curve steepness tuning (first-pass values shipped) | ✓ RESOLVED (tuning deferred) | 3.3 |
+| R7 | Ideal region size for match % denominator (dist<10 shipped) | ✓ RESOLVED (tuning deferred) | 3.4 |
 | R8 | Species-specific growth parameter tables | HIGH | 4.3 |
-| R9 | Depth falloff curve shape (linear vs exponential) | MEDIUM | 4.4 |
+| R9 | Depth falloff curve shape (linear shipped, exponential candidate) | MEDIUM | 4.4 |
 | R10 | Rotation influence strength | LOW | 4.5 |
-| R11 | Heartwood vs bark voxel distinction necessity | LOW | 5.2 |
+| R11 | Heartwood vs bark voxel distinction (decoupled — material=render, role=morphology) | ✓ RESOLVED | 5.2 |
 | R12 | Leaf cluster shape per species | MEDIUM | 5.3 |
 | R13 | Root system complexity and style interaction | LOW | 5.4 |
-| R14 | Structural stat multiplier values and scaling curves | HIGH | 6.1 |
+| R14 | Structural stat multiplier values and scaling curves (first-pass shipped, tuning needed) | HIGH | 6.1 |
 | R15 | Prune energy redistribution balance | HIGH | 7.2 |
 | R16 | Voxelization: per-tick vs on-demand | MEDIUM | 8.1 |
 | R17 | Match % computation efficiency | MEDIUM | 8.3 |
 | R18 | Fixed-point vs floating-point determinism | CRITICAL | 9.1 |
 | R19 | Care log format and reconstruction strategy | HIGH | 9.2 |
+| R20 | Wire scar Flower Guild Rank penalty magnitude | MEDIUM | 7.3 |
+| R21 | Weight set timing (how long before gravity sets the branch?) | MEDIUM | 7.3 |
+| R22 | Clip-and-Grow qualification thresholds (min age + prune count) | MEDIUM | 7.4 |
+| R23 | Twine degradation window variability (10-15 days, seeded?) | LOW | 7.3 |
+| R-ATTACHY | Add explicit attachmentY to Branch via one-third bonsai rule | ✓ RESOLVED (2026-07-20) | 4.6 |
+| R-VOXMEM | Per-voxel branchId footprint (included, ~3 bytes/voxel cost) | ✓ RESOLVED | 5.2 |
 
 ---
 

@@ -1,0 +1,26 @@
+{
+  "name": "@kijo/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:saigon": "hardhat deploy --network saigon",
+    "deploy:ronin": "hardhat deploy --network ronin",
+    "verify:saigon": "hardhat sourcify --network saigon",
+    "verify:ronin": "hardhat sourcify --network ronin",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@openzeppelin/contracts": "5.0.2",
+    "@types/node": "^20.0.0",
+    "dotenv": "^16.4.0",
+    "hardhat": "^2.22.0",
+    "hardhat-deploy": "^0.12.0",
+    "hardhat-deploy-ethers": "^0.4.2",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}

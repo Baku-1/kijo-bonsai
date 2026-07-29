@@ -1,4 +1,5 @@
 import type { SpeciesClass, CareLogEntry } from '@kijo/shared';
+import { WATER_AMOUNT } from '@kijo/shared';
 import { BonsaiTree } from './BonsaiTree.js';
 import { GrowthEngine } from './GrowthEngine.js';
 import { PruneEngine } from './PruneEngine.js';
@@ -24,7 +25,7 @@ export class CareLogReplay {
       for (const entry of careLog) {
         if (entry.day === day) {
           const a = entry.action;
-          if (a.type === 'water') tree.water(30);
+          if (a.type === 'water') tree.water(WATER_AMOUNT);
           else if (a.type === 'fertilize') tree.fertilize();
           else if (a.type === 'rotate') tree.rotate();
           else if (a.type === 'prune') PruneEngine.prune(tree, a.branchId);

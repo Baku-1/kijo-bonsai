@@ -5,6 +5,10 @@ import { SPECIES } from './species.js';
 
 export const MAX_DEPTH = 6;
 const FORK_LENGTH_THRESHOLD = 6;
+// Minimum trunk length before first depth-1 fork -- mirrors GrowthEngine constant.
+// Enforces one-third / bare-lower-third rule (KIJO-TECH-SPEC s4.6, DECISIONS.md 2026-07-18).
+// Flagged for playtest tuning.
+const MIN_TRUNK_FOR_FIRST_BRANCH = 20;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -98,6 +102,15 @@ export function tick(prev: TreeState): TreeState {
     b.length += growth * depthFalloff * 4;
 
     if (b.depth >= MAX_DEPTH || b.length <= FORK_LENGTH_THRESHOLD) continue;
+
+    // One-third rule (KIJO-TECH-SPEC s4.6): count existing depth-1 branches for trunk.
+    // Suppress first depth-1 fork until trunk is long enough -- mirrors GrowthEngine.extendAndFork.
+    // See DECISIONS.md 2026-07-18 and 2026-07-20.
+    const existingD1 = b.depth === 0
+      ? s.branches.filter(br => br.depth === 1 && !br.pruned).length
+      : -1;
+    if (b.depth === 0 && existingD1 === 0 && b.length < MIN_TRUNK_FOR_FIRST_BRANCH) continue;
+
     const p = sp.forkChance * cond * (1 - b.depth / (MAX_DEPTH + 1));
     let r = nextRand(s.rngState);
     s.rngState = r.state;
@@ -110,6 +123,11 @@ export function tick(prev: TreeState): TreeState {
       r = nextRand(s.rngState);
       s.rngState = r.state;
       const side = i === 0 ? 1 : -1;
+      // depth-1 primary child when it is the first ever: one-third rule (mirrors GrowthEngine).
+      // All other children (secondary depth-1, depth-2+): attach at parent tip.
+      const attachmentY = (b.depth === 0 && i === 0 && existingD1 === 0)
+        ? round4(b.length * 0.33)
+        : round4(b.length);
       const child = {
         id: s.branches.length,
         parent: b.id,
@@ -119,9 +137,7 @@ export function tick(prev: TreeState): TreeState {
         thickness: Math.max(0.3, b.thickness * 0.5),
         pruned: false,
         children: [],
-        // Functional-path fallback: attach at parent tip (depth-2+ rule).
-        // GrowthEngine path applies the one-third rule for depth-1 branches.
-        attachmentY: round4(b.length),
+        attachmentY,
       };
       s.branches.push(child);
       b.children.push(child.id);

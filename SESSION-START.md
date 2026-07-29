@@ -2,7 +2,7 @@
 
 Every new session — no exceptions.
 
-1. Read `docs/GDD.md` — understand what we're building and why before touching any code
+1. Read `../docs/GDD.md` (i.e. `kijo/docs/GDD.md`, the parent folder) — understand what we're building and why before touching any code. Note: the authoritative docs are in `kijo/docs/`, NOT `kijo/kijo-bonsai/docs/`.
 2. Read `STATE.md` — know what's built, what's not, and the current next task pointer
 3. Read `DECISIONS.md` — every architectural decision is here; never contradict or re-litigate without explicit instruction
 4. Read the README for the package you'll be working in (shared / engine / voxelizer / etc.)

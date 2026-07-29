@@ -134,6 +134,7 @@ export function round4(x: number): number {
 
 export const GRID_SIZE = 256;
 export const MAX_DEPTH = 6;
+export const WATER_AMOUNT = 28;  // GDD s3.2 — one watering can
 
 // ---------------------------------------------------------------------------
 // Species parameters

@@ -56,6 +56,17 @@
     #page-links a { font-size: 11px; color: var(--ink); background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 4px 8px; text-decoration: none; }
     #page-links a:hover { border-color: var(--accent); }
 
+    /* --- Wallet bar (injected by WalletBar.tsx portal) --- */
+    #wallet-bar {
+      display: flex; align-items: center; gap: 10px; margin-left: auto;
+    }
+    .wallet-btn {
+      font-size: 13px; padding: 6px 14px; min-height: 32px; min-width: auto;
+      background: #EAF2E0; border-color: var(--accent);
+    }
+    .wallet-addr { font-size: 12px; font-family: monospace; opacity: 0.8; }
+    .wallet-chain { font-size: 11px; opacity: 0.6; }
+
     @media (max-width: 480px) {
       .bar { width: 72px; }
       #hud-top { gap: 8px; font-size: 12px; }
@@ -64,31 +75,7 @@
   </style>
 </head>
 <body>
-  <div id="scene-container"></div>
-
-  <div id="hud-top">
-    <h1>Kijonsai</h1>
-    <div class="stat">💧 <div class="bar"><div id="moisture-fill"></div></div></div>
-    <div class="stat">🌱 <div class="bar"><div id="health-fill"></div></div></div>
-    <div class="stat" id="day-label">Day 0</div>
-    <div class="stat" id="season-label">Spring</div>
-    <div id="warning"></div>
-  </div>
-
-  <div id="hud-bottom">
-    <div id="buttons">
-      <button id="btn-water">💧 Water</button>
-      <button id="btn-next-day" class="primary">☀️ Next Day</button>
-      <button id="btn-auto">▶ Auto</button>
-    </div>
-    <div id="info-line">Seed #— · — branches · —</div>
-  </div>
-
-  <nav id="page-links">
-    <a href="/index3d.html">voxel view</a>
-    <a href="/index2d.html">2d debug</a>
-  </nav>
-
-  <script type="module" src="/src/main.ts"></script>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

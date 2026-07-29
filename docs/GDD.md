@@ -1,21 +1,29 @@
 # KIJO — Game Design Document
 
-**Version:** 0.1 (Draft)
-**Date:** July 13, 2026
+**Version:** 0.2
+**Date:** July 13, 2026 (updated July 23, 2026)
 **Author:** Jeremy Gordon / Kingdom Koders
-**Status:** Pre-Production
+**Status:** In Production — Phase 1 active (Saigon testnet)
 
 ---
 
 ## 1. Vision
 
-Kijo is a dual-loop blockchain game where players grow bonsai trees over real time, then awaken the tree spirits (kijo) within them for tactical combat. The bonsai's care history deterministically generates the kijo's stats, appearance, and fighting style. No two kijo are alike because no two trees are cared for the same way.
+### The Premise
 
-The core thesis: **patience is power.** A tree grown with intention over months produces a fundamentally stronger spirit than one speed-grown with fertilizer. The art, the stats, and the provenance are the same object.
+A kijonsai is not a tree that produces a fighter. **The kijonsai IS the kijo.** A divine spirit sleeps inside every imbued seed, waiting to be released. The tree is her body before she awakens. Every drop of water nourishes the sleeping spirit. Every cut of the shears sculpts the body she'll fight in. Every day of patience deepens her wisdom. The way the kijonsai is cared for determines the kijo's spirit — her strength, her form, her fighting style, and her will.
 
-**Target Audience:** Intersection of idle/casual sim players (care loop) and tactical PvP players (combat loop). Delegation bridges these into a single economy.
+When she finally awakens, she is exactly what her caretaker made her. Not randomly generated. Not stat-rolled. Grown.
 
-**Chain Strategy:** Chain-portable from day one. Initial deployment TBD. Smart contracts designed for EVM compatibility with no chain-specific dependencies.
+### The Game
+
+Kijo is a dual-loop blockchain game where players tend kijonsai over real time, shaping the divine spirits within them through daily care, then awaken those spirits for combat. The kijo's stats, appearance, combat archetype, and fighting style are deterministically derived from the care history — the same parametric tree, the same voxel grid, the same stat terrain. No two kijo are alike because no two trees are cared for the same way.
+
+The core thesis: **patience is power.** A kijonsai tended with intention over months produces a fundamentally stronger spirit than one speed-grown with fertilizer. The art, the stats, and the provenance are the same object.
+
+**Target Audience:** Intersection of idle/casual sim players (care loop) and competitive PvP players (combat loop). Delegation bridges these into a single economy.
+
+**Chain:** Ronin mainnet (L2 EVM). SLP integration approved by Sky Mavis as a burn sink for combat morale recovery.
 
 ---
 
@@ -25,11 +33,13 @@ The core thesis: **patience is power.** A tree grown with intention over months 
 
 Yama-no-Kami, the mountain god of forests and harvests, rode through the glades between the mortal world and the spirit realm. In his passing, seeds fell from his satchel — divine seeds carrying the potential for spirits within them. Each seed holds a fragment of the mountain god's domain: the patience of stone, the fury of storms, the quiet growth of roots through rock.
 
-A penjing master named **Gu Ahao** found the seeds scattered across the glade floor. Where any other mortal would have seen ordinary seeds, Gu Ahao recognized their divine origin — because he had spent his life reading the language of bark and branch. A revolutionary figure from Suzhou, he had invented the "tied and cut" technique: using iron wire and precise pruning to recreate the brushstrokes of classical landscape paintings on living trees. The Flower Guild adopted his methods as the ultimate standard for grading luxury trees. He was the greatest living authority on how a tree should grow.
+A penjing master named **Gu Ahao** found the seeds scattered across the glade floor. Where any other mortal would have seen ordinary seeds, Gu Ahao recognized their divine origin — because he had spent his life shaping living wood into ideal forms. He had studied under all three great schools: the **Yangzhou School's** flat-bough cloud styling with palm fiber ties, the **Sichuan School's** dramatic twisted trunks shaped by precise tie-downs, and the **Lingnan School's** strict clip-and-grow method that rejected wire entirely. He carried the knowledge of every tradition and the conviction that the art of shaping trees was the closest a mortal could come to divine creation.
 
-**Gu Ahao** is the game's storefront. He does not sell seeds as a merchant — he offers them as a master seeking students. He knows exactly what these seeds are and what sleeps inside them. He recognized the divine nature because his entire craft was the art of shaping living wood into its ideal form. The seeds are his test: can mortal hands grow what a god planted? His "tied and cut" technique — iron wire and precise pruning — IS the game's pruning mechanic. Players are literally learning the master's own methods.
+> *Note: Gu Ahao is a fictional character. He is not a historical figure. His techniques and knowledge are grounded in the real penjing/bonsai traditions of the Yangzhou, Sichuan, and Lingnan Schools, which are historically documented. The three schools and their methods are real; the master who synthesized them is the game's creation.*
 
-The ideal growth path in the stat terrain is not arbitrary math — it is the brushstroke pattern Gu Ahao established as the definition of mastery. When the match percentage system measures how closely a tree matches its ideal form, it is asking: how close did this caretaker come to the standard the master set? The Flower Guild graded luxury trees against his techniques. The game grades kijonsai the same way, algorithmically, verifiably, on-chain.
+**Gu Ahao** is the game's storefront and tutorial guide. He does not sell seeds as a merchant — he offers them as a master seeking students. He knows exactly what these seeds are and what sleeps inside them. The seeds are his test: can mortal hands tend what a god planted? During the tutorial, he demonstrates basic wiring on a sample tree, teaches the three schools and their technique bonuses, and gives the player their first shear. After the tutorial, he remains as the storefront where imbued seeds, shears, wire, and other tools are purchased.
+
+The Flower Guild's grading tradition — where guild masters evaluated trees against established aesthetic standards — is the historical basis for the game's **Flower Guild Rank** system. The match percentage measures how closely a kijonsai matches the ideal growth form for its seed, graded algorithmically, verifiably, on-chain.
 
 ### 2.2 The Kijo
 
@@ -102,9 +112,55 @@ Players begin by selecting a **species** and **seed**. The seed is a determinist
 
 Species is a permanent choice. It determines the growth curve, seasonal behavior, bark and leaf aesthetics, and the kijo's base fighting style. It does not determine power ceiling — that comes from care.
 
+### 3.1.1 Care Technique — the Second Axis
+
+Species determines WHAT the tree is. Technique determines HOW it was raised. Together they define the kijo's full combat identity: **Species × Technique = Archetype.**
+
+Technique is NOT selected at planting — it **emerges from the caretaker's actions over time.** The system classifies a tree's technique from its care log: did the caretaker use both wire and shears? Only shears? Did they strip bark? Did they add landscape elements? The technique is descriptive, not prescriptive — it reads what the caretaker actually did, not what they declared.
+
+Each technique is grounded in a real historical penjing/bonsai tradition:
+
+| Technique | Historical Origin | Care Pattern | Combat Archetype | Kijo Fighting Style |
+|---|---|---|---|---|
+| **Bound-and-Cut** | Traditional combined method | Uses BOTH wire and shears. Balanced shaping. | **Balanced** | Moderate stats across the board, no exploitable weakness. Adaptable, well-rounded. The jack-of-all-trades. |
+| **Absolute Clip-and-Grow** | Lingnan School | Uses ONLY shears, NEVER wire. Hard prune, let it burst back. | **High-Crit** | Low sustained damage but devastating critical hits. Jagged, explosive power spikes from regrowth patterns. Wild, aggressive silhouette. |
+| **Trunk Splitting / Jin** | Deadwood technique (jin/shari) | Strips bark to create exposed deadwood. Deliberate structural damage that hardens. | **Defensive** | High Defense and Endurance. Fights by absorbing punishment and outlasting. Exposed heartwood = hardened interior. Scarred, weathered, unkillable. |
+| **Water-and-Land Landscape** | Shanshui penjing (landscape composition) | Adds rocks, water features, moss, ceramic decorations around the tree. | **None (care-loop only)** | The tree can still awaken a kijo, but the landscape elements are display-only. This is the pure aesthetic/collector path — the Exhibition feature. |
+
+**How technique classification works:**
+
+The system reads the care log and classifies based on action ratios:
+
+- **Bound-and-Cut:** wire uses > 0 AND prune uses > 0, with a roughly balanced ratio. The caretaker used both tools.
+- **Clip-and-Grow:** prune uses ≥ 2 AND wire uses == 0 AND age ≥ 30 game days. The caretaker NEVER used wire — a philosophical commitment, not just an oversight. A single wire use at any point permanently disqualifies Clip-and-Grow classification. The technique rewards conviction. The minimum thresholds (2 prunes, 30 days) ensure this is a real commitment, not a Day-3 tree that simply hasn't encountered wire yet. Twine and weights do NOT count as wire — they use natural force, consistent with the Lingnan School's rejection of metal shaping.
+- **Jin:** jin/bark-stripping actions > threshold. Requires a new premium tool: **jin pliers** (strips bark from a branch section, converts bark voxels to hardened deadwood voxels with a Defense bonus). A tree can be both Jin AND Bound-and-Cut or Clip-and-Grow — Jin is an overlay technique, not exclusive.
+- **Water-and-Land:** landscape element count > threshold. Rocks, water features, or decorations placed around the tree. This is additive — any tree can have landscape elements regardless of its other technique.
+
+**Why technique emerges rather than being chosen:**
+
+A player who buys shears and wire and uses both discovers they're Bound-and-Cut. A player who refuses to ever buy wire and only prunes discovers they're Clip-and-Grow. The game doesn't ask "which technique do you want?" — it watches what you do and names what you became. This rewards informed players who research the traditions and make deliberate choices, while casual players naturally land in Bound-and-Cut (the default when you use both tools).
+
+**Technique Discovery Notification:**
+
+When a player first qualifies for a non-default technique, the kijo's spirit stirs — a one-time notification, voiced as the spirit responding to how she was raised:
+
+- **Clip-and-Grow** (at age ≥ 30 days with ≥ 2 prunes and zero wire uses): *"Your kijo's spirit resonates with divine power. Your kijonsai has never known wire."*
+- **Jin** (on first jin pliers use): *"Your kijo's heart hardens where the bark was stripped. Strength grows from the wound."*
+- **Water-and-Land** (on first landscape element placed): *"Your kijo's body settles into the landscape. She is no longer just a tree — she is a world."*
+
+The notification isn't the game announcing a classification. It's the spirit FEELING the caretaker's approach and responding. The kijo is divine — her heart, body, and strength resonate differently based on how she was tended. A kijo who has never known wire grew free; her spirit burns hotter for it. A kijo whose bark was stripped hardened where she was wounded; her body carries that toughness into combat. A kijo surrounded by rocks and water found peace; her spirit is rooted in something larger than herself.
+
+Bound-and-Cut is the default — it never triggers a notification because most players arrive there naturally. The discovery notifications only fire for non-default techniques, and they only fire ONCE. No prior hint that technique classification exists. The player was just caring for their tree, and the spirit stirred.
+
+This also functions as organic community content. A player who sees the spirit resonance message posts it. Others ask "how did you get that?" The answer — "never use wire" — spreads through the playerbase as discovered knowledge, not documented rules.
+
+**Technique × Species grid (12 combat archetypes from 3 species × 4 techniques):**
+
+A Hardwood raised Clip-and-Grow is a brawler with crit spikes — tanky AND explosive on the right hit. A Tropical raised Jin is a glass cannon with hardened deadwood armor — fragile on the outside but the exposed heartwood absorbs key blows. These cross-combinations create build diversity that players discover through care choices, not character creation menus.
+
 ### 3.2 Daily Care Actions
 
-Care operates on a **real-time day cycle** (24-hour clock, adjustable via subscription — see Section 7). Each day the tree ticks forward, moisture decays, and growth occurs based on current conditions.
+Care operates on a **real-time day cycle** (1 game day = 8 real hours, adjustable via subscription — see Section 7). Each day the tree ticks forward, moisture decays, and growth occurs based on current conditions.
 
 **Free Actions (unlimited):**
 
@@ -112,17 +168,44 @@ Care operates on a **real-time day cycle** (24-hour clock, adjustable via subscr
 
 - **Rotate** — Rotates the tree 90°. Simulates light exposure. Affects directional growth bias (branches on the "sun side" grow slightly faster). Regular rotation produces balanced canopy. Neglecting rotation produces asymmetric growth — which is not necessarily bad. Some bonsai styles (slant, windswept) deliberately grow asymmetric.
 
+- **Twine (tie — free tier)** — natural fiber binding. Bends a branch's growth angle up to **±15-20°** from its natural direction. Degrades over time — the bend holds for 10-15 game days, then the branch slowly springs back toward its original angle unless twine is re-applied. Available to ALL players including guests. This is the beginner's directional tool: some control, impermanent, needs maintenance. A free player using twine can meaningfully shape their tree — they just can't bend as far as wire, and they have to keep re-applying. Twine marks appear as thin natural fiber wrapping (visually distinct from metal wire marks). Twine does NOT penalize Flower Guild Rank (it's natural material, consistent with traditional technique). Twine counts as "binding" for technique classification — a player who uses twine + shears is Bound-and-Cut, same as wire + shears.
+
+- **Weights (free/cheap tier)** — small stones or weight bags attached to a branch via twine, using gravity to pull the branch downward. Cheaper than wire, simpler to use, but **only bends downward** (gravity-dependent — you can't hang a weight upward). Allows twine to achieve up to **35% of wire's maximum bend arc** (~15-16° downward, compared to wire's full ±45° in any direction). The weight stays attached until the caretaker removes it. Over time, the downward bend gradually sets (similar to wire timing but slower — the branch adapts to the pull). Combined with twine: twine attaches the weight to the branch, the weight provides the sustained downward force. A free player with twine + weights can create the classic cascading branch (Kengai style) slowly and cheaply. Weights do NOT count as "wire" for technique classification — a player using only twine, weights, and shears is still Clip-and-Grow eligible, since weights use natural force (gravity), not metal shaping.
+
 **Premium Actions (consumable, purchased) — Gu Ahao's "Tied and Cut" Toolkit:**
 
 The master's two techniques are the caretaker's two precision tools. Cut removes. Tie redirects. Together they are how a kijonsai is sculpted from raw growth into deliberate form.
 
 - **Prune / Shears (cut)** — 3–5 uses per shears item. Permanently removes a branch and all sub-branches. A prune scar remains visible on the trunk. Pruned branches never regrow. Pruning redirects growth energy to surviving branches (they grow faster/thicker after a cut). This is destructive precision — you lose voxels (lose raw stats) but gain focused growth in the surviving structure. Premium because every cut is permanent and reshapes all future growth. The "cut" in tied-and-cut.
 
-- **Wire (tie)** — 3–5 uses per wire item. Permanently bends a branch's growth angle without removing it. The branch keeps all its voxels (no stat loss) but its future growth direction changes — it now grows into a different region of the 256³ stat terrain, picking up different terrain bonuses. This is constructive precision — you sacrifice nothing but change where the tree aims. A caretaker who knows their seed's terrain uses wire to steer a promising branch toward a high-value stat cluster it would have missed naturally. The "tied" in tied-and-cut.
+- **Wire (tie)** — 3–5 uses per wire item. Bends a branch's growth angle up to ±45° from its natural direction. The branch keeps all its voxels (no stat loss) but its future growth direction changes — it now grows into a different region of the 256³ stat terrain, picking up different terrain bonuses. This is constructive precision — you sacrifice nothing but change where the tree aims. A caretaker who knows their seed's terrain uses wire to steer a promising branch toward a high-value stat cluster it would have missed naturally. The "tied" in tied-and-cut.
 
-  Wire constraints: can only bend branches up to ~45° from their natural angle (more extreme bends would snap a real branch). The bend is permanent — the branch grows in the new direction from that point forward. Wire marks remain visible on the branch (thin line wrapping the bend point, like real bonsai wire). Cannot wire the trunk (too thick). Cannot wire depth-2+ branches (too thin — they'd break). Depth-1 branches only.
+  **Wire timing (matches real bonsai practice):**
+
+  Wire is NOT permanent on application — it's applied, monitored, and removed at the right time:
+
+  | Removal Timing | Result | Consequence |
+  |---|---|---|
+  | **Too early (<6 months)** | Branch springs back partially or fully | Wire wasted — the bend didn't set. Branch returns toward its original angle over subsequent growth ticks. |
+  | **Right time (6–12 months)** | Branch has "set" — bend is permanent | Clean result. No scarring. Wire marks fade. The branch grows in the new direction permanently. |
+  | **Too late (>12 months)** | Wire cuts into growing bark | Permanent wire scarring at the contact points. Flower Guild Rank penalty (aesthetic damage). The bend IS permanent, but at a cosmetic cost. |
+  | **Never removed** | Wire embedded in bark | Heavy scarring, significant rank penalty. The kijo carries the wire marks as visible scars on her body. |
+
+  This adds a tending dimension to wire: it's not set-and-forget, it's set-and-monitor. The caretaker must remember to check their wired branches and remove wire at the right window. This creates another reason to check on the tree regularly — is the wire ready to come off? Did I miss the window?
+
+  Wire removal is a free action (no consumable cost — you're just unwinding what you applied). The cost is attention and timing, not money.
+
+  Wire constraints: can only bend branches up to ~45° from their natural angle (more extreme bends would snap a real branch). Cannot wire the trunk (too thick). Cannot wire depth-2+ branches (too thin — they'd break). Depth-1 branches only. Wire thickness should be ~1/3 of the branch diameter being wired (thinner wire on thinner branches — enforced automatically).
 
   Stat implications: wire doesn't change total voxel count (same raw power), but it changes WHICH coordinates future voxels fill. A wired branch might move from a NEUTRAL-heavy terrain region into an HP-heavy one — or vice versa. The caretaker is navigating the stat terrain by steering the tree's growth direction. Shears navigate by removing obstacles. Wire navigates by changing course.
+
+  **Gu Ahao's Signature Wire Techniques** (advanced wire variants, higher skill/cost tiers):
+
+  - **Guy-Wire** — instead of bending a branch at its midpoint, a guy-wire PULLS a branch toward an anchor point. The caretaker selects a branch and then selects a target coordinate — the branch gradually curves toward that point over subsequent growth ticks. This is directional precision: "pull this branch toward (x, y, z)" rather than "rotate 30°." A caretaker who has mapped their seed's stat terrain can anchor a branch directly toward a high-value cluster. Higher cost per use than standard wire. Produces a gradual arc rather than a sharp bend — visually distinct and aesthetically valued by the Flower Guild Rank system.
+
+  - **Dual-Branch Tie** — one wire use, two branches shaped simultaneously. The caretaker selects two alternating depth-1 branches (one left, one right of the trunk — cannot pair two branches on the same side) and a single continuous wire shapes both. More efficient (one consumable, two results) but requires structural understanding: the two branches' new angles must be complementary. If both are pulled toward the same region, they compete for the same stat terrain. A skilled caretaker pairs them to cover two different high-value zones. Reduces wire cost for experienced players who think in branch pairs.
+
+  - **Bark Protection (Raffia Wrap)** — standard wire leaves visible wire marks at the bend point (thin line wrapping the branch). These marks are cosmetic — they don't reduce stats — but they DO reduce **Flower Guild Rank**. Wire scarring counts as imperfect aesthetic execution, lowering match %. Bark Protection is a modifier applied BEFORE wiring: the caretaker wraps the branch in protective raffia fiber, then applies the wire. The bend still happens, the growth still redirects, but NO wire mark remains — the bark heals cleanly. Cost: an additional consumable (raffia wraps, sold alongside wire). A master caretaker chasing Exhibition or Master Work rank uses protection on every wire to keep the aesthetic score clean. A player who doesn't care about rank skips it and saves money. This creates a meaningful economic choice between cheap wire (bend + scar + rank penalty) and protected wire (bend + clean bark + rank preserved, costs more).
 
 - **Fertilize (Fertilizer)** — 1–3 uses per fertilizer item. Provides a multi-day growth multiplier (~1.7x for 5 days). Cooldown of 8 days prevents stacking. Fertilizer accelerates growth without changing its character — the tree grows faster but in the same pattern it would have grown anyway. Over-fertilizing (if cooldown is bypassed via multiple items) causes "burn" — health penalty.
 
@@ -134,8 +217,14 @@ The master's two techniques are the caretaker's two precision tools. Cut removes
 |---|---|---|---|---|---|
 | Water | Sustain | Indirectly (enables growth) | No control | Free | Low — just stay in the sweet spot |
 | Rotate | Bias | No change | Slight light-side bias | Free | Low-medium |
+| Twine (tie — free) | Redirect (temp) | No change | Bend ±15-20°, degrades in 10-15 days | Free | Medium — must re-apply, plan ahead |
+| Weights (+ twine) | Pull down (slow) | No change | Downward only, 35% of wire's max arc | Free/cheap | Medium — gravity only, patience required |
 | Fertilize | Accelerate | More (faster growth) | Same direction | Premium | Low — timing only |
-| Wire (tie) | Redirect | No change | Bend up to 45° | Premium | High — requires terrain knowledge |
+| Wire (tie — premium) | Redirect (timed) | No change | Bend ±45°; sets permanently at 6-12mo; scars if left >12mo | Premium | High — requires terrain knowledge + timing discipline |
+| Guy-Wire | Pull toward anchor | No change | Gradual arc toward target coordinate | Premium (higher) | Very high — requires terrain mapping |
+| Dual-Branch Tie | Redirect ×2 | No change | Two branches shaped per use | Premium | High — requires structural pairing |
+| Raffia Wrap | Protect bark | No change | N/A (modifier on wire) | Premium (add-on) | Low — just buy it. The skill is knowing it matters for rank |
+| Jin Pliers | Strip bark | Convert bark→deadwood | N/A | Premium | High — deliberate damage for Defense bonus |
 | Shears (cut) | Remove | Lose (branch deleted) | Redistribute to survivors | Premium | Very high — permanent, irreversible |
 | Notch (future) | Force | New branch | Chosen point | Premium | Highest — terrain mastery required |
 
@@ -517,9 +606,9 @@ Each Kijonsai NFT stores:
   care_log_hash: bytes32, // Merkle root of care log
   owner: address,
   delegation: {
-	caretaker: address,
-	fighter: address,
-	terms_hash: bytes32
+    caretaker: address,
+    fighter: address,
+    terms_hash: bytes32
   }
 }
 ```
@@ -702,3 +791,332 @@ Players who neglect their trees or make poor pruning decisions produce weak kijo
 | 365+ days | Rare | Premium | Serious competitors, prestige collectors |
 
 **Key insight:** the seed price ($2–5) is the cost of impatience. The tree price on secondary is the cost of time someone else already invested. Both are valid transactions. The game doesn't punish either behavior — it simply makes patience the only path to the highest tier, and charges convenience fees to those who won't walk it.
+
+### 7.4 Abandoned Tree Value
+
+Trees that were neglected and abandoned still have value in specific cases:
+
+- A neglected 200-day tree with poor health history has low Vitality but high Wisdom (age still counts). A skilled caretaker who buys it cheaply on secondary could nurse it back to health over 60–90 days, recovering a kijo with excellent Fight IQ and improving Vitality. This creates a **tree rehabilitation market** — a secondary skill expression for caretakers.
+
+- A wild unpruned tree (no shears ever used) has maximum branch count and maximum ability diversity but zero Specialization. For certain combat styles (generalist builds), this is optimal. "Untouched old growth" becomes its own market category.
+
+- A heavily pruned tree with only 3–4 branches remaining but extreme thickness in those branches produces a hyper-specialized kijo with massive power in a narrow ability set. This is the "glass cannon sculptor" archetype — high risk, high reward caretaking.
+
+---
+
+## 9. Technical Architecture
+
+### 8.1 Client
+
+- **Mobile-first** (iOS + Android) — primary platform
+- **Web client** — secondary, for caretakers who prefer desktop
+- **Engine:** React Native (mobile) or progressive web app. Canvas/WebGL rendering for tree visualization. Three.js for 3D voxel viewer.
+
+### 8.2 Backend
+
+- **Game server** — Handles day ticks, validates care actions, processes combat resolution. Combat is server-authoritative to prevent manipulation.
+- **Care log service** — Append-only log with Merkle root updates pushed to chain.
+- **Matchmaking** — ELO-based, server-side.
+- **Indexer** — Reads on-chain NFT data, reconstructs tree state, generates voxel previews for marketplace display.
+
+### 8.3 Blockchain
+
+- **Smart contracts:** ERC-721 for Kijonsai NFTs, delegation contract, marketplace contract, tournament escrow.
+- **Chain interaction is minimal:** Mint, transfer, update care log hash, delegation create/modify/terminate, battle result recording (for ranked), marketplace listing/sale.
+- **Gas strategy:** Batch care log hash updates (daily or on-demand rather than per-action).
+
+### 8.4 Data Flow
+
+```
+Player Action (water/prune/fertilize)
+  → Client validates locally
+  → Sends to game server
+  → Server validates, appends to care log
+  → Server computes new tree state
+  → Client renders updated tree
+  → Periodically: server updates Merkle root on-chain
+```
+
+```
+Combat
+  → Fighter selects abilities (client)
+  → Server resolves combat (authoritative)
+  → Server records result
+  → Server updates morale
+  → Periodically: batch-write results on-chain for ranked
+```
+
+---
+
+## 10. Art Pipeline — Fully Procedural
+
+> **No sprite atlases. No character artist. No art bottleneck.** The tree metadata IS the art asset. Kijo characters are computed, not drawn. Adding a new species requires growth curve parameters and a color palette — not a single illustration.
+
+### 10.1 The Pipeline
+
+```
+seed + care_log
+  → tree structure (parametric branches, ~2KB)
+  → voxelizer (256³ sparse, ~30-60KB)
+  → morphology mapper (tree → skeleton)
+  → procedural mesh (skeleton → body)
+  → universal animation clips (generic bone-driven)
+  → rendered kijo (unique character, zero hand-drawn assets)
+```
+
+### 10.2 Tree Rendering (Care Loop)
+
+**2D (in-game care view):**
+Parametric data → L-system bezier curves → canvas renderer. Real-time, runs on mobile. Current prototype demonstrates this.
+
+**3D (NFT display, marketplace):**
+Parametric data → voxelizer (256³ sparse) → Three.js/WebGL renderer or exported .vox file for MagicaVoxel. Pre-rendered for marketplace thumbnails.
+
+### 10.3 Kijo Rendering (Procedural Character Generation)
+
+The kijo's body is fully defined by the tree's metadata. No sprite atlas, no hand-drawn character art, no artist dependency.
+
+**Skeleton generation:**
+- Trunk length + curve → spine bone chain (torso)
+- Lower depth-1 branch positions → leg joint locations
+- Upper depth-1 branch positions → arm joint locations
+- Branch angles at each depth → joint angles
+- Depth-2+ branches → digit/claw bone chains
+- The tree structure IS a bone hierarchy. No rigging step needed — the tree was always a skeleton.
+
+**Procedural mesh:**
+- Thickness at each bone → limb width (cylinder/tapered tube geometry)
+- Fill between bones with smooth procedural geometry
+- Bark texture from species palette (generated, not painted)
+- Prune scars → surface detail at mapped locations (hardened knot texture)
+
+**Face generation:**
+- Upper trunk section + crown base → head shape
+- Eye placement from species template (3 templates: hardwood amber, evergreen silver, tropical green)
+- Expression driven by morale state (high morale = fierce, low = reluctant, mid = neutral)
+- Trunk knot positions → facial feature variation
+
+**Extremities:**
+- Depth-2 branch count → finger/toe count per limb
+- Depth-2 branch length → claw/digit length
+- Depth-2 branch thickness → digit thickness
+- All already mapped in morphology spec (Section 6.4)
+
+**Crown/hair:**
+- Canopy shape renders directly as crown volume
+- Leaf color from species + season
+- Pruned canopy → angular spiked crown. Full canopy → flowing mane.
+
+**Animation — universal clips, infinite bodies:**
+
+Because every kijo skeleton uses the same semantic bone names (`torso`, `left_leg`, `right_leg`, `left_arm`, `right_arm`, `digits_L1`–`digits_LN`, `digits_R1`–`digits_RN`, `crown`), a single set of animation clips works on ALL body shapes:
+
+- Idle, walk, run (species-specific speed curves: hardwood slow, tropical fast)
+- Strike, kick, guard, grab (basic attacks)
+- Special move wind-up + execute (generic, intensity scales with skill point investment)
+- Hit reaction, knockdown, recovery
+- Tag in, tag out (team matches)
+- Taunt, victory, defeat
+
+A thin tropical ficus kijo and a massive hardwood oak kijo play the same animation clips. The bones just have different lengths and thicknesses. The visual output looks completely different — same motion, different body, unique character.
+
+**Silhouette preview (care loop — zero assets):**
+
+During the care loop, the player sees a real-time kijo silhouette preview:
+1. Run morphology mapper on current tree state
+2. Generate 2D filled outline from the skeleton + mesh
+3. Render as a translucent overlay or side panel
+4. Updates every growth tick — the player watches their kijo take shape as they grow
+
+This costs nothing to produce. No art request, no rendering queue. The preview is computed on-the-spot from the tree the player is actively tending. Day 1: vague humanoid outline. Day 100: recognizable fighter with visible limbs. Day 300: detailed character with claws, crown, and stance.
+
+### 10.4 Species Art Requirements (Minimal)
+
+Because characters are procedurally generated, new species only require:
+
+- **Growth curve parameters** — branching probability, fork angles, thickness rates, max depth (numbers, not art)
+- **Color palette** — bark color gradient, leaf colors per season, eye color (6 hex values)
+- **Leaf shape template** — one basic leaf polygon per species (triangle for pine needles, round for oak, pointed for maple, succulent for jade)
+- **Species animation speed curve** — walk/run/attack timing multipliers
+
+**Leaf Color Palettes (rolled at mint, seed-determined):**
+
+Each seed rolls a leaf color from its species class palette. Rare colors are cosmetic rarity — they do not affect stats, but they are permanent, visible on both the kijonsai and the kijo's crown, and marketplace-relevant.
+
+| Species Class | Common Colors | RARE Color |
+|---|---|---|
+| Hardwood | Red, Green | Maroon (blood-red) |
+| Evergreen | Green, Blue | Cyan |
+| Tropical | Green, Dark Green, Tan/Brown | Yellow |
+
+- The leaf color modifies the seasonal palette, not replaces it. A blood-red maroon hardwood still shifts tone across seasons — its autumn is deep crimson, its spring a lighter wine red.
+- The kijo's crown/hair inherits the leaf color. A cyan evergreen kijo is instantly recognizable in combat and in clips.
+- Rare roll rate: ~3%. **Undocumented by design** — rare colors are NOT advertised on the mint screen or in player-facing materials. They're an easter egg. A player grows their tree, the leaves come in an unexpected color, and discovery spreads organically through the community. Players figure out the rates themselves. Discovered rarity generates more engagement than disclosed rarity — it turns the playerbase into the ones spreading the lore.
+
+That's it. No character sheets. No sprite work. No skeletal rigging per species. One afternoon of parameter tuning adds a fully functional new species with infinite unique characters.
+
+### 10.5 Hand-Crafted Art (What Still Needs an Artist)
+
+The only hand-crafted assets in the game:
+
+- **UI/UX** — menus, HUD, buttons, care interface
+- **VFX** — hit sparks, root eruption particles, leaf storm effects, Ki energy glow, SLP brewing animation
+- **Gu Ahao (the Master)** — the storefront character. Not a generic merchant — a legendary penjing master whose "tied and cut" technique defined the craft. One character design for the entire game, but he carries weight: his visual should communicate decades of mastery with living wood.
+- **Yama-no-Kami** — lore splash art (optional, for story moments)
+
+Everything else is computed from the tree.
+
+### 10.6 Acquired Assets
+
+**Chinese Juniper Bonsai 3D Model** — by Masoud Rezaei (Blender Market). Commercial license purchased, unlimited usage per terms. High poly (2.4M tris), low poly (586K tris), GLB/FBX/OBJ/STL exports, 4K semi-procedural textures with .sbs source files.
+
+Four uses in the pipeline:
+
+| Use | What | Where |
+|---|---|---|
+| **Pot & soil mesh** | Extract the pot geometry and soil surface. Every kijonsai sits in the same base pot (or cosmetic variants derived from it). One purchase, infinite reuse. | Three.js care scene, voxel NFT viewer, marketplace preview |
+| **Bark & leaf materials** | 4K channel-packed PNGs + Substance .sbs source files. Real bark grain, real leaf surfaces. Tune per species via .sbs (rougher for hardwood, smoother for tropical, needle-like for evergreen). | Procedural branch/leaf texturing in Three.js — replaces placeholder brown cylinders with production-quality surfaces |
+| **Art direction target** | Screenshot the current Three.js tree next to this model. The visual gap = the quality roadmap. Match the lighting, bark detail, leaf density, and feel. | Internal art reference — not shipped directly, used to benchmark procedural output quality |
+| **Gu Ahao's masterpiece** | The merchant's shop displays one perfect static bonsai behind him — the specimen Gu Ahao grew himself, the standard all others are measured against. This is the ONE tree in the game not grown by a player. A pre-made model is correct here because the master's tree is singular and hand-crafted, not procedural. | Storefront scene / lore moment |
+
+---
+
+## 11. Development Strategy
+
+### 10.1 Build Order
+
+**Bonsai side first, fight engine second.** The care loop must stand alone as a compelling product before combat is layered on. This de-risks development: if the care loop retains players, combat amplifies it. If it doesn't, combat won't save it.
+
+The voxelizer is the bridge — it serves the NFT art pipeline (Phase 1 value) AND becomes the morphology input for kijo body generation (Phase 2 value). Building it early pays dividends in both phases.
+
+### 10.2 Milestone Roadmap
+
+### Phase 0 — Prototype (Current)
+- [x] Core bonsai growth engine (L-system, seeded RNG)
+- [x] Care actions (water, prune, fertilize, rotate)
+- [x] Persistent storage proof-of-concept
+- [x] Canvas renderer (2D bezier branches, leaves, pot)
+- [ ] Species differentiation (growth curves for hardwood/evergreen/tropical)
+- [ ] Voxelizer proof-of-concept (parametric → 256³ sparse voxels)
+- [ ] 3D voxel viewer (Three.js)
+- [ ] Morphology proof-of-concept (tree voxels → kijo body plan preview)
+
+### Phase 1 — Bonsai Product (Ship this standalone)
+- [ ] Mobile client (React Native or PWA)
+- [ ] Real-time day cycle with server authority
+- [ ] Multi-tree management (up to 5)
+- [ ] Species selection at mint (6 species: 2 per class)
+- [ ] Care log with Merkle root integrity (deferred to Phase 2 — see KIJONSAI-CONTRACT-ARCH.md §1.1)
+- [x] NFT minting (ERC-721, Ronin — Kijonsai deployed Saigon testnet 2026-07-26)
+- [ ] 256³ voxel NFT art generation pipeline
+- [ ] Consumable shop (shears, fertilizer)
+- [ ] Basic marketplace
+- [ ] Kijo preview (show what your kijo WOULD look like — morphology preview as motivation to grow)
+
+### Phase 2 — Combat Engine
+- [ ] Kijo awakening (full morphology generation from tree voxels)
+- [ ] Trunk→torso, lower branches→legs, upper branches→arms, sub-branches→digits/claws pipeline
+- [ ] Stat derivation engine (care history → Wisdom, Endurance, Vitality, Specialization, Tempo)
+- [ ] Ability generation from branch topology
+- [ ] Weapon generation from prune stumps
+- [ ] Turn-based combat system
+- [ ] Morale system (spirit reluctance, care recovery)
+- [ ] Ranked matchmaking (ELO)
+
+### Phase 3 — Delegation & Economy
+- [ ] On-chain delegation contracts
+- [ ] Caretaker/fighter role split
+- [ ] Revenue split automation
+- [ ] Prune authority controls
+- [ ] Reputation system (public care/battle records)
+- [ ] Stake battles and tournaments
+- [ ] Time subscription feature
+
+### Phase 4 — Polish & Scale
+- [ ] 3D kijo models (generated from tree data)
+- [ ] Combat animations
+- [ ] Additional species (4–5 per class)
+- [ ] Cosmetic shop expansion
+- [ ] Social features (grove viewing, tree gifting)
+- [ ] Cross-chain deployment
+- [ ] Marketing and community building
+
+---
+
+## 12. Competitive Analysis
+
+**What exists:** Axie Infinity (breed-and-battle), Plant vs Undead (plant-themed but standard tower defense), idle tree apps (no combat, no blockchain).
+
+**What Kijo does differently:**
+1. Stats are grown, not rolled. No RNG stat sheets. The care history IS the stat sheet.
+2. Two genuinely different player roles (caretaker vs. fighter) vs. scholarship grinding.
+3. Patience has real value. There is no substitute for age.
+4. The NFT visual is deterministic from the history. Two different trees with different care produce visibly different art. Provenance is visual.
+5. Pruning as a permanent, premium-gated mechanic creates meaningful scarcity of precision. Free players grow wild trees; paying players sculpt.
+
+---
+
+## 13. Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|
+| Bonsai care loop isn't engaging enough long-term | Medium | High | Auto-grow option, seasonal events, community features, kijo combat as secondary engagement |
+| Combat balance issues from continuous stat space | High | Medium | Extensive playtesting, ELO system handles skill variance, triangle advantage kept moderate (~15%) |
+| Chain gas costs make frequent updates prohibitive | Medium | Medium | Batch Merkle root updates, off-chain care log with on-chain verification |
+| Bot automation of care loop | Medium | Low | Care actions have diminishing returns (overwatering hurts), pruning requires aesthetic judgment, morale system requires varied care |
+| Market saturation of Kijonsai NFTs | Low | Medium | Each tree is genuinely unique (care history), old trees are irreplaceable (age cannot be manufactured), scarcity from time investment |
+
+---
+
+## 14. External Review — Actionable Recommendations
+
+*Source: Independent design review, July 2026*
+
+### 14.1 Onboarding & Retention Risk — HIGH PRIORITY
+
+The 24-hour real-time day cycle will feel slow for new players. First session must deliver satisfaction before the player closes the app.
+
+**Mitigations to implement:**
+
+- **Accelerated tutorial mode** — first 7 game days run at 4x speed for all players (including guests). The tutorial teaches in sequence: basic care (Days 1–2), the three penjing schools and their technique bonuses (Days 3–5), then awards **1 free shear use** for the player's first permanent cut (Days 6–7). The player learns that their care choices determine their kijo's combat archetype BEFORE they make their first irreversible decision. After the tutorial, speed drops to real-time (8 hours/day). The free shear is spent — purchasing more requires an imbued seed. This converts the tutorial from "here's how buttons work" into "here's what your choices mean."
+- **Early awakening preview** — from Day 1, show a translucent "preview kijo" overlaid on the tree. As the tree grows, the preview evolves. Player can see what their kijo WILL look like before awakening unlocks. This is the "progress porn" — visual proof that care is building toward something.
+- **Starter kijo at Day 14–30** — weak combat-capable kijo available much earlier than the full 60-day maturity threshold. Lets players taste combat early, lose, understand why age and care matter, then invest in growing stronger. The starter kijo should be clearly outclassed in ranked — it's a tutorial tool, not a competitive entry point.
+- **Dramatic growth animations** — each day tick should feel visually rewarding. Branch extension, leaf unfurling, trunk thickening should animate smoothly, not pop in.
+
+### 14.2 Combat Depth vs. Accessibility
+
+The stance system + Wisdom reads + species triangle + Ki resource + skill point allocation is a lot of systems for a casual audience to absorb simultaneously.
+
+**Mitigations to implement:**
+
+- **PvE missions first** — introduce combat through scripted encounters against AI kijo with predictable patterns. Teach one mechanic at a time: first stances, then Ki, then skill points, then Wisdom reads. Ranked PvP unlocks after completing the PvE tutorial arc.
+- **Auto-battle mode** — caretakers who delegate to fighters should still be able to watch battles. But solo players who just want to care for trees should have an auto-battle option for casual PvE. The kijo fights on her own instincts (Wisdom-weighted random stance selection). Results are worse than manual play but functional.
+- **Training mode** — no-stakes practice arena where players can test ability loadouts and skill point distributions against sparring partners (AI or friendly) without morale consequences.
+
+### 14.3 Scope Creep — CRITICAL
+
+The voxel-to-3D-kijo morphology pipeline with full rigged animation is the single highest technical risk in the project. It is also not needed for Phase 1.
+
+**Hard rule:** Ship the bonsai care sim as a standalone product FIRST. Kijo previews (2D silhouette generated from tree structure) are sufficient for Phase 1. Validate that the care loop retains players before investing in the combat engine, 3D morphology, or animation pipeline.
+
+Phase 1 success criteria: daily active users returning to water their trees without combat existing. If that metric fails, combat won't save it. If it succeeds, combat amplifies it.
+
+### 14.4 Blockchain Balance
+
+Care log reconstruction must be fast and cheap for marketplace browsing. A buyer browsing 50 tree listings should not wait for 50 independent reconstructions.
+
+**Mitigations:**
+
+- **Indexer-generated snapshots** — the indexer pre-computes tree state and voxel preview for every NFT. Marketplace displays cached snapshots, not live reconstructions.
+- **Lazy verification** — buyers can independently verify (reconstruct from log and compare) but don't HAVE to. Trust the indexer for browsing, verify on purchase.
+- **Log compression** — care logs use run-length encoding for repetitive sequences (e.g., "water, grow, water, grow" for 30 consecutive days compresses to a single entry with a repeat count).
+
+### 14.5 Monetization Validation
+
+Externally assessed as solid. Shears and fertilizer as precision tools feels fair. Subscription for time control is standard idle game monetization. No pay-to-win flags raised.
+
+**One addition worth considering:** cosmetic pots and soil decorations as low-cost vanity items. These don't affect stats, don't affect combat, but let players personalize their grove. Low-risk revenue with high emotional attachment.
+
+---
+
+*This document is a living specification. Sections will be expanded as prototyping validates assumptions and playtesting reveals tuning needs.*

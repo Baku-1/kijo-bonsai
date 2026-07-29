@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://li2sf1upjnti"
-path="res://.godot/imported/Bonsai_LowPoly_Pot_NormalGL.jpg-ef9497bbcf38dcc004f4e0ebe3f7856a.ctex"
+path="res://.godot/imported/Bonsai_LowPoly_Pot_NormalGL.jpg-2de8d3b4bd8c8cb2c1e1c294d2ee354e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://kijo-bonsai/apps/web/public/textures/Bonsai_LowPoly_Pot_NormalGL.jpg"
-dest_files=["res://.godot/imported/Bonsai_LowPoly_Pot_NormalGL.jpg-ef9497bbcf38dcc004f4e0ebe3f7856a.ctex"]
+source_file="res://kijo-bonsai/node_modules/@kijo/web/public/textures/Bonsai_LowPoly_Pot_NormalGL.jpg"
+dest_files=["res://.godot/imported/Bonsai_LowPoly_Pot_NormalGL.jpg-2de8d3b4bd8c8cb2c1e1c294d2ee354e.ctex"]
 
 [params]
 

@@ -13,13 +13,14 @@
  *   A7 -- reconstruction fidelity: CareLogReplay = identical attachmentY to original
  */
 
-import { BonsaiTree }    from './packages/engine/dist/BonsaiTree.js';
-import { GrowthEngine }  from './packages/engine/dist/GrowthEngine.js';
-import { CareLogReplay } from './packages/engine/dist/CareLogReplay.js';
-import { PruneEngine }   from './packages/engine/dist/PruneEngine.js';
-import { StatDeriver }   from './packages/engine/dist/StatDeriver.js';
-import { Voxelizer }     from './packages/voxelizer/dist/index.js';
-import { round4 }        from './packages/shared/dist/index.js';
+import { BonsaiTree }               from './packages/engine/dist/BonsaiTree.js';
+import { GrowthEngine }             from './packages/engine/dist/GrowthEngine.js';
+import { CareLogReplay }            from './packages/engine/dist/CareLogReplay.js';
+import { PruneEngine }              from './packages/engine/dist/PruneEngine.js';
+import { StatDeriver }              from './packages/engine/dist/StatDeriver.js';
+import { createTree, applyAction, tick } from './packages/engine/dist/tree.js';
+import { Voxelizer }                from './packages/voxelizer/dist/index.js';
+import { round4 }                   from './packages/shared/dist/index.js';
 
 // ---------------------------------------------------------------------------
 // Test harness
@@ -339,9 +340,97 @@ console.log('\nA7 -- reconstruction fidelity (CareLogReplay has identical attach
 }
 
 // ---------------------------------------------------------------------------
+// A8 -- tick() first depth-1 branch obeys one-third rule
+// Grow via tick() (functional path) until first depth-1 branch appears.
+// Assert: lowest depth-1 attachmentY in [30%, 40%] of trunk at that moment.
+// Assert: no depth-1 branch below 30% of trunk (mirrors A1 for tick() path).
+// ---------------------------------------------------------------------------
+
+console.log('\nA8 -- tick() first depth-1 branch obeys one-third rule');
+{
+  let s = createTree(464497, 'hardwood');
+  let found = false;
+  for (let d = 0; d < 500; d++) {
+    if (s.moisture < 25) s = applyAction(s, { type: 'water' });
+    s = tick(s);
+    const d1 = s.branches.filter(b => b.depth === 1 && !b.pruned);
+    if (d1.length >= 1) {
+      const trunk     = s.branches[0];
+      const lowestAY  = Math.min(...d1.map(b => b.attachmentY));
+      const pct       = lowestAY / trunk.length * 100;
+      const violators = d1.filter(b => b.attachmentY < trunk.length * 0.30);
+
+      console.log('  First depth-1 appeared at day ' + s.day);
+      console.log('  trunk.length = ' + trunk.length.toFixed(4));
+      console.log('  lowest depth-1 attachmentY = ' + lowestAY + ' (' + pct.toFixed(2) + '%)');
+
+      assert(
+        pct >= 30 && pct <= 40,
+        'tick() first depth-1 attachmentY in [30%, 40%] of trunk',
+        'got ' + pct.toFixed(2) + '%'
+      );
+      assert(
+        violators.length === 0,
+        'tick() no depth-1 branch below 30% of trunk',
+        'violators: ' + violators.map(b => 'id=' + b.id + ' aY=' + b.attachmentY).join(', ')
+      );
+      found = true;
+      break;
+    }
+  }
+  if (!found) assert(false, 'tick() first depth-1 branch appeared within 500 days', 'none found');
+}
+
+// ---------------------------------------------------------------------------
+// A9 -- tick() subsequent depth-1 branches use trunk tip
+// Grow via tick() until >= 2 depth-1 branches exist.
+// Assert: second (higher-aY) branch strictly greater than first (lower-aY).
+// Assert: second.attachmentY within 2 voxels of trunk.length at check time
+//         (both forked same tick => second.aY == trunk.length at that tick).
+// ---------------------------------------------------------------------------
+
+console.log('\nA9 -- tick() subsequent depth-1 branches use trunk tip');
+{
+  let s = createTree(464497, 'hardwood');
+  let found = false;
+  for (let d = 0; d < 500; d++) {
+    if (s.moisture < 25) s = applyAction(s, { type: 'water' });
+    s = tick(s);
+    const d1 = s.branches.filter(b => b.depth === 1 && !b.pruned);
+    if (d1.length >= 2) {
+      const trunk  = s.branches[0];
+      const sorted = [...d1].sort((a, b) => a.attachmentY - b.attachmentY);
+      const first  = sorted[0];
+      const second = sorted[sorted.length - 1];
+
+      console.log('  >=2 depth-1 branches at day ' + s.day);
+      console.log('  trunk.length = ' + trunk.length.toFixed(4));
+      console.log('  first  id=' + first.id  + ' aY=' + first.attachmentY);
+      console.log('  second id=' + second.id + ' aY=' + second.attachmentY);
+
+      assert(
+        second.attachmentY > first.attachmentY,
+        'tick() second depth-1 branch.attachmentY strictly > first',
+        'second=' + second.attachmentY + ' first=' + first.attachmentY
+      );
+      // second used round4(trunk.length) at fork time; trunk only grows after,
+      // so second.aY <= current trunk.length.  When both fork same tick, equality holds.
+      assert(
+        second.attachmentY >= trunk.length - 2,
+        'tick() second depth-1 attachmentY within 2 voxels of trunk.length',
+        'second.aY=' + second.attachmentY + ' trunk=' + trunk.length.toFixed(4)
+      );
+      found = true;
+      break;
+    }
+  }
+  if (!found) assert(false, 'tick() second depth-1 branch appeared within 500 days', 'none found');
+}
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 
 console.log('\n' + '-'.repeat(50));
-console.log('A1-A7 result: ' + passed + ' passed, ' + failed + ' failed');
+console.log('A1-A9 result: ' + passed + ' passed, ' + failed + ' failed');
 if (failed > 0) process.exit(1);

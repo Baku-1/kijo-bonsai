@@ -1,5 +1,6 @@
 import { GrowthEngine } from '@kijo/engine';
 import type { BonsaiTree } from '@kijo/engine';
+import { WATER_AMOUNT } from '@kijo/shared';
 
 // ---------------------------------------------------------------------------
 // Care bridge (Layer 1, item 3) — thin wiring between UI events and engine
@@ -8,7 +9,6 @@ import type { BonsaiTree } from '@kijo/engine';
 // rebuild (dirty-flag handshake) and the HUD can refresh.
 // ---------------------------------------------------------------------------
 
-const WATER_AMOUNT = 28;   // GDD s3.2 — one watering can
 const AUTO_INTERVAL_MS = 2200;
 
 export class CareBridge {

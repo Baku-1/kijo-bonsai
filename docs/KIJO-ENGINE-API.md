@@ -1,8 +1,8 @@
 # KIJO — Engine API Reference
 
-**Version:** 0.1 (Draft)
-**Date:** July 15, 2026
-**Status:** Pre-Implementation
+**Version:** 0.2
+**Date:** July 15, 2026 (updated July 23, 2026)
+**Status:** In Production — Phase 1 active
 **Parent Documents:** KIJO-TECH-SPEC.md, KIJO-ARCHITECTURE.md
 
 > Public API for the `engine` package derived from the technical spec. Signatures are the intended contract; reconcile against actual code. The engine is pure and deterministic — no I/O, no rendering, no network, no wall-clock time.
@@ -18,11 +18,31 @@ struct Coordinate { uint8_t x, y, z; };   // 0-255 each, 256³ grid
 
 enum class StatType : uint8_t { HP, POWER, ENDURANCE, KI, SKILL_POINT, NEUTRAL };
 
+enum class VoxelRole : uint8_t { TRUNK, ARM, LEG, DIGIT, CANOPY, ROOT, SCAR };
+
+enum class Technique : uint8_t { 
+    BOUND_AND_CUT,     // default: wire + shears
+    CLIP_AND_GROW,     // shears only, zero wire ever (Lingnan School)
+    JIN,               // bark stripping overlay (can combine with above)
+    WATER_AND_LAND     // landscape composition overlay (care-loop only, no combat archetype)
+};
+
 struct CareAction {
-    enum Type : uint8_t { WATER, PRUNE, FERTILIZE, ROTATE, GROW_TICK };
+    enum Type : uint8_t { 
+        WATER, PRUNE, FERTILIZE, ROTATE, GROW_TICK,
+        TWINE_APPLY,       // free: bind branch, ±15-20°, temporary
+        TWINE_REMOVE,      // free: unbind
+        WEIGHT_APPLY,      // free/cheap: downward pull via gravity
+        WEIGHT_REMOVE,     // free: remove weight
+        WIRE_APPLY,        // premium: bend ±45°, must time removal
+        WIRE_REMOVE,       // free action: remove wire (timing matters)
+        JIN_STRIP,         // premium: strip bark section → deadwood
+        LANDSCAPE_PLACE,   // add rock/water/decoration
+        LANDSCAPE_REMOVE   // remove landscape element
+    };
     Type type;
     uint32_t day;
-    float value;          // water amount, or branch_id for prune
+    float value;          // water amount, branch_id, angle, or element_id
 };
 
 struct Branch {
@@ -35,6 +55,19 @@ struct Branch {
     uint32_t bornDay;
     bool pruned;
     float growthBoost;    // post-prune energy, decays
+    float attachmentY;    // Y-coordinate on parent where this branch forks (R-ATTACHY -- RESOLVED 2026-07-20)
+    // Wire state
+    bool wired;           // currently has wire applied
+    uint32_t wireAppliedDay;  // when wire was applied (for timing window)
+    float wireAngle;      // the bend angle applied by wire
+    bool wireSet;         // branch has permanently set from wire (6-12mo window hit)
+    bool wireScarred;     // wire left too long (>12mo), permanent scar
+    // Twine state
+    bool twined;          // currently has twine applied
+    uint32_t twineAppliedDay;
+    float twineAngle;     // smaller than wire max
+    // Weight state
+    bool weighted;        // has a weight pulling down
     std::vector<Branch> children;
 };
 
@@ -46,7 +79,8 @@ struct StatSheet {
     uint32_t skillSlots;    // from depth-2+ branch COUNT
     float skillPoints;      // from terrain SKILL_POINT coordinates
     uint32_t wisdom;        // from age in days
-    float matchPct;         // 0.0 - 1.0
+    float matchPct;         // 0.0 - 1.0 (Flower Guild Rank derived from this)
+    Technique technique;    // classified from care log
 };
 ```
 
@@ -68,12 +102,17 @@ Creates a Day-0 sapling. Initializes root branch (trunk), moisture 55, health 85
 ```cpp
 void applyDailyUpdate();
 ```
-Advances one day of care state (NOT growth — growth is `GrowthEngine`). Decays moisture 5.0–9.0 (seeded by `seed + day`). Adjusts health: +0.8 if moisture ∈ [30,65]; −1.5 if moisture <15 or >80; −0.3 otherwise. Clamps health to [10,100]. Increments age. Appends implicit day advance.
+Advances one day of care state (NOT growth — growth is `GrowthEngine`). Sequence:
+1. Decays moisture 5.0–9.0 (seeded by `seed + day`)
+2. Adjusts health: +0.8 if moisture ∈ [30,65]; −1.5 if moisture <15 or >80; −0.3 otherwise. Clamps [10,100]
+3. Increments age
+4. **Calls `WireManager::processWireTick`** — checks wire timing, applies scarring if >12 months
+5. **Calls `WireManager::processTwineTick`** — degrades twine, springs back expired bindings
 
 ```cpp
 void water(float amount);
 ```
-Increases moisture (clamped ≤100). Logs `WATER`. Marks dirty is NOT required (watering changes stats indirectly via future growth, not geometry) — but logs the action for reconstruction.
+Increases moisture (clamped ≤100). Logs `WATER`.
 
 ```cpp
 bool prune(uint32_t branchId);
@@ -89,6 +128,55 @@ Sets fertilizer-active window (current day + 5). 8-day cooldown enforced (no-op 
 void rotate();
 ```
 Advances rotation state (0→1→2→3→0). Biases future growth toward the "sun" side. Logs `ROTATE`.
+
+```cpp
+bool applyTwine(uint32_t branchId, float angle);
+```
+Binds twine to a branch, bending it up to ±15-20° from its natural angle. Temporary — degrades after 10-15 game days, branch springs back. Free action, no consumable cost. Returns false if angle exceeds twine max or branch doesn't exist. Logs `TWINE_APPLY`, marks dirty.
+
+```cpp
+void removeTwine(uint32_t branchId);
+```
+Removes twine from a branch. Branch begins springing back if not yet set. Logs `TWINE_REMOVE`.
+
+```cpp
+bool applyWeight(uint32_t branchId);
+```
+Attaches a weight to a branch via twine, pulling it downward. Only bends downward (gravity). Achieves up to 35% of wire's max arc (~15-16° down). Gradual set over time. Does NOT count as wire for technique classification. Logs `WEIGHT_APPLY`, marks dirty.
+
+```cpp
+void removeWeight(uint32_t branchId);
+```
+Removes weight. Logs `WEIGHT_REMOVE`.
+
+```cpp
+bool applyWire(uint32_t branchId, float angle);
+```
+Applies wire to a depth-1 branch, bending up to ±45°. Records `wireAppliedDay` for timing window. Premium consumable. Returns false if branch is trunk, depth-2+, or already wired. Logs `WIRE_APPLY`, marks dirty.
+
+```cpp
+void removeWire(uint32_t branchId);
+```
+Removes wire from a branch. Free action (no consumable). Timing determines outcome:
+- Removed before 6 months: branch springs back (bend not set)
+- Removed at 6-12 months: bend sets permanently, no scarring
+- Wire still on at >12 months: wire scars permanently (handled in `applyDailyUpdate`)
+Logs `WIRE_REMOVE`, marks dirty.
+
+```cpp
+bool applyJin(uint32_t branchId);
+```
+Strips bark from a branch section using jin pliers. Converts bark voxels to hardened deadwood. Permanent. Adds Defense bonus at stripped region. Premium consumable. Logs `JIN_STRIP`, marks dirty.
+
+```cpp
+void placeLandscape(uint32_t elementId, float x, float z);
+```
+Places a landscape element (rock, water feature, ceramic decoration) at a position relative to the pot. Care-loop display only, no combat stat impact. Logs `LANDSCAPE_PLACE`.
+
+```cpp
+void removeLandscape(uint32_t elementId);
+```
+Removes a landscape element. Logs `LANDSCAPE_REMOVE`.
 
 ### Read-Only Access
 
@@ -240,6 +328,65 @@ Splits a post-prune growth bonus across surviving tips. Each affected tip's `gro
 
 ---
 
+## `TechniqueClassifier`
+
+Reads the care log and classifies the tree's technique based on action patterns.
+
+```cpp
+static Technique classify(const std::vector<CareAction>& careLog);
+```
+Scans the care log for wire vs prune vs jin vs landscape action ratios:
+- **BOUND_AND_CUT:** wire uses > 0 AND prune uses > 0. The default when both tools are used.
+- **CLIP_AND_GROW:** prune uses > 0 AND wire uses == 0 (zero, ever). One wire use permanently disqualifies. Twine and weights do NOT count as wire.
+- **JIN:** jin strip actions > threshold (overlay — can combine with Bound-and-Cut or Clip-and-Grow).
+- **WATER_AND_LAND:** landscape element count > threshold (overlay — care-loop only, no combat archetype).
+
+The classifier returns the PRIMARY technique. Jin and Water-and-Land are overlays stored separately. A tree can be `CLIP_AND_GROW + JIN` or `BOUND_AND_CUT + WATER_AND_LAND`.
+
+```cpp
+static bool isFirstQualification(const std::vector<CareAction>& careLog, Technique t);
+```
+Returns true if the most recent action caused the first qualification for technique `t`. Used to trigger the spirit resonance notification exactly once.
+
+---
+
+## `WireManager`
+
+Handles wire timing — the apply/monitor/remove lifecycle.
+
+```cpp
+static void processWireTick(BonsaiTree& tree, uint32_t currentDay);
+```
+Called during `applyDailyUpdate`. For each wired branch:
+- If `currentDay - wireAppliedDay > 360` (12 months in game days): set `wireScarred = true`, apply Flower Guild Rank penalty. The bend IS permanent but scarred.
+- If wire was removed at 180-360 days (6-12 months): set `wireSet = true`, bend is permanent, no scar.
+- If wire was removed before 180 days: branch begins springing back toward original angle at a rate of ~1° per game day.
+
+```cpp
+static void processTwineTick(BonsaiTree& tree, uint32_t currentDay);
+```
+For each twined branch: if `currentDay - twineAppliedDay > 12` (10-15 day window, seeded): begin degrading — branch springs back. Twine mark fades.
+
+```cpp
+struct WireStatus {
+    bool isWired;
+    uint32_t daysRemaining;   // until optimal removal window opens (0 if already open)
+    bool inWindow;            // true if currently in the 6-12 month sweet spot
+    bool overdue;             // true if >12 months, scarring imminent or occurred
+    bool scarred;             // permanent scar already applied
+    std::string displayText;  // e.g. "Wire ready to remove in 45 days" or "Remove now — clean set"
+};
+static WireStatus getWireStatus(const Branch& branch, uint32_t currentDay);
+```
+UI helper for the care interface. Returns human-readable status for any branch's wire state. Display text examples:
+- `"Wire applied — 135 days until removal window"` (too early to remove)
+- `"Wire ready to remove — clean set window open for 82 more days"` (in the 6-12 month sweet spot)
+- `"WARNING: Remove wire soon — scarring in 23 days"` (approaching 12 months)
+- `"Wire scarred — cosmetic damage permanent"` (past 12 months)
+- `"No wire applied"` (not wired)
+
+---
+
 ## `CareLogReplay`
 
 Reconstructs a tree from authoritative state.
@@ -249,7 +396,7 @@ static BonsaiTree reconstruct(uint32_t seed,
                               SpeciesClass species,
                               const std::vector<CareAction>& careLog);
 ```
-Replays the care log from Day 0, applying each action in order (water, prune, fertilize, rotate) and running `growTick` per day. Produces a tree bit-identical to the original. This is the backbone of NFT verification: reconstruct from the Merkle-verified log, compare to claimed state.
+Replays the care log from Day 0, applying each action in order (water, prune, fertilize, rotate, twine, weight, wire, jin, landscape) and running `growTick` per day. Processes wire/twine timing via `WireManager` during each day tick. Produces a tree bit-identical to the original. This is the backbone of NFT verification: reconstruct from the Merkle-verified log, compare to claimed state.
 
 **Performance:** ~440 ticks for a Day-440 tree at ~1ms each → under 0.5s. Acceptable for on-demand reconstruction. (Open question R19: care-log format — explicit vs derived vs checkpointed.)
 
