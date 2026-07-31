@@ -51,7 +51,7 @@ function chokkanSpline(): StyleSpline {
   };
 }
 
-// Only Chokkan is implemented.  Remaining 7 entries are TODO placeholders.
+// Only Chokkan is implemented.  Remaining 6 entries are TODO placeholders.
 const STYLE_SPLINES: StyleSpline[] = [
   chokkanSpline(),         // 0 — Chokkan  (formal upright)
   // TODO: 1 — Moyogi     (informal upright)
@@ -60,7 +60,6 @@ const STYLE_SPLINES: StyleSpline[] = [
   // TODO: 4 — Fukinagashi (windswept)
   // TODO: 5 — Bunjin     (literati)
   // TODO: 6 — Hokidachi  (broom)
-  // TODO: 7 — Sekijoju   (root over rock)
 ];
 
 /**
@@ -76,14 +75,15 @@ function splineForSeed(_seed: number): StyleSpline {
 }
 
 // ---------------------------------------------------------------------------
-// STAT_TYPES — six-bucket ordered list; index must be stable (hash % 6)
+// STAT_TYPES — eight-bucket ordered list; index must be stable (hash % 8)
 //
-// R2 decision (2026-07-16): NEUTRAL is naturally ~16.7 % (1/6 of buckets).
-// Kept as-is for first pass.  Flag for playtest tuning.
+// R2 decision (2026-07-16): NEUTRAL is naturally ~12.5 % (1/8 of buckets).
+// defense and stability added 2026-07-28 (ADR-STATSHEET-DEFENSE-STABILITY).
+// Flag for playtest tuning.
 // ---------------------------------------------------------------------------
 
 const STAT_TYPES: StatType[] = [
-  'hp', 'power', 'endurance', 'ki', 'skill_point', 'neutral',
+  'hp', 'power', 'endurance', 'ki', 'skill_point', 'defense', 'stability', 'neutral',
 ];
 
 // Base value emitted when a coordinate maps to a given stat type.
@@ -93,6 +93,8 @@ const BASE_VALUES: Record<StatType, number> = {
   endurance:   0.001,
   ki:          0.001,
   skill_point: 0.25,
+  defense:     0.001,   // FLAG FOR PLAYTEST TUNING
+  stability:   0.001,   // FLAG FOR PLAYTEST TUNING
   neutral:     0.0,
 };
 
@@ -144,7 +146,7 @@ export class StatTerrain {
   //
   // Algorithm:
   //   1. spatialHash(seed, x, y, z) → uint32 h
-  //   2. bucket = h % 6 → StatType
+  //   2. bucket = h % 8 → StatType
   //   3. base  = BASE_VALUES[type]
   //   4. value = base × proximityCurve(distanceToIdealPath(seed, x, y, z))
   //   5. round4(value)
@@ -152,7 +154,7 @@ export class StatTerrain {
 
   static getStatAt(seed: number, x: number, y: number, z: number): TerrainStat {
     const hash   = spatialHash(seed, x, y, z);
-    const bucket = hash % 6;
+    const bucket = hash % 8;
     const type   = STAT_TYPES[bucket];
     const base   = BASE_VALUES[type];
 

@@ -1,5 +1,6 @@
 import { BonsaiTree, GrowthEngine, StatDeriver } from '@kijo/engine';
 import type { Branch, SpeciesClass } from '@kijo/shared';
+import { WATER_AMOUNT } from '@kijo/shared';
 import { Voxelizer } from '@kijo/voxelizer';
 
 // ---------------------------------------------------------------------------
@@ -146,6 +147,8 @@ function refreshStats(): void {
     ['Skill points', sheet.skillPoints],
     ['Wisdom (tier)', sheet.wisdom],
     ['Match %', (sheet.matchPct * 100).toFixed(1) + '%'],
+    ['Defense', sheet.defense],
+    ['Stability', sheet.stability],
   ];
   statTable.innerHTML = rows
     .map(([k, v]) => `<tr><td>${k}</td><td>${typeof v === 'number' ? v.toFixed(2) : v}</td></tr>`)
@@ -165,7 +168,7 @@ document.getElementById('btn-new')!.addEventListener('click', () => {
 });
 
 document.getElementById('btn-water')!.addEventListener('click', () => {
-  tree.water(25);
+  tree.water(WATER_AMOUNT);
   tree.markDirty();
   render();
 });
@@ -226,6 +229,8 @@ document.getElementById('btn-export')!.addEventListener('click', () => {
       skillPoints: sheet.skillPoints,
       wisdom: sheet.wisdom,
       matchPct: sheet.matchPct,
+      defense: sheet.defense,
+      stability: sheet.stability,
     },
   };
   exportOut.value = JSON.stringify(payload, null, 2);

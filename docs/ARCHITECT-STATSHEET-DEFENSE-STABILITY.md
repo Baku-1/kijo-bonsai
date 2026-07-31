@@ -128,7 +128,7 @@ export interface StatSheet {
   wisdom: number;
   matchPct: number;
   defense: number;    // damage reduction — Layer 1: SCAR voxels × SCAR_DEFENSE_MULT; Layer 2: terrain
-  stability: number;  // knockdown/knockback reduction — Layer 1: ROOT voxels × ROOT_STABILITY_MULT; Layer 2: terrain
+  stability: number;  // knockdown/knockback reduction — terrain-only; no structural (Layer 1) source
 }
 ```
 
@@ -142,6 +142,7 @@ export interface StatSheet {
 
 **Before:**
 ```typescript
+// STAT_TYPES — six-bucket ordered list; index must be stable (hash % 6)
 // R2 decision (2026-07-16): NEUTRAL is naturally ~16.7 % (1/6 of buckets).
 // Kept as-is for first pass.  Flag for playtest tuning.
 // ---------------------------------------------------------------------------
@@ -153,6 +154,7 @@ const STAT_TYPES: StatType[] = [
 
 **After:**
 ```typescript
+// STAT_TYPES — eight-bucket ordered list; index must be stable (hash % 8)
 // R2 decision (2026-07-16): NEUTRAL is naturally ~12.5 % (1/8 of buckets).
 // defense and stability added 2026-07-28 (ADR-STATSHEET-DEFENSE-STABILITY).
 // Flag for playtest tuning.
@@ -215,7 +217,7 @@ const BASE_VALUES: Record<StatType, number> = {
     const bucket = hash % 8;
 ```
 
-These are the only two occurrences of `% 6` in the file. Change both. No other numeric literals in this file need to change.
+These are the only three occurrences of `% 6` in the file. Change all three. No other numeric literals in this file need to change.
 
 ---
 
@@ -432,7 +434,7 @@ The Implementer must leave the following unchanged:
 | `apps/server/src/index.ts` | Does not import StatSheet or StatType |
 | `packages/engine/src/PruneEngine.ts` | Does not reference StatSheet or StatType; SCAR→HP structural gap is a separate issue |
 | `spatialHash()` in shared/src/index.ts | Pure hash function; unchanged by this spec |
-| `STYLE_SPLINES` / `STYLE_SPLINES` array in StatTerrain.ts | Style spline alignment to new stat clusters is future work (ADR §Style Spline Alignment) |
+| `STYLE_SPLINES` array in StatTerrain.ts | Do not add or reorder entries or change spline implementations. However, DO remove the `// TODO: 7 — Sekijoju (root over rock)` comment line and update "Remaining 7 entries" to "Remaining 6 entries" per CANONICAL-STYLES.md. Style spline alignment is future work (ADR §Style Spline Alignment — note: reconcile against CANONICAL-STYLES.md before implementing). |
 | `IDEAL_REGION_DISTANCE` constant | Unchanged |
 | `proximityCurve` static method | Unchanged |
 | `calculateMatch` static method | Unchanged |
@@ -454,6 +456,6 @@ The C++ spec (KIJO-ENGINE-API.md, PruneEngine section) also says: "scar voxels �
 | File | What changes |
 |---|---|
 | `packages/shared/src/index.ts` | StatType: 6 → 8 members. StatSheet: 8 → 10 fields. |
-| `packages/engine/src/StatTerrain.ts` | STAT_TYPES: 6 → 8 entries. BASE_VALUES: 2 new keys. `hash % 6` → `hash % 8` (×2 occurrences: comment + code). |
-| `packages/engine/src/StatDeriver.ts` | 2 new module-level constants. StructuralStats: +defense, +stability. TerrainBonuses: +defense, +stability. deriveStructural: +2 counters, +2 switch cases, +2 return fields. deriveTerrain: +2 accumulators, +2 switch cases, +2 return fields. derive: +2 return fields. |
+| `packages/engine/src/StatTerrain.ts` | STAT_TYPES: 6 → 8 entries. BASE_VALUES: 2 new keys. `hash % 6` → `hash % 8` (×3 occurrences: STAT_TYPES header comment + getStatAt comment + getStatAt code). |
+| `packages/engine/src/StatDeriver.ts` | 1 new module-level constant (SCAR_DEFENSE_MULT). StructuralStats: +defense only. Stability intentionally excluded — terrain-only stat, same pattern as skillPoints. TerrainBonuses: +defense, +stability. deriveStructural: +1 counter (scarVoxels), +1 switch case (VoxelRole.SCAR), +1 return field (defense). No stability additions — terrain-only. deriveTerrain: +2 accumulators, +2 switch cases, +2 return fields. derive: +2 return fields. |
 | All other files | **No changes.** |

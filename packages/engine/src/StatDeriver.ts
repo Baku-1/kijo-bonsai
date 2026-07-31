@@ -35,6 +35,10 @@ const POWER_MULT     = 0.50;
 const ENDURANCE_MULT = 0.50;
 const KI_MULT        = 3.00;
 
+const SCAR_DEFENSE_MULT = 0.10;  // FLAG FOR PLAYTEST TUNING — "small Defense bonus" per C++ spec (KIJO-ENGINE-API PruneEngine §)
+// NOTE: Stability has no structural source. ROOT voxels do not contribute to stability.
+// Stability is terrain-only (same pattern as skillPoints). No ROOT_STABILITY_MULT constant.
+
 // ---------------------------------------------------------------------------
 // Internal result types (not part of the public StatSheet contract)
 // ---------------------------------------------------------------------------
@@ -45,6 +49,9 @@ export interface StructuralStats {
   endurance: number;
   ki: number;
   skillSlots: number;
+  defense: number;    // SCAR voxels × SCAR_DEFENSE_MULT
+  // NOTE: stability is NOT in StructuralStats — it is terrain-only (no Layer 1 source).
+  // Same pattern as skillPoints, which is also absent from StructuralStats.
 }
 
 export interface TerrainBonuses {
@@ -53,6 +60,8 @@ export interface TerrainBonuses {
   endurance: number;
   ki: number;
   skillPoints: number;
+  defense: number;
+  stability: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,7 +78,9 @@ export class StatDeriver {
   //   VoxelRole.ARM    → Power       (upper depth-1 branch tubes)
   //   VoxelRole.LEG    → Endurance   (lower depth-1 branch tubes)
   //   VoxelRole.CANOPY → Ki          (leaf cluster voxels)
-  //   DIGIT, ROOT, SCAR → no structural stat
+  //   DIGIT, ROOT → no structural stat
+  //   SCAR  → Defense (small bonus per C++ spec: "scar voxels → small structural Defense/HP")
+  //   NOTE: stability is terrain-only — ROOT voxels do not contribute structurally
   //
   // ARM/LEG assignment is done at voxelization time (packages/voxelizer/src/index.ts).
   // StatDeriver reads role directly — no mass-ratio approximation needed.
@@ -83,6 +94,7 @@ export class StatDeriver {
     let armVoxels    = 0;
     let legVoxels    = 0;
     let canopyVoxels = 0;
+    let scarVoxels   = 0;
 
     voxels.forEach((_x, _y, _z, _mat, role, _branchId) => {
       switch (role) {
@@ -90,7 +102,8 @@ export class StatDeriver {
         case VoxelRole.ARM:    armVoxels++;    break;
         case VoxelRole.LEG:    legVoxels++;    break;
         case VoxelRole.CANOPY: canopyVoxels++; break;
-        // DIGIT, ROOT, SCAR: no structural stat contribution
+        case VoxelRole.SCAR:   scarVoxels++;   break;
+        // DIGIT, ROOT: no structural stat contribution (SCAR now handled above)
       }
     });
 
@@ -104,6 +117,8 @@ export class StatDeriver {
       endurance: round4(legVoxels    * ENDURANCE_MULT),
       ki:        round4(canopyVoxels * KI_MULT),
       skillSlots,
+      defense:   round4(scarVoxels   * SCAR_DEFENSE_MULT),
+      // stability is NOT returned from deriveStructural — terrain-only stat (no Layer 1 source)
     };
   }
 
@@ -117,7 +132,7 @@ export class StatDeriver {
   // -------------------------------------------------------------------------
 
   static deriveTerrain(voxels: VoxelSet, seed: number): TerrainBonuses {
-    let hp = 0, power = 0, endurance = 0, ki = 0, skillPoints = 0;
+    let hp = 0, power = 0, endurance = 0, ki = 0, skillPoints = 0, defense = 0, stability = 0;
 
     voxels.forEach((x, y, z, _mat, _role, _branchId) => {
       const stat = StatTerrain.getStatAt(seed, x, y, z);
@@ -127,6 +142,8 @@ export class StatDeriver {
         case 'endurance':   endurance   += stat.value; break;
         case 'ki':          ki          += stat.value; break;
         case 'skill_point': skillPoints += stat.value; break;
+        case 'defense':   defense   += stat.value; break;
+        case 'stability': stability += stat.value; break;
         // 'neutral': no contribution
       }
     });
@@ -137,6 +154,8 @@ export class StatDeriver {
       endurance:   round4(endurance),
       ki:          round4(ki),
       skillPoints: round4(skillPoints),
+      defense:     round4(defense),
+      stability:   round4(stability),
     };
   }
 
@@ -187,6 +206,8 @@ export class StatDeriver {
       skillPoints: round4(terrain.skillPoints),
       wisdom,
       matchPct,
+      defense:     round4(structural.defense + terrain.defense),
+      stability:   round4(terrain.stability),   // terrain-only — no structural source (same pattern as skillPoints)
     };
   }
 }

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { BonsaiTree, GrowthEngine, StatDeriver, StatTerrain } from '@kijo/engine';
 import type { SpeciesClass } from '@kijo/shared';
+import { WATER_AMOUNT } from '@kijo/shared';
 import { Voxelizer, VoxelRole, Material } from '@kijo/voxelizer';
 import type { SparseVoxelSet } from '@kijo/voxelizer';
 import { mossMat } from './renderer/tree_mesh.js';
@@ -274,6 +275,8 @@ function refreshAll(): void {
     ['Skill points', sheet.skillPoints],
     ['Wisdom (tier)', Math.round(sheet.wisdom)],
     ['Match %', (sheet.matchPct * 100).toFixed(1) + '%'],
+    ['Defense', sheet.defense],
+    ['Stability', sheet.stability],
   ];
   statTable.innerHTML = rows
     .map(([k, v]) => `<tr><td>${k}</td><td>${typeof v === 'number' ? v.toFixed(2) : v}</td></tr>`)
@@ -332,7 +335,7 @@ document.getElementById('btn-new')!.addEventListener('click', () => {
   exportOut.value = '';
   refreshAll();
 });
-document.getElementById('btn-water')!.addEventListener('click', () => { tree.water(25); tree.markDirty(); refreshAll(); });
+document.getElementById('btn-water')!.addEventListener('click', () => { tree.water(WATER_AMOUNT); tree.markDirty(); refreshAll(); });
 document.getElementById('btn-fertilize')!.addEventListener('click', () => { tree.fertilize(); refreshAll(); });
 document.getElementById('btn-rotate')!.addEventListener('click', () => { tree.rotate(); refreshAll(); });
 
@@ -377,6 +380,8 @@ document.getElementById('btn-export')!.addEventListener('click', () => {
       skillPoints: sheet.skillPoints,
       wisdom: sheet.wisdom,
       matchPct: sheet.matchPct,
+      defense: sheet.defense,
+      stability: sheet.stability,
     },
   };
   exportOut.value = JSON.stringify(payload, null, 2);

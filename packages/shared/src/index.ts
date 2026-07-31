@@ -59,7 +59,7 @@ export interface Coordinate {
 }
 
 /** Which stat a branch segment or skill slot is associated with. */
-export type StatType = 'hp' | 'power' | 'endurance' | 'ki' | 'skill_point' | 'neutral';
+export type StatType = 'hp' | 'power' | 'endurance' | 'ki' | 'skill_point' | 'defense' | 'stability' | 'neutral';
 
 /** Full stat sheet attached to a grown tree (computed, not stored in TreeState). */
 export interface StatSheet {
@@ -71,6 +71,8 @@ export interface StatSheet {
   skillPoints: number;
   wisdom: number;
   matchPct: number;
+  defense: number;    // damage reduction — Layer 1: SCAR voxels × SCAR_DEFENSE_MULT; Layer 2: terrain
+  stability: number;  // knockdown/knockback reduction — terrain-only; no structural (Layer 1) source
 }
 
 // ---------------------------------------------------------------------------

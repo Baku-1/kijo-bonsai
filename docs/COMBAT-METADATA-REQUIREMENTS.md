@@ -88,7 +88,7 @@ Reduction  = Defender's Defense% × stance_modifier
 Final HP loss = Raw Damage − Reduction (minimum 1)
 ```
 
-> **NOTE:** 'Defense%' and 'Stability' referenced in this formula are NOT fields in the canonical TypeScript StatSheet (hp, power, endurance, ki, skillSlots, skillPoints, wisdom, matchPct). If the turn-based model is implemented, these must be either derived from existing stats or added as new StatSheet fields. Open design gap — see ADR-STATSHEET-DEFENSE-STABILITY.md.
+> **NOTE:** `defense` and `stability` are now fields in the canonical TypeScript StatSheet (added in Task #65 — see §3.1). `defense` provides damage reduction via Layer 1 (SCAR voxels × SCAR_DEFENSE_MULT 0.10) plus Layer 2 terrain bonuses. `stability` is terrain-only (Layer 2; no structural Layer 1 source). The turn-based formula above maps directly to these fields.
 
 **Resolution order:** determined by Tempo (species class). Tropicals resolve first, Evergreens second, Hardwoods last. Ties broken by Wisdom.
 
@@ -205,6 +205,8 @@ export interface StatSheet {
   skillPoints: number;  // terrain SKILL_POINT coordinate budget (float)
   wisdom: number;       // age in days → fight IQ (integer)
   matchPct: number;     // 0.0–1.0 overlap with ideal form
+  defense: number;      // damage reduction — Layer 1: SCAR voxels × SCAR_DEFENSE_MULT (0.10); Layer 2: terrain
+  stability: number;    // knockdown/knockback reduction — Layer 2 only (terrain-only; no structural Layer 1 source)
 }
 ```
 
@@ -299,7 +301,7 @@ export function spatialHash(seed: number, x: number, y: number, z: number): numb
 
 ### 3.5 Technique Classification
 
-`TechniqueClassifier.classify(careLog)` reads the ratio of action types in the care log. From `KIJO-ENGINE-API.md` v0.2 and `KIJO-TECH-SPEC.md` v0.2:
+`TechniqueClassifier.classify(careLog)` reads action counts in the care log. Technique is never chosen by the player — it emerges from what the caretaker actually did. From `KIJO-ENGINE-API.md` v0.2 and `KIJO-TECH-SPEC.md` v0.2 (canonical rules: `DESIGN-TECHNIQUE-CLASSIFICATION.md`):
 
 **PRIMARY TECHNIQUES** (mutually exclusive; one is always active):
 
@@ -308,6 +310,8 @@ export function spatialHash(seed: number, x: number, y: number, z: number): numb
 | Bound-and-Cut | wire > 0 AND prune > 0 | Balanced — moderate stats across the board, no exploitable weakness |
 | Clip-and-Grow | prune ≥ 2, wire == 0 ever, age ≥ 30 days | High-Crit — low sustained damage but devastating critical hits |
 
+> **Wire disqualification rule (Clip-and-Grow):** A single metal wire use at any point in the tree's lifetime permanently and irrevocably disqualifies the tree from Clip-and-Grow. No exceptions. No recovery. The care log is append-only — this cannot be reversed by any action, reset, or subscription feature. Even one wire use, even if immediately removed, marks the tree ineligible forever.
+
 **OVERLAY TECHNIQUES** (stack on top of primary; independent of each other):
 
 | Technique | Care Pattern | Combat Archetype |
@@ -315,9 +319,9 @@ export function spatialHash(seed: number, x: number, y: number, z: number): numb
 | Jin | jin strip actions ≥ 1 | Defensive — high Defense and Endurance, fights by absorbing punishment |
 | Water-and-Land | landscape element count ≥ 3 | None — care-loop only. Landscape elements are display-only. No combat stat or move. |
 
-> **Note:** Twine and Weights do NOT count as wire for technique classification. A player using only twine/weights/shears is still Clip-and-Grow eligible.
+> **Note:** Twine and Weights do NOT count as wire for technique classification. A player using only twine/weights/shears is still Clip-and-Grow eligible. Only metal wire increments `wireCount`.
 
-Default technique: BOUND_AND_CUT (tree has been pruned and wired at least once). The first time a tree qualifies for a non-default technique, a "spirit resonance" notification fires server-side.
+Default technique: BOUND_AND_CUT. Any tree that does not qualify for Clip-and-Grow lands here — including trees with zero care actions. The first time a tree qualifies for a non-default technique, a "spirit resonance" notification fires server-side (Clip-and-Grow, Jin, Water-and-Land only — Bound-and-Cut never notifies).
 
 ### 3.6 VoxelRole Enum (from `shared/src/index.ts`)
 

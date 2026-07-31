@@ -31,9 +31,9 @@ The mystery IS the game.
 |---|---|---|
 | `App.tsx` / `ThreeCanvas` / `CareHud` | **None** — intentional | Player-facing caretaker UI |
 | `main2d.ts` | All 8 (→10 after defense/stability) | Developer debug view only |
-| `main3d.ts` | All 8 (→10 after defense/stability) | Developer debug view only |
+| `main3d.ts` | HP, Power, Ki, Endurance, morale, voxel counts, style hints (not style name/index) | Voxel 3D Viewer — caretaker-accessible |
 
-main2d and main3d exist so developers can verify the stat engine is working. They are not player-facing. They must never become the basis for what the player sees.
+main2d.ts exists so developers can verify the stat engine is working. It is not player-facing and must never become the basis for what the player sees. main3d.ts is different — see the **Two Caretaker Views** section below.
 
 ---
 
@@ -51,7 +51,27 @@ main2d and main3d exist so developers can verify the stat engine is working. The
 - Defense, Stability
 - Wisdom tier (they may infer it from age, but not see a number)
 - matchPct (the most important hidden stat — reveals how well they grew their tree)
+- Morale (numeric value — hidden from the main care UI; the caretaker may sense their tree's spirit through qualitative visual cues, but does not see a number here). **Note:** morale IS shown in the Voxel 3D Viewer (main3d.ts) — this is intentional. The voxel viewer shows morale because it tells the caretaker how prepared their kijo is for Phase 2 combat. This is a meaningful feedback signal, not a hidden stat: the caretaker should know whether the tree they are tending will fight when called upon. Hiding the number from the main care UI preserves the mastery loop; surfacing it in the voxel viewer completes the Phase 1 → Phase 2 feedback bridge.
 - Style name / style index (the caretaker should discover what their tree is becoming through play, not a label)
+
+---
+
+## Two Caretaker Views
+
+The caretaker experience has two distinct views, both accessible to all caretakers.
+
+### Main Caretaker UI (App.tsx / ThreeCanvas / CareHud)
+- **Shows:** tree health (qualitative), moisture, age, visual form
+- **Does NOT show:** HP, Power, Endurance, Ki, SkillSlots, SkillPoints, Defense, Stability, Wisdom (numeric), matchPct, morale (numeric value), style name, style index
+
+### Voxel 3D Viewer (main3d.ts) — Caretaker-Accessible, Always Available
+
+This is the kijo preview viewer. It is **NOT** a developer-only view — it is part of the caretaker experience and is available to all caretakers at all times.
+
+- **Shows:** all kijo stats (HP, Power, Ki, Endurance, etc.), morale, voxel counts (which determine stats), style hints
+- **Does NOT show:** style name, style index — bonsai trees are never grown in perfection; the caretaker sees shape and character, not a classification label
+
+The style name and style index remain hidden even in the Voxel 3D Viewer. The caretaker can observe their tree's form and read its nature from the voxels, but the style label is withheld. This is intentional.
 
 ---
 

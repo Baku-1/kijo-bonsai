@@ -1,0 +1,7 @@
+# Fix: Technique Classification Table — §3.5 COMBAT-METADATA-REQUIREMENTS.md
+
+**Date:** 2026-07-29  
+**File changed:** `kijo-bonsai/docs/COMBAT-METADATA-REQUIREMENTS.md` — §3.5 only  
+**Authoritative source:** `kijo-bonsai/docs/DESIGN-TECHNIQUE-CLASSIFICATION.md`
+
+Three errors were corrected. First, the opening sentence said the classifier "reads the ratio of action types" — it reads action counts (`wireCount`, `pruneCount`, etc.), not ratios; this was changed accordingly, and a sentence was added clarifying that technique emerges from care behavior rather than being player-chosen. Second, the Clip-and-Grow care pattern listed `wire == 0 ever` as a silent table condition without conveying that a single wire use creates a permanent, irrecoverable disqualification with no exceptions — a block-quoted wire disqualification rule was added immediately after the primary techniques table to make this explicit. Third, the default technique line read "BOUND_AND_CUT (tree has been pruned and wired at least once)" — this was wrong because Bound-and-Cut is the default for *any* tree that does not qualify for Clip-and-Grow, including trees with zero care actions; the parenthetical was replaced with the correct rule. A clarifying parenthetical was also added to the spirit resonance notification sentence confirming that Bound-and-Cut never fires a notification. No other sections were modified.
