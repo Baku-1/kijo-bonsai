@@ -65,38 +65,18 @@ const STYLE_SPLINES: StyleSpline[] = [
 /**
  * Return the style spline for a given seed.
  *
- * R5 decision (2026-07-16): style index = seed % 8, but only index 0
+ * R5 decision (2026-07-16): style index = seed % 7, but only index 0
  * (Chokkan) is implemented.  All seeds are clamped to Chokkan until the
- * remaining 7 styles are built.  Clamp is temporary — remove when live.
+ * remaining 6 styles are built.  Clamp is temporary — remove when live.
+ * Note: % 7 because there are exactly 7 Growth Styles (indices 0–6);
+ * Sekijoju is banned (landscape-only, no spline) so index 7 must never route.
  */
 function splineForSeed(_seed: number): StyleSpline {
-  // const styleIndex = seed % 8;  ← future: route to STYLE_SPLINES[styleIndex]
+  // const styleIndex = seed % 7;  ← future: route to STYLE_SPLINES[styleIndex]
   return STYLE_SPLINES[0]; // Clamp: Chokkan only
 }
 
-// ---------------------------------------------------------------------------
-// STAT_TYPES — eight-bucket ordered list; index must be stable (hash % 8)
-//
-// R2 decision (2026-07-16): NEUTRAL is naturally ~12.5 % (1/8 of buckets).
-// defense and stability added 2026-07-28 (ADR-STATSHEET-DEFENSE-STABILITY).
-// Flag for playtest tuning.
-// ---------------------------------------------------------------------------
-
-const STAT_TYPES: StatType[] = [
-  'hp', 'power', 'endurance', 'ki', 'skill_point', 'defense', 'stability', 'neutral',
-];
-
-// Base value emitted when a coordinate maps to a given stat type.
-const BASE_VALUES: Record<StatType, number> = {
-  hp:          0.001,
-  power:       0.001,
-  endurance:   0.001,
-  ki:          0.001,
-  skill_point: 0.25,
-  defense:     0.001,   // FLAG FOR PLAYTEST TUNING
-  stability:   0.001,   // FLAG FOR PLAYTEST TUNING
-  neutral:     0.0,
-};
+// (STAT_TYPES and BASE_VALUES moved to StatTerrain static members — see below)
 
 // R7 decision (2026-07-16): Ideal region = all integer coords with
 // distanceToIdealPath < 10.  This threshold is the match% denominator.
@@ -108,6 +88,34 @@ const IDEAL_REGION_DISTANCE = 10;
 // ---------------------------------------------------------------------------
 
 export class StatTerrain {
+
+  // -------------------------------------------------------------------------
+  // Zone-noise constants (Decision 2, corrective addendum MAJOR-1)
+  // -------------------------------------------------------------------------
+
+  static readonly ZONE_WAVELENGTH = 32;
+  static readonly ZONE_SALT       = 0x6B3A2C1D;
+
+  // STAT_TYPES — eight-bucket ordered list; index must be stable (hash % 8)
+  //
+  // R2 decision (2026-07-16): NEUTRAL is naturally ~12.5 % (1/8 of buckets).
+  // defense and stability added 2026-07-28 (ADR-STATSHEET-DEFENSE-STABILITY).
+  // Flag for playtest tuning.
+  static readonly STAT_TYPES: readonly StatType[] = [
+    'hp', 'power', 'endurance', 'ki', 'skill_point', 'defense', 'stability', 'neutral',
+  ];
+
+  // Base value emitted when a coordinate maps to a given stat type.
+  static readonly BASE_VALUES: Readonly<Record<StatType, number>> = {
+    hp:          0.001,
+    power:       0.001,
+    endurance:   0.001,
+    ki:          0.001,
+    skill_point: 0.25,
+    defense:     0.001,   // FLAG FOR PLAYTEST TUNING
+    stability:   0.001,   // FLAG FOR PLAYTEST TUNING
+    neutral:     0.0,
+  };
 
   // -------------------------------------------------------------------------
   // proximityCurve(distance) → multiplier
@@ -155,14 +163,70 @@ export class StatTerrain {
   static getStatAt(seed: number, x: number, y: number, z: number): TerrainStat {
     const hash   = spatialHash(seed, x, y, z);
     const bucket = hash % 8;
-    const type   = STAT_TYPES[bucket];
-    const base   = BASE_VALUES[type];
+    const type   = StatTerrain.STAT_TYPES[bucket];
+    const base   = StatTerrain.BASE_VALUES[type];
 
     const dist       = StatTerrain.distanceToIdealPath(seed, x, y, z);
     const multiplier = StatTerrain.proximityCurve(dist);
     const value      = round4(base * multiplier);
 
     return { type, value };
+  }
+
+  // -------------------------------------------------------------------------
+  // getZoneIndex(seed, px, py, pz) → [0, 7]
+  //
+  // Low-frequency zone assignment from a float-space position.
+  // Uses trilinear Value Noise with wavelength ZONE_WAVELENGTH to produce a
+  // spatially coherent zone index in [0, N_ZONES-1].  Evaluated at continuous
+  // float coordinates — NOT at integer voxel coords — so sub-voxel branch
+  // jitter from angle changes does not cross zone boundaries.
+  //
+  // ZONE_SALT decorrelates this from the spatialHash used in getStatAt.
+  // Must be: deterministic (same seed+pos → same index), pure, platform-identical.
+  // -------------------------------------------------------------------------
+
+  static getZoneIndex(seed: number, px: number, py: number, pz: number): number {
+    const W        = StatTerrain.ZONE_WAVELENGTH;                   // 32
+    const zoneSeed = (seed ^ StatTerrain.ZONE_SALT) >>> 0;
+
+    // MINOR-4: clamp to [0, 255] before lattice computation.
+    // Has zero cost on valid trees; handles pathological geometries safely.
+    const cpx = Math.max(0, Math.min(255, px));
+    const cpy = Math.max(0, Math.min(255, py));
+    const cpz = Math.max(0, Math.min(255, pz));
+
+    // Scaled coordinates and integer cell corners
+    const sx = cpx / W, sy = cpy / W, sz = cpz / W;
+    const ix = Math.floor(sx), iy = Math.floor(sy), iz = Math.floor(sz);
+    const fx = sx - ix,        fy = sy - iy,        fz = sz - iz;
+
+    // Smoothstep fade: 3t² − 2t³  (C¹-continuous; avoids visible seams)
+    const ux = fx * fx * (3 - 2 * fx);
+    const uy = fy * fy * (3 - 2 * fy);
+    const uz = fz * fz * (3 - 2 * fz);
+
+    // 8 corner hash samples → [0, 1) via / 2^32
+    const s = zoneSeed;
+    const h000 = spatialHash(s, ix,   iy,   iz  ) / 4294967296;
+    const h100 = spatialHash(s, ix+1, iy,   iz  ) / 4294967296;
+    const h010 = spatialHash(s, ix,   iy+1, iz  ) / 4294967296;
+    const h110 = spatialHash(s, ix+1, iy+1, iz  ) / 4294967296;
+    const h001 = spatialHash(s, ix,   iy,   iz+1) / 4294967296;
+    const h101 = spatialHash(s, ix+1, iy,   iz+1) / 4294967296;
+    const h011 = spatialHash(s, ix,   iy+1, iz+1) / 4294967296;
+    const h111 = spatialHash(s, ix+1, iy+1, iz+1) / 4294967296;
+
+    // Trilinear interpolation
+    const h00 = h000 + ux * (h100 - h000);
+    const h01 = h001 + ux * (h101 - h001);
+    const h10 = h010 + ux * (h110 - h010);
+    const h11 = h011 + ux * (h111 - h011);
+    const h0  = h00  + uy * (h10  - h00);
+    const h1  = h01  + uy * (h11  - h01);
+    const v   = h0   + uz * (h1   - h0);
+
+    return Math.floor(v * 8) % 8;  // → STAT_TYPES index in [0, 7]
   }
 
   // -------------------------------------------------------------------------

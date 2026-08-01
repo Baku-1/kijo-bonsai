@@ -60,9 +60,11 @@ console.log('\nP2 — Voxelizer gate: prune leaf, count decreases or stays same'
   );
   assert(leaf !== undefined, 'found a living leaf branch');
   if (leaf) {
-    const beforeCount = Voxelizer.voxelize(tree).count();
+    const { voxels: beforeVoxels } = Voxelizer.voxelize(tree);
+    const beforeCount = beforeVoxels.count();
     tree.prune(leaf.id);
-    const afterCount = Voxelizer.voxelize(tree).count();
+    const { voxels: afterVoxels } = Voxelizer.voxelize(tree);
+    const afterCount = afterVoxels.count();
     assert(
       afterCount <= beforeCount,
       `voxel count does not increase after pruning leaf`,
@@ -172,11 +174,11 @@ console.log('\nP6 — CareLogReplay determinism with prune');
   assert(hasPruneEntry, 'care log contains prune entry');
   console.log(`    care log length: ${careLog.length} entries`);
 
-  const voxOrig = Voxelizer.voxelize(tree);
+  const { voxels: voxOrig } = Voxelizer.voxelize(tree);
 
   // Reconstruct from seed + species + care log
   const rebuilt = CareLogReplay.reconstruct(seed, species, careLog, totalDays);
-  const voxRebuilt = Voxelizer.voxelize(rebuilt);
+  const { voxels: voxRebuilt } = Voxelizer.voxelize(rebuilt);
 
   assert(
     voxOrig.count() === voxRebuilt.count(),

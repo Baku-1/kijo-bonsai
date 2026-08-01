@@ -15,6 +15,7 @@
 
 import { exportFixture } from './exportFixture.mjs';
 import { readFileSync }  from 'node:fs';
+import { WATER_AMOUNT }  from '../packages/shared/dist/index.js';
 
 // ---------------------------------------------------------------------------
 // Build a well-watered care log: water every `interval` days for `totalDays`.
@@ -24,7 +25,7 @@ import { readFileSync }  from 'node:fs';
 function buildWaterLog(totalDays, interval = 5) {
   const log = [];
   for (let d = 0; d < totalDays; d += interval) {
-    log.push({ day: d, action: { type: 'water' } });
+    log.push({ day: d, action: { type: 'water', amount: WATER_AMOUNT } });
   }
   return log;
 }

@@ -131,19 +131,33 @@ export class StatDeriver {
   // round4() applied per accumulated total.
   // -------------------------------------------------------------------------
 
-  static deriveTerrain(voxels: VoxelSet, seed: number): TerrainBonuses {
+  static deriveTerrain(
+    voxels: VoxelSet,
+    seed:   number,
+    zones:  Map<number, number>,  // branchId → zoneIndex; from Voxelizer.VoxelizeResult — REQUIRED
+  ): TerrainBonuses {
     let hp = 0, power = 0, endurance = 0, ki = 0, skillPoints = 0, defense = 0, stability = 0;
 
-    voxels.forEach((x, y, z, _mat, _role, _branchId) => {
-      const stat = StatTerrain.getStatAt(seed, x, y, z);
-      switch (stat.type) {
-        case 'hp':          hp          += stat.value; break;
-        case 'power':       power       += stat.value; break;
-        case 'endurance':   endurance   += stat.value; break;
-        case 'ki':          ki          += stat.value; break;
-        case 'skill_point': skillPoints += stat.value; break;
-        case 'defense':   defense   += stat.value; break;
-        case 'stability': stability += stat.value; break;
+    voxels.forEach((x, y, z, _mat, _role, branchId) => {
+      // ZONE TYPE: from skeleton-derived zone map (always provided post-jitter-fix).
+      // Fallback to per-voxel hash only if branchId not in map (defensive; should never happen).
+      const statType = zones.has(branchId)
+        ? StatTerrain.STAT_TYPES[zones.get(branchId)!]
+        : StatTerrain.getStatAt(seed, x, y, z).type;
+
+      // BONUS VALUE: proximity multiplier remains per-voxel integer eval (unchanged).
+      const dist  = StatTerrain.distanceToIdealPath(seed, x, y, z);
+      const mult  = StatTerrain.proximityCurve(dist);
+      const value = round4(StatTerrain.BASE_VALUES[statType] * mult);
+
+      switch (statType) {
+        case 'hp':          hp          += value; break;
+        case 'power':       power       += value; break;
+        case 'endurance':   endurance   += value; break;
+        case 'ki':          ki          += value; break;
+        case 'skill_point': skillPoints += value; break;
+        case 'defense':     defense     += value; break;
+        case 'stability':   stability   += value; break;
         // 'neutral': no contribution
       }
     });
@@ -187,17 +201,18 @@ export class StatDeriver {
   // -------------------------------------------------------------------------
 
   static derive(
-    tree: BonsaiTree,
-    voxels: VoxelSet,
-    seed: number,
+    tree:    BonsaiTree,
+    voxels:  VoxelSet,
+    seed:    number,
     ageDays: number,
+    zones:   Map<number, number>,  // branchId → zoneIndex; from Voxelizer.VoxelizeResult — REQUIRED
   ): StatSheet {
     const structural = StatDeriver.deriveStructural(voxels, tree);
-    const terrain    = StatDeriver.deriveTerrain(voxels, seed);
+    const terrain    = StatDeriver.deriveTerrain(voxels, seed, zones);
     const wisdom     = StatDeriver.wisdomFromAge(ageDays);
     const matchPct   = StatTerrain.calculateMatch(voxels, seed);
 
-    return {
+    const sheet: StatSheet = {
       hp:          round4(structural.hp          + terrain.hp),
       power:       round4(structural.power       + terrain.power),
       endurance:   round4(structural.endurance   + terrain.endurance),
@@ -209,5 +224,20 @@ export class StatDeriver {
       defense:     round4(structural.defense + terrain.defense),
       stability:   round4(terrain.stability),   // terrain-only — no structural source (same pattern as skillPoints)
     };
+
+    // GAP-4 defense-in-depth: NaN sentinel.
+    // If any numeric field is not finite, the stat pipeline has been corrupted
+    // (e.g. by NaN moisture that bypassed the water() guard). Throw rather than
+    // silently return a fraudulent StatSheet that would be stored on-chain.
+    for (const [key, value] of Object.entries(sheet) as [string, number][]) {
+      if (!Number.isFinite(value)) {
+        throw new Error(
+          `StatDeriver.derive(): stat field '${key}' is not finite (${value}). ` +
+          `The stat pipeline has been corrupted — inspect the care log for invalid inputs.`
+        );
+      }
+    }
+
+    return sheet;
   }
 }

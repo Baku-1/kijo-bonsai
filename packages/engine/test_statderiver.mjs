@@ -85,9 +85,9 @@ function statEqual(a, b) {
 
 console.log('\nD1 — structural stats > 0 (Day-200 hardwood seed 464497)');
 {
-  const tree   = grow200();
-  const voxels = Voxelizer.voxelize(tree);
-  const s      = StatDeriver.deriveStructural(voxels, tree);
+  const tree           = grow200();
+  const { voxels }     = Voxelizer.voxelize(tree);
+  const s              = StatDeriver.deriveStructural(voxels, tree);
 
   console.log(`  hp=${s.hp}  power=${s.power}  endurance=${s.endurance}  ki=${s.ki}  skillSlots=${s.skillSlots}`);
 
@@ -104,12 +104,12 @@ console.log('\nD1 — structural stats > 0 (Day-200 hardwood seed 464497)');
 
 console.log('\nD2 — terrain stacks additively on structural');
 {
-  const tree   = grow200();
-  const voxels = Voxelizer.voxelize(tree);
-  const seed   = tree.getSeed();
+  const tree             = grow200();
+  const { voxels, zones } = Voxelizer.voxelize(tree);
+  const seed             = tree.getSeed();
 
   const structural = StatDeriver.deriveStructural(voxels, tree);
-  const combined   = StatDeriver.derive(tree, voxels, seed, tree.getAge());
+  const combined   = StatDeriver.derive(tree, voxels, seed, tree.getAge(), zones);
 
   const deltaHp        = combined.hp        - structural.hp;
   const deltaPower     = combined.power     - structural.power;
@@ -149,13 +149,13 @@ console.log('\nD3 — wisdomFromAge tier thresholds');
 
 console.log('\nD4 — determinism: same inputs → identical StatSheet');
 {
-  const tree    = grow200();
-  const voxels  = Voxelizer.voxelize(tree);
-  const seed    = tree.getSeed();
-  const ageDays = tree.getAge();
+  const tree              = grow200();
+  const { voxels, zones } = Voxelizer.voxelize(tree);
+  const seed              = tree.getSeed();
+  const ageDays           = tree.getAge();
 
-  const sheet1 = StatDeriver.derive(tree, voxels, seed, ageDays);
-  const sheet2 = StatDeriver.derive(tree, voxels, seed, ageDays);
+  const sheet1 = StatDeriver.derive(tree, voxels, seed, ageDays, zones);
+  const sheet2 = StatDeriver.derive(tree, voxels, seed, ageDays, zones);
 
   console.log('  run1:', JSON.stringify(sheet1));
   console.log('  run2:', JSON.stringify(sheet2));
@@ -170,17 +170,17 @@ console.log('\nD4 — determinism: same inputs → identical StatSheet');
 console.log('\nD5 — end-to-end: direct grow vs CareLogReplay → identical StatSheet');
 {
   // Build the tree directly (source of truth)
-  const treeA   = grow200();
-  const voxelsA = Voxelizer.voxelize(treeA);
-  const seed    = treeA.getSeed();
-  const ageDays = treeA.getAge();
-  const sheetA  = StatDeriver.derive(treeA, voxelsA, seed, ageDays);
+  const treeA                       = grow200();
+  const { voxels: voxelsA, zones: zonesA } = Voxelizer.voxelize(treeA);
+  const seed                        = treeA.getSeed();
+  const ageDays                     = treeA.getAge();
+  const sheetA                      = StatDeriver.derive(treeA, voxelsA, seed, ageDays, zonesA);
 
   // Replay from the extracted care log
-  const careLog = treeA.getCareLog();
-  const treeB   = CareLogReplay.reconstruct(seed, 'hardwood', careLog, 200);
-  const voxelsB = Voxelizer.voxelize(treeB);
-  const sheetB  = StatDeriver.derive(treeB, voxelsB, seed, treeB.getAge());
+  const careLog                     = treeA.getCareLog();
+  const treeB                       = CareLogReplay.reconstruct(seed, 'hardwood', careLog, 200);
+  const { voxels: voxelsB, zones: zonesB } = Voxelizer.voxelize(treeB);
+  const sheetB                      = StatDeriver.derive(treeB, voxelsB, seed, treeB.getAge(), zonesB);
 
   console.log('  direct:  ', JSON.stringify(sheetA));
   console.log('  replayed:', JSON.stringify(sheetB));
@@ -194,12 +194,12 @@ console.log('\nD5 — end-to-end: direct grow vs CareLogReplay → identical Sta
 
 console.log('\nD6 — sanity + fixture export');
 {
-  const tree    = grow200();
-  const voxels  = Voxelizer.voxelize(tree);
-  const seed    = tree.getSeed();
-  const ageDays = tree.getAge();
+  const tree              = grow200();
+  const { voxels, zones } = Voxelizer.voxelize(tree);
+  const seed              = tree.getSeed();
+  const ageDays           = tree.getAge();
 
-  const sheet = StatDeriver.derive(tree, voxels, seed, ageDays);
+  const sheet = StatDeriver.derive(tree, voxels, seed, ageDays, zones);
 
   console.log('\n  StatSheet (combat client fixture):');
   console.log(JSON.stringify(sheet, null, 2));
@@ -237,13 +237,13 @@ console.log('\nD6 — sanity + fixture export');
 
 console.log('\nD7 — morphology fidelity: pruning bias → correct Power/Endurance split');
 {
-  const treeArm  = grow200Biased(2);  // ARM branch tip extends freely
-  const voxArm   = Voxelizer.voxelize(treeArm);
-  const sheetArm = StatDeriver.derive(treeArm, voxArm, treeArm.getSeed(), treeArm.getAge());
+  const treeArm                            = grow200Biased(2);  // ARM branch tip extends freely
+  const { voxels: voxArm, zones: zonesArm } = Voxelizer.voxelize(treeArm);
+  const sheetArm = StatDeriver.derive(treeArm, voxArm, treeArm.getSeed(), treeArm.getAge(), zonesArm);
 
-  const treeLeg  = grow200Biased(1);  // LEG branch tip extends freely
-  const voxLeg   = Voxelizer.voxelize(treeLeg);
-  const sheetLeg = StatDeriver.derive(treeLeg, voxLeg, treeLeg.getSeed(), treeLeg.getAge());
+  const treeLeg                            = grow200Biased(1);  // LEG branch tip extends freely
+  const { voxels: voxLeg, zones: zonesLeg } = Voxelizer.voxelize(treeLeg);
+  const sheetLeg = StatDeriver.derive(treeLeg, voxLeg, treeLeg.getSeed(), treeLeg.getAge(), zonesLeg);
 
   console.log('  ARM-heavy:', JSON.stringify(sheetArm));
   console.log('  LEG-heavy:', JSON.stringify(sheetLeg));

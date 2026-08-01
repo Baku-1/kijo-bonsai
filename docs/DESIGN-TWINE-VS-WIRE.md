@@ -17,14 +17,14 @@ Twine and wire are NOT the same tool at different price points. They are two dif
 
 ## Twine (Free / All Players)
 
-- Bends a branch ±15–20° from its natural direction
+- Bends a branch ±28° max from its natural direction [RESOLVED 2026-07-31]
 - **Temporary** — degrades over 10–15 game days, then the branch slowly springs back toward its original angle
 - Must be re-applied regularly to maintain the bend
 - **No negative consequence** — if you forget to re-apply, the branch just returns to its natural angle. No penalty, no scarring.
 - Available to ALL players including guests
 - Visually: thin natural fiber wrapping (distinct from metal wire marks)
 - Does NOT penalize Flower Guild Rank (natural material, consistent with traditional penjing)
-- **For technique classification:** twine counts as "binding" — twine + shears = Bound-and-Cut. A player using ONLY twine (no wire) + shears is Bound-and-Cut, NOT Clip-and-Grow.
+- **For technique classification:** twine does NOT count as wire and does NOT increment wireCount. A player using ONLY twine + shears (no metal wire ever) remains Clip-and-Grow eligible — twine use never disqualifies Clip-and-Grow. [Confirmed by owner 2026-07-31.]
 - A player using ONLY shears + twine + weights (no metal wire ever) is still Clip-and-Grow eligible. Twine ≠ wire for disqualification purposes.
 
 **The accessibility path:** a free player using twine can meaningfully shape their tree. They have to work harder — re-applying every 10-15 days, planning ahead, accepting less bend angle — but they are not locked out of shaping.
@@ -56,11 +56,12 @@ This is intentional design: premium tools reward players who PAY AND TEND. Money
 
 - Small stones or weight bags attached to a branch via twine
 - **Gravity-only** — can only bend downward (you cannot hang a weight upward)
-- Achieves up to ~35% of wire's maximum bend arc (~15–16° downward)
+- 7° of downward bend per weight. Maximum 4 weights per branch = 28° max downward. [RESOLVED 2026-07-31]
+- **Caps are independent, NOT additive.** Twine and weights each cap at 28°. Using both on the same branch does not exceed 28° per application — they do not stack.
 - The weight stays attached until the caretaker removes it
 - Over time the downward bend gradually sets (slower than wire, but permanent eventually)
 - Combined with twine: twine attaches the weight, weight provides sustained downward pull
-- **Free player cascade path:** a free player with twine + weights can create a classic cascading Kengai branch, slowly and cheaply
+- **Free player cascade path (Kengai — Cascade style):** twine + weights can create a classic cascading branch slowly and cheaply. Cascade is achieved by stacking over time: apply for 28°, let the bend partially set, apply again for another 28°, repeat until the trunk cascades past the pot edge. Patience, not simultaneity — a single application is still capped at 28°.
 - Does NOT count as wire for technique classification (natural force / gravity, not metal shaping)
 - A player using only shears + twine + weights is Clip-and-Grow eligible
 
@@ -70,8 +71,8 @@ This is intentional design: premium tools reward players who PAY AND TEND. Money
 
 | Tool | Cost | Bend | Permanence | Downside | Classification |
 |---|---|---|---|---|---|
-| Twine | Free | ±15-20° | Temporary (10-15 days, must re-apply) | None | Counts as binding (not wire) |
-| Weights + Twine | Free/cheap | ~16° downward only | Slow-set, eventually permanent | None | Natural force, not wire |
+| Twine | Free | ±28° max [RESOLVED 2026-07-31] | Temporary (10-15 days, must re-apply) | None | Does not increment wireCount — Clip-and-Grow eligible |
+| Weights + Twine | Free/cheap | 7° per weight, ≤28° downward (4-weight max) [RESOLVED 2026-07-31] | Slow-set, eventually permanent | None | Natural force, not wire |
 | Wire | Premium | ±45° | Permanent (sets in 6-12 months) | Scars + rank penalty if left >12 months | Metal wire — disqualifies Clip-and-Grow |
 
 ---
@@ -84,6 +85,7 @@ This is intentional design: premium tools reward players who PAY AND TEND. Money
 - The technique classifier must count twine separately from wire — twine use ≠ wire use
 - A care log with zero wire ever AND twine uses = still Clip-and-Grow eligible
 - A care log with even one wire use = Clip-and-Grow permanently disqualified
+- SCAR voxels (VoxelRole.SCAR) have exactly two sources: wire overstay past the removal window (unintentional bark scarring) and jin pliers use (intentional deadwood conversion). Twine and weights NEVER produce SCAR voxels. [Confirmed by owner 2026-07-31.]
 
 ---
 

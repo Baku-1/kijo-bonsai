@@ -1,5 +1,6 @@
 import type { Branch } from '@kijo/shared';
 import { VoxelRole } from '@kijo/shared';
+import { StatTerrain } from '@kijo/engine';
 import type { BonsaiTree } from '@kijo/engine';
 
 export { VoxelRole } from '@kijo/shared';
@@ -67,6 +68,19 @@ export class SparseVoxelSet {
   }
 }
 
+// ---------------------------------------------------------------------------
+// VoxelizeResult — returned by Voxelizer.voxelize().
+// zones: branchId → zoneIndex [0-7]; derived from float-space branch start
+// positions via StatTerrain.getZoneIndex (low-frequency trilinear Value Noise).
+// Zone type is stable under sub-voxel branch angle jitter — see spec
+// ARCHITECT-VOXEL-STATZONE-2026-07-31 Decision 1.
+// ---------------------------------------------------------------------------
+
+export interface VoxelizeResult {
+  voxels: SparseVoxelSet;
+  zones:  Map<number, number>;  // branchId → zoneIndex (0-7)
+}
+
 type Vec3 = { x: number; y: number; z: number };
 
 function rotateDirection(parent: Vec3, polar: number, azimuthal: number): Vec3 {
@@ -85,7 +99,7 @@ function rotateDirection(parent: Vec3, polar: number, azimuthal: number): Vec3 {
 export class Voxelizer {
   static readonly BASE: Vec3 = { x: 128, y: 38, z: 128 };
 
-  static voxelize(tree: BonsaiTree): SparseVoxelSet {
+  static voxelize(tree: BonsaiTree): VoxelizeResult {
     const voxels = new SparseVoxelSet();
     const branches = tree.getBranches();
     const BASE = Voxelizer.BASE;
@@ -108,6 +122,16 @@ export class Voxelizer {
     //   parentStart + parentDir * child.attachmentY (one-third rule, R-ATTACHY).
     const positions = new Map<number, { start: Vec3; end: Vec3; dir: Vec3 }>();
     Voxelizer.computePositions(0, BASE, { x: 0, y: 1, z: 0 }, branches, positions);
+
+    // Compute zone label per branch from float-space start position.
+    // Evaluated ONCE per branch at float coordinates — stable under sub-voxel
+    // angle jitter.  All voxels in a branch segment inherit this zone label.
+    // branchId=0 (trunk/root) is always in positions (start = BASE).
+    const seed  = tree.getSeed();
+    const zones = new Map<number, number>();
+    for (const [branchId, pos] of positions) {
+      zones.set(branchId, StatTerrain.getZoneIndex(seed, pos.start.x, pos.start.y, pos.start.z));
+    }
 
     // ARM / LEG classification for depth-1 branches (R-ATTACHY resolution, 2026-07-18).
     // Rule: sort depth-1 branches by attachmentY (real Y-coordinate on trunk at fork time).
@@ -163,7 +187,7 @@ export class Voxelizer {
       }
     }
 
-    return voxels;
+    return { voxels, zones };
   }
 
   /**

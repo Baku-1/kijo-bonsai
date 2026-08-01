@@ -133,9 +133,9 @@ function distToSegment(px: number, py: number, x1: number, y1: number, x2: numbe
 // Live stats — voxelize + derive on demand (throttled: only after mutations).
 // ---------------------------------------------------------------------------
 function refreshStats(): void {
-  const voxels = Voxelizer.voxelize(tree);
+  const { voxels, zones } = Voxelizer.voxelize(tree);
   voxelCount = voxels.count();
-  const sheet = StatDeriver.derive(tree, voxels, tree.getSeed(), tree.getAge());
+  const sheet = StatDeriver.derive(tree, voxels, tree.getSeed(), tree.getAge(), zones);
 
   voxelCountEl.textContent = `${voxelCount} voxels`;
   const rows: Array<[string, number | string]> = [
@@ -213,8 +213,8 @@ document.getElementById('btn-day')!.addEventListener('click', () => {
 // Export — exact fixture shape the Godot game loads (KijoStats.from_json).
 // ---------------------------------------------------------------------------
 document.getElementById('btn-export')!.addEventListener('click', () => {
-  const voxels = Voxelizer.voxelize(tree);
-  const sheet = StatDeriver.derive(tree, voxels, tree.getSeed(), tree.getAge());
+  const { voxels, zones } = Voxelizer.voxelize(tree);
+  const sheet = StatDeriver.derive(tree, voxels, tree.getSeed(), tree.getAge(), zones);
   const payload = {
     seed: tree.getSeed(),
     species: tree.getSpecies().toUpperCase(),

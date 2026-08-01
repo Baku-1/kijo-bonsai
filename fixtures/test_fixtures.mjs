@@ -12,6 +12,7 @@ import { exportFixture }            from './exportFixture.mjs';
 import { CareLogReplay }            from '../packages/engine/dist/CareLogReplay.js';
 import { StatDeriver }              from '../packages/engine/dist/StatDeriver.js';
 import { Voxelizer }                from '../packages/voxelizer/dist/index.js';
+import { WATER_AMOUNT }             from '../packages/shared/dist/index.js';
 
 // ---------------------------------------------------------------------------
 // Harness
@@ -37,7 +38,7 @@ function assert(cond, name, detail = '') {
 function buildWaterLog(totalDays, interval = 5) {
   const log = [];
   for (let d = 0; d < totalDays; d += interval) {
-    log.push({ day: d, action: { type: 'water' } });
+    log.push({ day: d, action: { type: 'water', amount: WATER_AMOUNT } });
   }
   return log;
 }
@@ -112,8 +113,8 @@ console.log('\nE3 -- round-trip: file stats match in-memory derive()');
 {
   const fixture = JSON.parse(readFileSync(TMP_E1_E3, 'utf8'));
   const tree    = CareLogReplay.reconstruct(SEED_HW, 'hardwood', careLog, TOTAL_DAYS);
-  const voxels  = Voxelizer.voxelize(tree);
-  const sheet   = StatDeriver.derive(tree, voxels, SEED_HW, tree.getAge());
+  const { voxels, zones } = Voxelizer.voxelize(tree);
+  const sheet   = StatDeriver.derive(tree, voxels, SEED_HW, tree.getAge(), zones);
 
   const KEYS = ['hp','power','endurance','ki','skillSlots','skillPoints','wisdom','matchPct'];
   for (const k of KEYS) {

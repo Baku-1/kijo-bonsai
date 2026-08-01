@@ -149,7 +149,7 @@ Note: The `prune ≥ 2` and `age ≥ 30` thresholds in KIJO-TECH-SPEC.md §7.4 a
 
 - The care log must track `wireCount` (metal wire only), `pruneCount`, `jinCount`, and `landscapeCount` as queryable running totals for efficient classification.
 - Twine uses and weight uses are stored in the care log for history/audit purposes but do NOT increment `wireCount`.
-- Classification is re-evaluated on every care action that could change the result. Results are cached and only recomputed when relevant action types occur.
+- Classification is **cached** and re-evaluated **lazily — only when the caretaker opens the voxel viewer**. It is NOT re-run on every care action. [Updated 2026-07-31: OQ-6 resolution — previous text ("re-evaluated on every care action that could change the result") is superseded by owner confirmation. Cache invalidation point: voxel viewer open handler. Cached result is a `TechniqueResult` struct; the cache is stateless (same inputs → same output on re-run).]
 - Discovery notifications are one-time events stored as flags on the tree record: `notified_clip_and_grow`, `notified_jin`, `notified_water_and_land`. Once set true, they are never cleared.
 - The classifier must return the full state: `{ primary: "BOUND_AND_CUT"|"CLIP_AND_GROW", overlays: ["JIN"?, "WATER_AND_LAND"?] }`.
 - Caretaker UI intentionally does not display technique classification. See `DESIGN-CARETAKER-OPACITY.md`. The technique is visible to fighters and in the NFT metadata, not in the live care interface.

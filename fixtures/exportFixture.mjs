@@ -37,12 +37,13 @@ export function exportFixture(
   //    CareLogReplay.reconstruct(seed, species, careLog, totalDays) -> BonsaiTree
   const tree = CareLogReplay.reconstruct(seed, species, careLog, totalDays);
 
-  // 2. Voxelize: BonsaiTree -> SparseVoxelSet (256^3 sparse grid, roles stamped per voxel).
-  const voxels = Voxelizer.voxelize(tree);
+  // 2. Voxelize: BonsaiTree -> { voxels: SparseVoxelSet, zones: Map<branchId, zoneIdx> }.
+  //    zones carries the float-space zone assignment per branch (stat-zone jitter fix).
+  const { voxels, zones } = Voxelizer.voxelize(tree);
 
   // 3. Derive StatSheet: structural (role voxel counts) + terrain bonuses + wisdom + matchPct.
-  //    StatDeriver.derive(tree, voxels, seed, ageDays) -> StatSheet (all 8 keys)
-  const sheet = StatDeriver.derive(tree, voxels, seed, tree.getAge());
+  //    StatDeriver.derive(tree, voxels, seed, ageDays, zones) -> StatSheet (all 8 keys)
+  const sheet = StatDeriver.derive(tree, voxels, seed, tree.getAge(), zones);
 
   // 4. Build fixture envelope.
   //    .stats is the Godot KijoStats resource contract -- keys must match exactly.

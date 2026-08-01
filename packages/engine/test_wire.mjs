@@ -6,7 +6,8 @@
 import { BonsaiTree } from './dist/BonsaiTree.js';
 import { GrowthEngine } from './dist/GrowthEngine.js';
 import { CareLogReplay } from './dist/CareLogReplay.js';
-import { WireEngine, WIRE_MAX_THICKNESS, WIRE_MAX_BEND_DEG } from './dist/WireEngine.js';
+import { WireEngine, WIRE_MAX_THICKNESS, WIRE_MAX_ANGLE_DELTA } from './dist/WireEngine.js';
+import { WATER_AMOUNT } from '../shared/dist/index.js';
 import { Voxelizer } from '../voxelizer/dist/index.js';
 
 let passed = 0, failed = 0;
@@ -32,27 +33,27 @@ function growTree(seed, species, days) {
 }
 
 // ---------------------------------------------------------------------------
-// W1 — Cannot wire the trunk (depth 0)
+// W1 — Trunk CAN be wired (depth restriction removed, OQ-1 2026-07-31)
 // ---------------------------------------------------------------------------
-console.log('\nW1 — Cannot wire trunk');
+console.log('\nW1 — Trunk can now be wired');
 {
-  const tree = growTree(42, 'hardwood', 100);
+  const tree = growTree(42, 'hardwood', 20);  // day 20: trunk thickness ~2.96, under WIRE_MAX_THICKNESS
   const r = tree.wire(0, 15);
-  assert(r.ok === false && r.reason === 'trunk', `rejected with reason 'trunk'`, JSON.stringify(r));
-  assert(tree.getBranches()[0].angle === 0, 'trunk angle unchanged');
+  assert(r.ok === true, 'trunk wired successfully', JSON.stringify(r));
+  assert(tree.getBranches()[0].angle !== 0, 'trunk angle changed after wiring');
 }
 
 // ---------------------------------------------------------------------------
-// W2 — Cannot wire depth-2+ (too fragile)
+// W2 — Depth-2+ CAN be wired (depth restriction removed, OQ-1 2026-07-31)
 // ---------------------------------------------------------------------------
-console.log('\nW2 — Cannot wire depth-2+');
+console.log('\nW2 — Depth-2+ can now be wired');
 {
   const tree = growTree(42, 'hardwood', 200);
-  const d2 = tree.getBranches().find(b => !b.pruned && b.depth >= 2);
-  assert(d2 !== undefined, 'found a depth-2+ branch to test');
+  const d2 = tree.getBranches().find(b => !b.pruned && b.depth >= 2 && b.thickness < WIRE_MAX_THICKNESS);
+  assert(d2 !== undefined, 'found a wirable depth-2+ branch to test');
   if (d2) {
     const r = tree.wire(d2.id, 15);
-    assert(r.ok === false && r.reason === 'depth', `rejected with reason 'depth'`, JSON.stringify(r));
+    assert(r.ok === true, 'depth-2+ branch wired successfully', JSON.stringify(r));
   }
 }
 
@@ -73,7 +74,7 @@ console.log('\nW3 — Thickness limit enforced');
   const overCap = d1.find(b => b.thickness >= WIRE_MAX_THICKNESS);
   if (overCap) {
     const r = tree.wire(overCap.id, 15);
-    assert(r.ok === false && r.reason === 'thickness', 'over-cap branch rejected');
+    assert(r.ok === false && r.reason === 'too-thick', 'over-cap branch rejected');
   } else {
     // No natural over-cap branch at day 200: simulate by direct WireEngine call after manual state probe
     console.log(`    (no natural over-cap depth-1 branch; max thickness=${Math.max(...d1.map(b => b.thickness)).toFixed(2)})`);
@@ -82,11 +83,11 @@ console.log('\nW3 — Thickness limit enforced');
 }
 
 // ---------------------------------------------------------------------------
-// W4 — Bend applies, clamps to ±WIRE_MAX_BEND_DEG, polar stays in [0.1, 1.4]
+// W4 — Bend applies, clamps to ±WIRE_MAX_ANGLE_DELTA, polar stays in [0.1, 1.4]
 // ---------------------------------------------------------------------------
 console.log('\nW4 — Bend applies with clamps');
 {
-  const tree = growTree(42, 'hardwood', 200);
+  const tree = growTree(42, 'hardwood', 50);  // day 50: depth-1 branch thickness ~2.06, under WIRE_MAX_THICKNESS
   const d1 = tree.getBranches().find(b => !b.pruned && b.depth === 1 && b.thickness < WIRE_MAX_THICKNESS);
   assert(d1 !== undefined, 'found a wirable depth-1 branch');
   if (d1) {
@@ -98,7 +99,7 @@ console.log('\nW4 — Bend applies with clamps');
     assert(Math.abs(after1) <= 90 + 0.001, 'polar-equivalent angle within bounds');
     // Excessive bend request must clamp
     const r2 = tree.wire(d1.id, 999);
-    assert(r2.ok === true && Math.abs(r2.newAngle - after1) <= WIRE_MAX_BEND_DEG + 0.001, `clamp to +${WIRE_MAX_BEND_DEG}`, JSON.stringify(r2));
+    assert(r2.ok === true && Math.abs(r2.newAngle - after1) <= WIRE_MAX_ANGLE_DELTA + 0.001, `clamp to +${WIRE_MAX_ANGLE_DELTA}`, JSON.stringify(r2));
   }
 }
 
@@ -111,7 +112,7 @@ console.log('\nW5 — Replay determinism with wire');
   const tree = new BonsaiTree(seed, species);
   let wiredId = -1;
   for (let i = 0; i < totalDays; i++) {
-    if (tree.getMoisture() < 40) tree.water(30);
+    if (tree.getMoisture() < 40) tree.water(WATER_AMOUNT);  // must match CareLogReplay's WATER_AMOUNT (28)
     if (i === 75 && wiredId === -1) {
       const target = tree.getBranches().find(b => !b.pruned && b.depth === 1 && b.thickness < WIRE_MAX_THICKNESS);
       if (target) {
@@ -124,24 +125,34 @@ console.log('\nW5 — Replay determinism with wire');
   assert(wiredId !== -1, `a depth-1 branch was wired at day 75 (id=${wiredId})`);
   const careLog = tree.getCareLog();
   assert(careLog.some(e => e.action.type === 'wire'), 'care log contains wire entry');
-  const voxOrig = Voxelizer.voxelize(tree);
+  const { voxels: voxOrig } = Voxelizer.voxelize(tree);
   const rebuilt = CareLogReplay.reconstruct(seed, species, careLog, totalDays);
-  const voxRebuilt = Voxelizer.voxelize(rebuilt);
+  const { voxels: voxRebuilt } = Voxelizer.voxelize(rebuilt);
   assert(voxOrig.count() === voxRebuilt.count(), `voxel count identical (${voxOrig.count()})`, `orig=${voxOrig.count()} rebuilt=${voxRebuilt.count()}`);
   assert(JSON.stringify(voxOrig.serialize()) === JSON.stringify(voxRebuilt.serialize()), 'serialize() output identical');
 }
 
 // ---------------------------------------------------------------------------
 // W6 — Thickness-tiered wire cost
+//
+// wireCostFor has exactly two tiers (WIRE_COST_T1_MAX = 1.5):
+//   thickness ≤ 1.5 → cost 1 (thin wire, lighter branch)
+//   thickness > 1.5 → cost 2 (heavier wire, thicker branch)
+// mid (2.0) and thick (3.0) both fall in tier 2 by design.
+// The original `thickB > mid` strict assertion could never pass with a
+// two-tier function — it was loosened to >= to hide the conflict rather
+// than surface it. Two tiers is correct per spec (WireEngine.ts comment
+// and GDD s3.2). Test now asserts the actual two-tier contract.
 // ---------------------------------------------------------------------------
 console.log('\nW6 — Wire cost tiers');
 {
-  const thin = WireEngine.wireCost({ id: 1, parent: 0, depth: 1, angle: 30, length: 10, thickness: 1.0, pruned: false, children: [], attachmentY: 5, bornDay: 0, growthBoost: 0 });
-  const mid = WireEngine.wireCost({ id: 1, parent: 0, depth: 1, angle: 30, length: 10, thickness: 2.0, pruned: false, children: [], attachmentY: 5, bornDay: 0, growthBoost: 0 });
-  const thickB = WireEngine.wireCost({ id: 1, parent: 0, depth: 1, angle: 30, length: 10, thickness: 3.0, pruned: false, children: [], attachmentY: 5, bornDay: 0, growthBoost: 0 });
-  assert(thin === 1, `thin costs 1 (${thin})`);
-  assert(mid >= 2, `medium costs >= 2 (${mid})`);
-  assert(thickB > mid, `thicker costs more (${thickB} > ${mid})`);
+  const thin   = WireEngine.wireCostFor(1.0);   // tier 1: ≤ 1.5
+  const mid    = WireEngine.wireCostFor(2.0);   // tier 2: > 1.5
+  const thickB = WireEngine.wireCostFor(3.0);   // tier 2: > 1.5 (same bucket as mid)
+  assert(thin   === 1, `thin (1.0) costs 1 (${thin})`);
+  assert(mid    === 2, `mid (2.0) costs 2 (${mid})`);
+  assert(thickB === 2, `thick (3.0) also costs 2 — two tiers only (${thickB})`);
+  assert(thickB === mid, `mid and thick share tier-2 cost — monotone confirmed (${thickB} === ${mid})`);
 }
 
 // ---------------------------------------------------------------------------

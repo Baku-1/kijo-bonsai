@@ -4,13 +4,13 @@
   "ageDays": 200,
   "generatedAt": "2026-07-17T00:00:00.000Z",
   "stats": {
-    "hp": 252.1415,
-    "power": 168.5325,
-    "endurance": 64.9425,
-    "ki": 336.4575,
-    "skillSlots": 7,
-    "skillPoints": 135.125,
+    "hp": 212.45,
+    "power": 192.5,
+    "endurance": 78.7245,
+    "ki": 297,
+    "skillSlots": 4,
+    "skillPoints": 14.5,
     "wisdom": 2,
-    "matchPct": 0.023
+    "matchPct": 0.0214
   }
 }

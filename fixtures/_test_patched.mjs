@@ -110,8 +110,8 @@ console.log('\nE3 -- round-trip: file stats match in-memory derive()');
 {
   const fixture = JSON.parse(readFileSync(TMP_E1_E3, 'utf8'));
   const tree    = CareLogReplay.reconstruct(SEED_HW, 'hardwood', careLog, TOTAL_DAYS);
-  const voxels  = Voxelizer.voxelize(tree);
-  const sheet   = StatDeriver.derive(tree, voxels, SEED_HW, tree.getAge());
+  const { voxels, zones } = Voxelizer.voxelize(tree);
+  const sheet   = StatDeriver.derive(tree, voxels, SEED_HW, tree.getAge(), zones);
 
   const KEYS = ['hp','power','endurance','ki','skillSlots','skillPoints','wisdom','matchPct'];
   for (const k of KEYS) {

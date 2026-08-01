@@ -9,8 +9,9 @@ import type { BonsaiTree } from './BonsaiTree.js';
  * calls this directly on replay so wired angles are faithfully reconstructed.
  * Replay TRUSTS the log — validation rules below gate live play only.
  *
- * Rules (GDD s3.2 + owner directives 2026-07-19):
- *   - Depth-1 only: trunk too thick, depth-2+ too fragile.
+ * Rules (GDD s3.2 + owner directives 2026-07-19, updated 2026-07-31):
+ *   - Any branch at any depth, including trunk, can be wired (OQ-1 resolution 2026-07-31).
+ *     Trunk wiring is required for Kengai (Cascade) style.
  *   - Thickness limit: above WIRE_MAX_THICKNESS the branch cannot be wired at
  *     all (real bonsai: thick caliper needs a jack/rebar, not wire).
  *   - Bend is caregiver-chosen, clamped to +/-WIRE_MAX_ANGLE_DELTA per action
@@ -31,7 +32,7 @@ export const WIRE_COST_T1_MAX = 1.5;     // thickness <= this costs 1 wire, else
 const POLAR_MIN_DEG = 5.7296;  // 0.1 rad
 const POLAR_MAX_DEG = 80.2141; // 1.4 rad
 
-export type WireRejectReason = 'not-found' | 'pruned' | 'not-depth-1' | 'too-thick';
+export type WireRejectReason = 'not-found' | 'pruned' | 'too-thick';
 
 export interface WireResult {
   ok: boolean;
@@ -50,12 +51,12 @@ export class WireEngine {
   }
 
   /**
-   * Bend a depth-1 branch by angleDelta degrees (signed, caregiver-chosen).
+   * Bend a branch by angleDelta degrees (signed, caregiver-chosen).
+   * Any branch at any depth, including the trunk, can be wired (OQ-1, 2026-07-31).
    *
    * Returns { ok: false, reason } (no-op) when:
    *   - branchId out of range
    *   - branch is pruned
-   *   - branch is not depth 1
    *   - branch thickness > WIRE_MAX_THICKNESS
    *
    * On success: clamps delta to +/-45 and the result to the polar range,
@@ -66,7 +67,6 @@ export class WireEngine {
     const b = branches[branchId];
     if (!b) return { ok: false, reason: 'not-found' };
     if (b.pruned) return { ok: false, reason: 'pruned' };
-    if (b.depth !== 1) return { ok: false, reason: 'not-depth-1' };
     if (b.thickness > WIRE_MAX_THICKNESS) return { ok: false, reason: 'too-thick' };
 
     const oldAngle = b.angle;

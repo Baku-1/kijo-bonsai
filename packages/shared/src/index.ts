@@ -32,19 +32,98 @@ export interface TreeState {
   branches: Branch[];
 }
 
+/**
+ * The element types that can be placed in a bonsai pot for Water-and-Land technique.
+ * Each placed element is a landscape action in the care log.
+ * Threshold for Water-and-Land overlay: landscapeCount >= 3.
+ *
+ * Phase 1 (Gu Ahao basic store items): rock, moss, pot.
+ * Phase 2+ (NFT collectible items — out of Phase 1 scope): water_feature, figurine, ceramic.
+ * [RESOLVED 2026-07-31 OQ-7: confirmed 3-literal Phase 1 union per owner.]
+ */
+export type LandscapeElementType =
+  | 'rock'
+  | 'moss'
+  | 'pot';
+
 export type CareAction =
-  | { type: 'water' }
+  | { type: 'water'; amount: number }
   | { type: 'rotate' }
   | { type: 'prune'; branchId: number }
   | { type: 'fertilize' }
-  // WIRE (2026-07-19): bend a depth-1 branch. angleDelta is the replay input
+  // WIRE (2026-07-19): bend a branch. angleDelta is the replay input
   // (degrees, signed); oldAngle/newAngle/wireCost are the historical record so
   // replay stays independent of tuning constants. See WireEngine.
-  | { type: 'wire'; branchId: number; angleDelta: number; oldAngle: number; newAngle: number; wireCost: number };
+  // NOTE: depth-1 restriction REMOVED per OQ-1 (any branch/trunk can be wired).
+  | { type: 'wire'; branchId: number; angleDelta: number; oldAngle: number; newAngle: number; wireCost: number }
+  // WIRE-REMOVE (2026-07-31): free action. Timing determines outcome per physics model.
+  // Spring-back = angleDelta × (currentStress / stressInitial). SCAR triggered during
+  // applyDailyUpdate ticks (overstay), NOT at wire-remove time. [BLOCKER-1 fix]
+  | { type: 'wire-remove'; branchId: number }
+  // TWINE (2026-07-30): free-tier impermanent bend. degradeDays drawn from RNG at
+  // application time (range 10–15 game days) and stored for replay independence.
+  // Does NOT count as a wire use for Clip-and-Grow classification.
+  // angleDelta clamped to ±TWINE_MAX_ANGLE_DELTA = 28°. [RESOLVED 2026-07-31 OQ-3]
+  | { type: 'twine'; branchId: number; angleDelta: number; oldAngle: number; newAngle: number; degradeDays: number }
+  // TWINE-REMOVE (2026-07-31): caretaker removes twine before natural degradation.
+  | { type: 'twine-remove'; branchId: number }
+  // WEIGHT (2026-07-30): free-tier downward pull. Gravity-only (cannot bend upward).
+  // weightCount: integer 1-4. torqueContribution: τ at application time, stored for
+  // replay independence. Does NOT count as wire use. No SCAR ever.
+  // [MAJOR-4 fix 2026-07-31: weightAmount → weightCount + torqueContribution]
+  | { type: 'weight'; branchId: number; weightCount: number; torqueContribution: number }
+  // WEIGHT-REMOVE (2026-07-31): caretaker removes an attached weight bag from a branch.
+  | { type: 'weight-remove'; branchId: number }
+  // JIN (2026-07-30): premium jin pliers. Permanently converts a bark segment to
+  // deadwood (SCAR voxels). segmentIndex is 0-based position from trunk junction.
+  // jinCost is the consumable count spent. Irreversible. Increments jinCount.
+  | { type: 'jin'; branchId: number; segmentIndex: number; jinCost: number }
+  // LANDSCAPE (2026-07-30): premium. Places an element in the pot for Water-and-Land.
+  // Increments landscapeCount toward the >= 3 Water-and-Land overlay threshold.
+  // position uses the shared Coordinate type (voxel grid, 0-255 each axis).
+  | { type: 'landscape'; elementType: LandscapeElementType; position: Coordinate };
 
 export interface CareLogEntry {
   day: number;
   action: CareAction;
+}
+
+/**
+ * The full technique classification of a kijonsai at a given point in its care log.
+ * Produced by TechniqueClassifier.classify() in @kijo/engine.
+ * Mirrors the StatSheet pattern: output type lives in shared so any downstream
+ * system (awakening, NFT metadata, fighter) can import it without depending on engine.
+ *
+ * primary — mutually exclusive: always exactly one.
+ * overlays — additive: zero, one, or both may be present simultaneously.
+ *
+ * GDD §7.4: classification logic. DESIGN-TECHNIQUE-CLASSIFICATION.md: authoritative.
+ */
+export interface TechniqueResult {
+  /** The primary (exclusive) technique. Default: 'Bound-and-Cut'. */
+  primary: 'Bound-and-Cut' | 'Clip-and-Grow';
+
+  /**
+   * Overlay techniques (additive, order-independent).
+   * May be empty []. May contain one or both of 'Jin' | 'Water-and-Land'.
+   * A tree can carry both overlays simultaneously with any primary.
+   */
+  overlays: Array<'Jin' | 'Water-and-Land'>;
+
+  /** Metal wire uses in care log. Twine does NOT increment this. */
+  wireCount: number;
+
+  /** Shear (prune) uses in care log. */
+  pruneCount: number;
+
+  /** Jin pliers uses in care log. Qualifies Jin overlay at >= 1. */
+  jinCount: number;
+
+  /** Landscape elements placed. Qualifies Water-and-Land overlay at >= 3. */
+  landscapeCount: number;
+
+  /** Tree age in game days at time of classification. Drives Clip-and-Grow age gate. */
+  treeAgeDays: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,7 +170,7 @@ export enum VoxelRole {
   DIGIT   = 'digit',    // depth-2+ branches / skill slots
   CANOPY  = 'canopy',   // leaf clusters / Ki
   ROOT    = 'root',     // root cone
-  SCAR    = 'scar',     // prune scar (reserved)
+  SCAR    = 'scar',     // deadwood: wire overstay (unintentional) or jin pliers (intentional). NOT a prune byproduct.
 }
 
 // ---------------------------------------------------------------------------

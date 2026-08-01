@@ -18,6 +18,7 @@ import { GrowthEngine }             from './packages/engine/dist/GrowthEngine.js
 import { CareLogReplay }            from './packages/engine/dist/CareLogReplay.js';
 import { PruneEngine }              from './packages/engine/dist/PruneEngine.js';
 import { StatDeriver }              from './packages/engine/dist/StatDeriver.js';
+import { StatTerrain }              from './packages/engine/dist/StatTerrain.js';
 import { createTree, applyAction, tick } from './packages/engine/dist/tree.js';
 import { Voxelizer }                from './packages/voxelizer/dist/index.js';
 import { round4 }                   from './packages/shared/dist/index.js';
@@ -166,7 +167,8 @@ console.log('\nA4 -- ARM branches have higher attachmentY than LEG branches');
   }
 
   // Verify via voxelizer: ARM-role voxels have higher branchIds corresponding to higher-aY branches
-  const voxels = Voxelizer.voxelize(tree);
+  // zones not needed here — this site only checks VoxelRole assignments.
+  const { voxels } = Voxelizer.voxelize(tree);
   let armAYSum = 0, armCount = 0, legAYSum = 0, legCount = 0;
   const armIdSet = new Set(armBranches.map(b => b.id));
   const legIdSet = new Set(legBranches.map(b => b.id));
@@ -275,10 +277,10 @@ console.log('\nA5 -- multi-branch morphology (4+ depth-1 branches)');
   const tArm = makeVariant('leg'); // prune LEG -> arm-heavy
   const tLeg = makeVariant('arm'); // prune ARM -> leg-heavy
 
-  const vArm   = Voxelizer.voxelize(tArm);
-  const vLeg   = Voxelizer.voxelize(tLeg);
-  const sArm   = StatDeriver.derive(tArm, vArm, tArm.getSeed(), tArm.getAge());
-  const sLeg   = StatDeriver.derive(tLeg, vLeg, tLeg.getSeed(), tLeg.getAge());
+  const { voxels: vArm, zones: zonesArm } = Voxelizer.voxelize(tArm);
+  const { voxels: vLeg, zones: zonesLeg } = Voxelizer.voxelize(tLeg);
+  const sArm = StatDeriver.derive(tArm, vArm, tArm.getSeed(), tArm.getAge(), zonesArm);
+  const sLeg = StatDeriver.derive(tLeg, vLeg, tLeg.getSeed(), tLeg.getAge(), zonesLeg);
 
   console.log('\n  ARM-heavy stat sheet: ' + JSON.stringify(sArm));
   console.log('  LEG-heavy stat sheet: ' + JSON.stringify(sLeg));
@@ -428,9 +430,74 @@ console.log('\nA9 -- tick() subsequent depth-1 branches use trunk tip');
 }
 
 // ---------------------------------------------------------------------------
+// A10 -- zone-path integration test (MAJOR-4 requirement, 2026-07-31)
+//
+// Verifies:
+//   - voxelize() populates zones map (not empty)
+//   - trunk branchId=0 is in zones
+//   - all zone indices are valid [0, 7]
+//   - zones are deterministic (two calls → identical map)
+//   - skill_point zone lookup is exercised and deriveTerrain uses zone path
+// ---------------------------------------------------------------------------
+
+console.log('\nA10 -- zone-path integration test (seed 464497, hardwood, day 200)');
+{
+  const tree = grow200();   // seed 464497, hardwood, day 200 (R14 calibration tree)
+  const { voxels, zones } = Voxelizer.voxelize(tree);
+  const seed = tree.getSeed();
+
+  console.log('  zones map size=' + zones.size);
+  console.log('  zone values: ' + [...zones.values()].join(', '));
+
+  // zones map must be populated
+  assert(zones.size > 0, 'A10 zones map is populated (size > 0)', 'size=' + zones.size);
+
+  // trunk branchId=0 must be in the map (OQ-1 resolved: always true)
+  assert(zones.has(0), 'A10 zones map contains trunk (branchId=0)');
+
+  // all zone indices must be valid [0, 7]
+  const allValid = [...zones.values()].every(idx => idx >= 0 && idx <= 7);
+  assert(allValid, 'A10 all zone indices in [0, 7]');
+
+  // determinism: voxelize same tree twice → identical zone map
+  const { zones: zones2 } = Voxelizer.voxelize(tree);
+  const sortedEntries = m => JSON.stringify([...m.entries()].sort((a, b) => a[0] - b[0]));
+  assert(
+    sortedEntries(zones) === sortedEntries(zones2),
+    'A10 zone map is deterministic (two voxelize calls produce identical zones)',
+  );
+
+  // skill_point zone: find the index for 'skill_point' in STAT_TYPES
+  // StatTerrain.STAT_TYPES = ['hp','power','endurance','ki','skill_point','defense','stability','neutral']
+  const skillPointIdx = [...StatTerrain.STAT_TYPES].findIndex(t => t === 'skill_point');
+  const skillPointBranchIds = [...zones.entries()]
+    .filter(([, idx]) => idx === skillPointIdx)
+    .map(([id]) => id);
+
+  console.log('  skill_point zone index=' + skillPointIdx + ', skill_point branch ids: ' + (skillPointBranchIds.length ? skillPointBranchIds.join(', ') : '(none)'));
+
+  assert(
+    skillPointBranchIds.length > 0,
+    'A10 at least one branch zone maps to skill_point',
+    'found ' + skillPointBranchIds.length + ' skill_point branches (zone idx ' + skillPointIdx + ')',
+  );
+
+  // If skill_point branches exist, deriveTerrain via zone path must produce skillPoints > 0
+  if (skillPointBranchIds.length > 0) {
+    const terrain = StatDeriver.deriveTerrain(voxels, seed, zones);
+    console.log('  terrain.skillPoints (zone path) = ' + terrain.skillPoints);
+    assert(
+      terrain.skillPoints > 0,
+      'A10 zone-path deriveTerrain.skillPoints > 0',
+      'got ' + terrain.skillPoints,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 
 console.log('\n' + '-'.repeat(50));
-console.log('A1-A9 result: ' + passed + ' passed, ' + failed + ' failed');
+console.log('A1-A10 result: ' + passed + ' passed, ' + failed + ' failed');
 if (failed > 0) process.exit(1);

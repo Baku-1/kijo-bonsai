@@ -4,7 +4,7 @@ import { BonsaiTree, GrowthEngine, StatDeriver, StatTerrain } from '@kijo/engine
 import type { SpeciesClass } from '@kijo/shared';
 import { WATER_AMOUNT } from '@kijo/shared';
 import { Voxelizer, VoxelRole, Material } from '@kijo/voxelizer';
-import type { SparseVoxelSet } from '@kijo/voxelizer';
+import type { SparseVoxelSet, VoxelizeResult } from '@kijo/voxelizer';
 import { mossMat } from './renderer/tree_mesh.js';
 
 // ===========================================================================
@@ -248,7 +248,7 @@ const STREAM_SECONDS = 1.5;
 // ---------------------------------------------------------------------------
 let tree: BonsaiTree = newTree();
 let pruneMode = false;
-let latestVoxels: SparseVoxelSet | null = null;
+let latestVoxels: VoxelizeResult | null = null;
 
 function newTree(): BonsaiTree {
   const seed = (document.getElementById('seed') as HTMLInputElement).valueAsNumber || 42;
@@ -263,9 +263,9 @@ function newTree(): BonsaiTree {
 // ---------------------------------------------------------------------------
 function refreshAll(): void {
   latestVoxels = Voxelizer.voxelize(tree);
-  const sheet = StatDeriver.derive(tree, latestVoxels, tree.getSeed(), tree.getAge());
+  const sheet = StatDeriver.derive(tree, latestVoxels.voxels, tree.getSeed(), tree.getAge(), latestVoxels.zones);
 
-  voxelCountEl.textContent = `${latestVoxels.count()} voxels`;
+  voxelCountEl.textContent = `${latestVoxels.voxels.count()} voxels`;
   const rows: Array<[string, number | string]> = [
     ['HP', sheet.hp],
     ['Power', sheet.power],
@@ -289,7 +289,7 @@ function refreshAll(): void {
   meta.className = tree.getMoisture() < 15 || tree.getMoisture() > 80 ? 'moisture-bad' : '';
   fertStatus.textContent = tree.isFertilizerActive() ? 'fertilizer ACTIVE (1.7× growth)' : '';
 
-  rebuildVoxels(latestVoxels);
+  rebuildVoxels(latestVoxels.voxels);
 }
 
 // ---------------------------------------------------------------------------
@@ -316,7 +316,7 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
     const gx = Math.round(tmpVec.x + 128);
     const gy = Math.round(tmpVec.y + BASE_Y);
     const gz = Math.round(tmpVec.z + 128);
-    const cell = latestVoxels.get(gx, gy, gz);
+    const cell = latestVoxels.voxels.get(gx, gy, gz);
     if (!cell) continue;
     if (cell.branchId === 0) continue; // trunk protected
     tree.prune(cell.branchId);
@@ -364,8 +364,8 @@ document.getElementById('btn-day')!.addEventListener('click', () => {
 });
 
 document.getElementById('btn-export')!.addEventListener('click', () => {
-  const voxels = latestVoxels ?? Voxelizer.voxelize(tree);
-  const sheet = StatDeriver.derive(tree, voxels, tree.getSeed(), tree.getAge());
+  const result = latestVoxels ?? Voxelizer.voxelize(tree);
+  const sheet = StatDeriver.derive(tree, result.voxels, tree.getSeed(), tree.getAge(), result.zones);
   const payload = {
     seed: tree.getSeed(),
     species: tree.getSpecies().toUpperCase(),

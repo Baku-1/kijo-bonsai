@@ -45,8 +45,20 @@ export class BonsaiTree {
   }
 
   water(amount: number): void {
+    // GAP-3 / GAP-4: Reject bad amounts before they corrupt the moisture pipeline.
+    // NaN propagates through round4/Math.min silently; negative amounts dehydrate.
+    if (!Number.isFinite(amount)) {
+      throw new Error(
+        `water amount must be a finite number (got ${amount}). NaN or Infinity would corrupt the moisture pipeline.`
+      );
+    }
+    if (amount <= 0) {
+      throw new Error(
+        `water amount must be positive (got ${amount}). Zero or negative amounts are not valid care actions.`
+      );
+    }
     this.state.moisture = Math.min(100, round4(this.state.moisture + amount));
-    this.careLog.push({ day: this.state.day, action: { type: 'water' } });
+    this.careLog.push({ day: this.state.day, action: { type: 'water', amount } });
   }
 
   fertilize(): void {
