@@ -108,6 +108,11 @@ export function ThreeCanvas() {
     hud.update(tree, livingBranchCount());
     console.log(`[kijo-care] boot seed=${seed} species=${species}`);
 
+    // Guards the async DB swap: if the component unmounts before the fetch
+    // completes, the cleanup sets mounted=false first.  The IIFE then exits
+    // before calling buildTreeMesh on a disposed renderer, which would throw.
+    let mounted = true;
+
     let animId: number;
     function animate(): void {
       animId = requestAnimationFrame(animate);
@@ -127,6 +132,10 @@ export function ThreeCanvas() {
     // shows the same state as the DB.  bridge.setTree() is required because
     // CareBridge holds its own reference and must be updated alongside the
     // outer `tree` variable so future water() calls hit the right object.
+    //
+    // Note: actions fired before this load completes (~100ms) are applied
+    // locally but not persisted — session is null until getSession() runs.
+    // This window is acceptable given fire-and-forget semantics.
     // -----------------------------------------------------------------------
     void (async () => {
       session = getSession();
@@ -134,6 +143,11 @@ export function ThreeCanvas() {
 
       try {
         const { treeData, careLog } = await loadCareLog(session.tree_id);
+
+        // Bail out if the component unmounted during the fetch.
+        // careScene.renderer.dispose() will have already run; calling
+        // buildTreeMesh after that throws in Three.js.
+        if (!mounted) return;
 
         let dbTree: BonsaiTree;
         if (treeData.current_day === 0) {
@@ -185,6 +199,7 @@ export function ThreeCanvas() {
     })();
 
     return () => {
+      mounted = false;  // must be first — prevents IIFE from writing to disposed renderer
       cancelAnimationFrame(animId);
       careScene.renderer.dispose();
     };
