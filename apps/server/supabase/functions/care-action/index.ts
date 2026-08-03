@@ -19,6 +19,13 @@ const CONSUMABLE: Record<string, string | undefined> = {
   fertilize: 'fertilizer',
 };
 
+// Maximum game-days to advance in a single lazy-tick sweep.
+// Capped to prevent an Edge Function timeout mid-loop from leaving the tree in
+// a partially-advanced state (some tick entries written but current_day not yet
+// updated). A user inactive for longer than MAX_LAZY_TICKS days simply stops
+// catching up beyond this threshold on any single invocation.
+const MAX_LAZY_TICKS = 90;
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -84,6 +91,16 @@ Deno.serve(async (req) => {
   }
 
   // -------------------------------------------------------------------------
+  // 1b. Whitelist check — must precede any DB mutation
+  // -------------------------------------------------------------------------
+  // Prevents clients from injecting fake server-generated types (e.g. 'tick').
+  const actionType = action.type as string;
+  const ALLOWED_ACTION_TYPES = new Set(['water', 'prune', 'wire', 'fertilize', 'rotate']);
+  if (!ALLOWED_ACTION_TYPES.has(actionType)) {
+    return json({ error: 'Invalid action type' }, 400);
+  }
+
+  // -------------------------------------------------------------------------
   // 2. Lazy tick — how many 8-hour game days have elapsed since last tick?
   // -------------------------------------------------------------------------
   const now = Date.now();
@@ -94,45 +111,28 @@ Deno.serve(async (req) => {
     new Date().toISOString();
   const lastTicked = new Date(lastTickedStr).getTime();
   const elapsedDays = Math.floor((now - lastTicked) / (8 * 60 * 60 * 1000));
+  const cappedDays = Math.min(elapsedDays, MAX_LAZY_TICKS);
 
   let currentDay: number = tree.current_day as number;
 
   // -------------------------------------------------------------------------
   // 3. Insert tick entries and advance current_day if needed.
-  //    Per-day max-sequence query avoids collision with player actions already
-  //    recorded for that game_day (e.g. player watered at seq 0 earlier in
-  //    the same session, then comes back next day — tick must use seq 1+).
+  //    insert_care_log_entry assigns the next sequence atomically (single SQL
+  //    statement), eliminating the race with any concurrent player action on
+  //    the same (tree_id, game_day).
   // -------------------------------------------------------------------------
-  if (elapsedDays > 0) {
-    for (let i = 0; i < elapsedDays; i++) {
-      const gameDay = currentDay + i;
-
-      // Find the highest sequence already used for this (tree_id, game_day)
-      const { data: maxSeqRow } = await serviceClient
-        .from('care_log_entries')
-        .select('sequence')
-        .eq('tree_id', tree_id)
-        .eq('game_day', gameDay)
-        .order('sequence', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const tickSeq = ((maxSeqRow?.sequence as number | null) ?? -1) + 1;
-
-      const { error: tickErr } = await serviceClient
-        .from('care_log_entries')
-        .insert({
-          tree_id,
-          game_day: gameDay,
-          sequence: tickSeq,
-          action_type: 'tick',
-          action_data: {},
-        });
-
+  if (cappedDays > 0) {
+    for (let i = 0; i < cappedDays; i++) {
+      const { error: tickErr } = await serviceClient.rpc('insert_care_log_entry', {
+        p_tree_id:     tree_id,
+        p_game_day:    currentDay + i,
+        p_action_type: 'tick',
+        p_action_data: {},
+      });
       if (tickErr) return json({ error: tickErr.message }, 500);
     }
 
-    currentDay += elapsedDays;
+    currentDay += cappedDays;
 
     const { error: treeUpdateErr } = await serviceClient
       .from('trees')
@@ -147,15 +147,6 @@ Deno.serve(async (req) => {
   // -------------------------------------------------------------------------
   // 4. Consumable check (prune -> shears, wire -> wire, fertilize -> fertilizer)
   // -------------------------------------------------------------------------
-  const actionType = action.type as string;
-
-  // Whitelist: only known player action types may be written to care_log_entries.
-  // Prevents clients from injecting fake server-generated types (e.g. 'tick').
-  const ALLOWED_ACTION_TYPES = new Set(['water', 'prune', 'wire', 'fertilize']);
-  if (!ALLOWED_ACTION_TYPES.has(actionType)) {
-    return json({ error: 'Invalid action type' }, 400);
-  }
-
   const consumableType = CONSUMABLE[actionType];
   let consumableRow: { id: string; quantity: number } | null = null;
 
@@ -176,39 +167,24 @@ Deno.serve(async (req) => {
     consumableRow = c as { id: string; quantity: number };
   }
 
-  // -------------------------------------------------------------------------
-  // 5. Determine next sequence number for this game_day
-  // -------------------------------------------------------------------------
-  const { data: seqRow } = await serviceClient
-    .from('care_log_entries')
-    .select('sequence')
-    .eq('tree_id', tree_id)
-    .eq('game_day', currentDay)
-    .order('sequence', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const nextSequence = ((seqRow?.sequence as number | null) ?? -1) + 1;
-
   // Separate type from the rest of action fields (which become action_data)
   const { type: _type, ...actionData } = action;
 
   // -------------------------------------------------------------------------
-  // 6. Insert the care action into care_log_entries
+  // 5. Atomically insert care action with next sequence number.
+  //    COALESCE(MAX(sequence), -1) + 1 runs inside a single SQL INSERT…SELECT —
+  //    no separate read round-trip, no race window for duplicate sequences.
   // -------------------------------------------------------------------------
-  const { error: insertErr } = await serviceClient
-    .from('care_log_entries')
-    .insert({
-      tree_id,
-      game_day: currentDay,
-      sequence: nextSequence,
-      action_type: actionType,
-      action_data: actionData,
-    });
+  const { error: insertErr } = await serviceClient.rpc('insert_care_log_entry', {
+    p_tree_id:     tree_id,
+    p_game_day:    currentDay,
+    p_action_type: actionType,
+    p_action_data: actionData,
+  });
   if (insertErr) return json({ error: insertErr.message }, 500);
 
   // -------------------------------------------------------------------------
-  // 7. Decrement consumable quantity
+  // 6. Decrement consumable quantity
   // -------------------------------------------------------------------------
   if (consumableRow !== null) {
     // Atomic guard: only update if quantity > 0 at write time.

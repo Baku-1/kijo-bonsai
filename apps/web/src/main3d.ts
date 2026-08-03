@@ -1,11 +1,18 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { BonsaiTree, GrowthEngine, StatDeriver, StatTerrain } from '@kijo/engine';
+import { BonsaiTree, GrowthEngine, StatDeriver, CareLogReplay } from '@kijo/engine';
 import type { SpeciesClass } from '@kijo/shared';
 import { WATER_AMOUNT } from '@kijo/shared';
 import { Voxelizer, VoxelRole, Material } from '@kijo/voxelizer';
 import type { SparseVoxelSet, VoxelizeResult } from '@kijo/voxelizer';
 import { mossMat } from './renderer/tree_mesh.js';
+import {
+  getSession,
+  loadCareLog,
+  persistCareAction,
+  applyCurrentDayEntries,
+  type KijoSession,
+} from './persistence.js';
 
 // ===========================================================================
 // Kijo 3D care loop — the voxel grid is the truth; this renders it.
@@ -250,6 +257,11 @@ let tree: BonsaiTree = newTree();
 let pruneMode = false;
 let latestVoxels: VoxelizeResult | null = null;
 
+// ---------------------------------------------------------------------------
+// Persistence state — null = local / guest mode (no server wiring).
+// ---------------------------------------------------------------------------
+let kijoSession: KijoSession | null = null;
+
 function newTree(): BonsaiTree {
   const seed = (document.getElementById('seed') as HTMLInputElement).valueAsNumber || 42;
   const species = (document.getElementById('species') as HTMLSelectElement).value as SpeciesClass;
@@ -319,25 +331,116 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
     const cell = latestVoxels.voxels.get(gx, gy, gz);
     if (!cell) continue;
     if (cell.branchId === 0) continue; // trunk protected
-    tree.prune(cell.branchId);
+    const prunedId = cell.branchId;
+    tree.prune(prunedId);
     refreshAll();
+    persistAsync({ type: 'prune', branchId: prunedId });
     return;
   }
 });
 
 // ---------------------------------------------------------------------------
+// Persistence helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Fire-and-forget care action persist.  See main2d.ts for rationale.
+ * In read-only mode (no access_token / wallet_row_id) the call is a no-op.
+ */
+function persistAsync(action: Parameters<typeof persistCareAction>[1]): void {
+  if (!kijoSession || !kijoSession.access_token || !kijoSession.wallet_row_id) return;
+  const session = kijoSession;
+  persistCareAction(session, action).catch((err: unknown) => {
+    console.error('[kijo] persist failed:', err instanceof Error ? err.message : err);
+  });
+}
+
+/**
+ * On mount: load tree from Supabase and replay care log to restore state.
+ * Mirrors the init() in main2d.ts but calls refreshAll() (not refreshStats +
+ * render) and starts the animate loop BEFORE this resolves so the Three.js
+ * scene is visible immediately while the server round-trip completes.
+ *
+ * Note: the "Advance day ×N" button is intentionally NOT persisted — see
+ * main2d.ts init() for the full rationale.
+ */
+async function init(): Promise<void> {
+  kijoSession = getSession();
+
+  if (kijoSession?.tree_id) {
+    try {
+      const { treeData, careLog } = await loadCareLog(kijoSession.tree_id);
+
+      if (treeData.current_day === 0) {
+        // No ticks yet — construct directly, apply any day-0 care actions.
+        tree = new BonsaiTree(treeData.seed, treeData.species as SpeciesClass);
+        applyCurrentDayEntries(tree, careLog.filter((e) => e.day === 0));
+      } else {
+        // Replay completed tick-cycles.
+        const priorLog = careLog.filter((e) => e.day < treeData.current_day);
+        tree = CareLogReplay.reconstruct(
+          treeData.seed,
+          treeData.species as SpeciesClass,
+          priorLog,
+          treeData.current_day,
+        );
+        // Apply current-day tail entries (after last tick, no extra growTick).
+        applyCurrentDayEntries(
+          tree,
+          careLog.filter((e) => e.day === treeData.current_day),
+        );
+      }
+
+      // Sync DOM inputs to the server's authoritative seed/species.
+      (document.getElementById('seed') as HTMLInputElement).value = String(treeData.seed);
+      (document.getElementById('species') as HTMLSelectElement).value = treeData.species;
+
+      const mode = kijoSession.access_token ? 'read-write' : 'read-only';
+      console.info(
+        `[kijo] tree restored — id=${kijoSession.tree_id} ` +
+        `day=${treeData.current_day} actions=${careLog.length} mode=${mode}`,
+      );
+    } catch (err: unknown) {
+      console.error(
+        '[kijo] failed to restore tree from Supabase; starting fresh.',
+        err instanceof Error ? err.message : err,
+      );
+      // Fall through: tree remains the initial newTree() value.
+    }
+  }
+
+  // Rebuild voxels and HUD with whichever tree is now active.
+  refreshAll();
+}
+
+// ---------------------------------------------------------------------------
 // Controls
 // ---------------------------------------------------------------------------
 document.getElementById('btn-new')!.addEventListener('click', () => {
+  // Creating a new in-memory tree severs the link to the persisted tree.
+  kijoSession = null;
   tree = newTree();
   pruneMode = false;
   document.getElementById('btn-prune')!.classList.remove('active');
   exportOut.value = '';
   refreshAll();
 });
-document.getElementById('btn-water')!.addEventListener('click', () => { tree.water(WATER_AMOUNT); tree.markDirty(); refreshAll(); });
-document.getElementById('btn-fertilize')!.addEventListener('click', () => { tree.fertilize(); refreshAll(); });
-document.getElementById('btn-rotate')!.addEventListener('click', () => { tree.rotate(); refreshAll(); });
+document.getElementById('btn-water')!.addEventListener('click', () => {
+  tree.water(WATER_AMOUNT);
+  tree.markDirty();
+  refreshAll();
+  persistAsync({ type: 'water', amount: WATER_AMOUNT });
+});
+document.getElementById('btn-fertilize')!.addEventListener('click', () => {
+  tree.fertilize();
+  refreshAll();
+  persistAsync({ type: 'fertilize' });
+});
+document.getElementById('btn-rotate')!.addEventListener('click', () => {
+  tree.rotate();
+  refreshAll();
+  persistAsync({ type: 'rotate' });
+});
 
 const pruneBtn = document.getElementById('btn-prune')!;
 pruneBtn.addEventListener('click', () => {
@@ -423,5 +526,9 @@ function animate(): void {
 }
 
 hintEl.textContent = 'Drag to orbit · scroll to zoom · the blue ghost is roughly where this seed wants to grow';
+// Populate voxels immediately from the in-memory placeholder tree so the
+// scene is never blank.  init() calls refreshAll() again once the server
+// round-trip completes, swapping in the persisted tree.
 refreshAll();
 animate();
+void init();

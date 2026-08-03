@@ -2,6 +2,9 @@ import { SeededRNG, round4, SPECIES_PARAMS } from '@kijo/shared';
 import type { Branch } from '@kijo/shared';
 import { SPECIES } from './species.js'; // fallback for forkChance, thickenRate (absent from shared SPECIES_PARAMS)
 import { BonsaiTree } from './BonsaiTree.js';
+// TWINE_FORCE_PER_DAY needed for new branch defaults (twineForcePerDay field).
+// Import the raw constant to avoid circular dependency via BonsaiTree.TWINE_FORCE_PER_DAY re-export.
+import { TWINE_FORCE_PER_DAY } from './TwineWeightEngine.js';
 
 // Minimum trunk length (voxel units) before the first depth-1 branch may fork.
 // Enforces the one-third / bare-lower-third bonsai structural rule (KIJO-TECH-SPEC s4.6).
@@ -106,19 +109,39 @@ export class GrowthEngine {
               attachmentY = round4(b.length);
             }
 
-            // growthBoost and bornDay are engine-level extensions not in shared Branch type
+            // growthBoost and bornDay are engine-level extensions not in shared Branch type.
+            // Physics fields (2026-08-01): initialize all 15 new fields to their zero defaults.
+            // diameter = round4(2 × child.thickness) = round4(2 × max(0.3, parent.thickness × 0.5)).
+            const childThickness = round4(Math.max(0.3, b.thickness * 0.5));
             const child = {
-              id:          childId,
-              parent:      b.id,
-              depth:       b.depth + 1,
-              angle:       round4(side * spread),
-              length:      round4(1.0),
-              thickness:   round4(Math.max(0.3, b.thickness * 0.5)),
-              pruned:      false,
-              children:    [] as number[],
+              id:                childId,
+              parent:            b.id,
+              depth:             b.depth + 1,
+              angle:             round4(side * spread),
+              length:            round4(1.0),
+              thickness:         childThickness,
+              pruned:            false,
+              children:          [] as number[],
               attachmentY,
-              growthBoost: 0,
-              bornDay:     tree.getAge(),
+              growthBoost:       0,
+              bornDay:           tree.getAge(),
+              // ── Physics fields (2026-08-01) ────────────────────────────────
+              diameter:          round4(2 * childThickness),
+              currentStress:     0,
+              stressInitial:     0,
+              wired:             false,
+              wireAppliedDay:    0,
+              wireAngle:         0,
+              wireSet:           false,
+              wireScarred:       false,
+              twined:            false,
+              twineAppliedDay:   0,
+              twineAngle:        0,
+              twineForcePerDay:  0,
+              weighted:          false,
+              weightCount:       0,
+              twineDegradesDay:  0,
+              bendSet:           false,  // CRITICAL-C fix 2026-08-02
             } as unknown as Branch;
 
             tree._pushBranch(child);
@@ -159,6 +182,11 @@ export class GrowthEngine {
     } else {
       b.thickness = round4(b.thickness + maturation);
     }
+
+    // Diameter update (2026-08-01 physics fields): D = 2 × thickness.
+    // Must happen AFTER thickness is updated so diameter stays in sync.
+    // Drives stress formula S = τ/D³ and setDays = lerp(28, 56, D/D_max).
+    b.diameter = round4(2 * b.thickness);
 
     return b.thickness;
   }

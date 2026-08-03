@@ -7,15 +7,17 @@
 // Auth flow (same as SeedShopModal):
 //   1. Wallet must be connected.
 //   2. Wallet must be signed in via useWalletAuth.
-//   3. Once authenticated, the Seed purchase button is active.
+//   3. User selects a species — required before the Buy button enables.
+//   4. Once authenticated + species selected, the Seed purchase button is active.
 //
-// Only Seed has a live purchase flow (useSeedPurchase → RON → NFT mint).
+// Only Seed has a live purchase flow:
+//   useSeedPurchase → RON transfer → seed-claim (mint NFT) → seed-tree (DB row).
 // All other items show "Coming soon" with a disabled button until wired.
 // ---------------------------------------------------------------------------
 import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "../wallet/useWallet.js";
 import { useWalletAuth } from "../wallet/useWalletAuth.js";
-import { useSeedPurchase } from "../wallet/useSeedPurchase.js";
+import { useSeedPurchase, type Species } from "../wallet/useSeedPurchase.js";
 
 type ItemId = "seed" | "shears" | "wire" | "fertilizer" | "twine" | "weights";
 
@@ -86,6 +88,26 @@ const STORE_ITEMS: StoreItem[] = [
   },
 ];
 
+// One-line descriptions shown in the species picker (GDD §3).
+// Copy should be reviewed by product before mainnet.
+const SPECIES_OPTIONS: { value: Species; label: string; hint: string }[] = [
+  {
+    value: "hardwood",
+    label: "Hardwood",
+    hint: "Upright, dense — wide forked branches",
+  },
+  {
+    value: "evergreen",
+    label: "Evergreen",
+    hint: "Flexible, layered — asymmetric reach",
+  },
+  {
+    value: "tropical",
+    label: "Tropical",
+    hint: "Tight clusters, fast-growing — aerial complexity",
+  },
+];
+
 const DEFAULT_QUANTITIES: Record<ItemId, number> = {
   seed: 1,
   shears: 1,
@@ -101,11 +123,15 @@ export function StoreModal() {
     ...DEFAULT_QUANTITIES,
   }));
   const [seedError, setSeedError] = useState<string | null>(null);
+  // Species selection — required before Buy enables. Reset on modal close.
+  const [selectedSpecies, setSelectedSpecies] = useState<Species | null>(null);
 
   const { isConnected } = useWallet();
-  const { accessToken, isAuthenticating, authError, signIn } = useWalletAuth();
+  const { accessToken, walletRowId, isAuthenticating, authError, signIn } =
+    useWalletAuth();
   const {
     buySeeds,
+    retryTreeInit,
     txHash,
     isSending,
     isConfirming,
@@ -113,7 +139,10 @@ export function StoreModal() {
     isClaiming,
     claimResult,
     claimError,
-  } = useSeedPurchase(accessToken);
+    isInitingTree,
+    treeId,
+    treeInitError,
+  } = useSeedPurchase(accessToken, walletRowId);
 
   // Wire the Buy Seed button (rendered by ThreeCanvas) to open this modal.
   // Same pattern as SeedShopModal — keeps ThreeCanvas free of wallet state.
@@ -126,15 +155,18 @@ export function StoreModal() {
   }, []);
 
   // isBusy: block close while the wallet is prompting, the on-chain tx is
-  // confirming, or the claim POST is in-flight. Closing during isConfirming
-  // would unmount useSeedPurchase and silently cancel the NFT claim.
-  const isBusy = isSending || isConfirming || isClaiming;
+  // confirming, the claim POST is in-flight, or the tree init is in-flight.
+  // Closing during isInitingTree would leave the trees row half-created with
+  // no way to surface the result or retry.
+  const isBusy = isSending || isConfirming || isClaiming || isInitingTree;
 
   const handleClose = useCallback(function handleClose() {
     if (isBusy) return;
     setOpen(false);
-    // Reset per-item quantities and local error so reopening starts fresh.
+    // Reset per-item quantities, species selection, and local error so
+    // reopening starts fresh.
     setQuantities({ ...DEFAULT_QUANTITIES });
+    setSelectedSpecies(null);
     setSeedError(null);
   }, [isBusy]);
 
@@ -143,12 +175,19 @@ export function StoreModal() {
   }
 
   async function handleBuySeed() {
+    if (!selectedSpecies) return; // species picker guard (belt-and-suspenders)
     setSeedError(null);
     try {
-      await buySeeds(quantities.seed);
+      await buySeeds(quantities.seed, selectedSpecies);
     } catch (e) {
       setSeedError(e instanceof Error ? e.message : "Transaction failed");
     }
+  }
+
+  // retryTreeInit never throws (errors go to treeInitError state), so
+  // passing it directly as onClick is safe. void suppresses the unused-promise lint.
+  function handleRetryTreeInit() {
+    void retryTreeInit();
   }
 
   // Dismiss the modal on Escape when nothing is in-flight.
@@ -166,7 +205,8 @@ export function StoreModal() {
 
   if (!open) return null;
 
-  const canBuy = isConnected && !!accessToken;
+  // Buy requires: wallet connected, authenticated, AND species selected.
+  const canBuy = isConnected && !!accessToken && !!selectedSpecies;
 
   return (
     <div
@@ -316,6 +356,74 @@ export function StoreModal() {
                   {item.description}
                 </p>
 
+                {/* Seed-only: species picker */}
+                {isSeedCard && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--muted, #888)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        marginBottom: 2,
+                      }}
+                    >
+                      Species
+                    </div>
+                    {SPECIES_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setSelectedSpecies(opt.value)}
+                        disabled={!isConnected || !accessToken || isBusy}
+                        aria-pressed={selectedSpecies === opt.value}
+                        style={{
+                          textAlign: "left",
+                          padding: "6px 10px",
+                          borderRadius: 6,
+                          border:
+                            selectedSpecies === opt.value
+                              ? "1px solid var(--accent, #5CAA50)"
+                              : "1px solid var(--edge)",
+                          background:
+                            selectedSpecies === opt.value
+                              ? "rgba(92,170,80,0.12)"
+                              : "transparent",
+                          cursor:
+                            !isConnected || !accessToken || isBusy
+                              ? "not-allowed"
+                              : "pointer",
+                          opacity: !isConnected || !accessToken ? 0.5 : 1,
+                          color: "var(--text, #fff)",
+                          fontSize: 13,
+                        }}
+                      >
+                        <span style={{ fontWeight: 600 }}>{opt.label}</span>
+                        <span
+                          style={{
+                            color: "var(--muted, #888)",
+                            marginLeft: 6,
+                            fontSize: 12,
+                          }}
+                        >
+                          {opt.hint}
+                        </span>
+                      </button>
+                    ))}
+                    {isConnected && accessToken && !selectedSpecies && (
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "var(--muted, #888)",
+                          margin: "2px 0 0",
+                        }}
+                      >
+                        Select a species to enable purchase.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Price */}
                 <div style={{ fontSize: 13, fontWeight: 600 }}>
                   {isSeedCard && qty > 1
@@ -325,18 +433,50 @@ export function StoreModal() {
                     : `${item.priceRon} RON`}
                 </div>
 
-                {/* Seed-only: transaction / claim status messages */}
+                {/* Seed-only: transaction / claim / tree-init status messages */}
                 {isSeedCard && (
                   <>
-                    {claimResult && (
+                    {/* Tree init success — shown after claimResult is set */}
+                    {claimResult && treeId && (
                       <p style={{ color: "#5CAA50", fontSize: 13, margin: 0 }}>
                         ✅ Minted! Token #{claimResult.tokenId}
+                        <br />
+                        🌳 Tree ready!{" "}
+                        <small>ID: {treeId.slice(0, 8)}…</small>
                         <br />
                         <small>
                           Mint TX: {claimResult.mintTxHash.slice(0, 10)}…
                         </small>
                       </p>
                     )}
+                    {/* Minted but tree init still in flight */}
+                    {claimResult && !treeId && isInitingTree && (
+                      <p style={{ fontSize: 13, margin: 0 }}>
+                        ✅ Minted! Token #{claimResult.tokenId}
+                        <br />
+                        🌳 Setting up your tree…
+                      </p>
+                    )}
+                    {/* Minted but tree init failed — show retry */}
+                    {claimResult && !treeId && !isInitingTree && treeInitError && (
+                      <div style={{ fontSize: 13, margin: 0 }}>
+                        <p style={{ color: "#5CAA50", margin: "0 0 4px" }}>
+                          ✅ Minted! Token #{claimResult.tokenId}
+                        </p>
+                        <p style={{ color: "#B0542A", margin: "0 0 6px" }}>
+                          ⚠️ Tree setup failed: {treeInitError}
+                        </p>
+                        <button
+                          className="primary"
+                          onClick={handleRetryTreeInit}
+                          disabled={isInitingTree}
+                          style={{ fontSize: 12, padding: "4px 10px" }}
+                        >
+                          Retry Setup
+                        </button>
+                      </div>
+                    )}
+                    {/* NFT claim in progress (no claimResult yet) */}
                     {!claimResult && isClaiming && (
                       <p style={{ fontSize: 13, margin: 0 }}>
                         🌱 Minting your NFT…
@@ -401,6 +541,8 @@ export function StoreModal() {
                         ? "Confirming…"
                         : isClaiming
                         ? "Minting…"
+                        : isInitingTree
+                        ? "Setting up tree…"
                         : `Buy ${qty > 1 ? `${qty} ` : ""}Seed${
                             qty > 1 ? "s" : ""
                           }`}

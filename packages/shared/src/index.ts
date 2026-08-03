@@ -17,6 +17,127 @@ export interface Branch {
   // depth-2+: round4(parent.length) at fork time.
   // Drives ARM/LEG split in voxelizer (real morphology, closes R-ATTACHY proxy).
   attachmentY: number;
+
+  // ── Physics Fields (2026-08-01) ──────────────────────────────────────────────
+  // Specification: ARCHITECT-BRANCH-PHYSICS-2026-08-01.md Part A (owner-confirmed).
+  // Field names follow the C++ parity model from ARCHITECT-CAREACTION-TECHNIQUE-2026-07-30.md.
+
+  /**
+   * Branch diameter in voxel units. D = 2 × thickness (Branch.thickness is RADIUS).
+   * Drives stress formula S = τ/D³ and setDays = lerp(28, 56, D/D_max).
+   * Updated every GrowthEngine.thickeningPass() tick: diameter = round4(2 × b.thickness).
+   * Default: 0 (set at fork time and in thickeningPass).
+   */
+  diameter: number;
+
+  /**
+   * Current wood stress. Recalculated fresh each tick in applyDailyUpdate as
+   * (τ_twine + τ_weight) / D³. Default 0 (no binding active).
+   * When ≤ STRESS_SET_THRESHOLD × stressInitial: bend is permanently set.
+   */
+  currentStress: number;
+
+  /**
+   * Wood stress at the time the most recent twine or weight binding was applied
+   * (first non-zero value after application). Used for spring-back reference:
+   * springBack = angleDelta × (currentStress / stressInitial). Default 0.
+   */
+  stressInitial: number;
+
+  // ── Wire Binding State ───────────────────────────────────────────────────────
+
+  /** True when metal wire is currently applied. Default: false. */
+  wired: boolean;
+
+  /**
+   * Absolute game-day (from BonsaiTree.getAge()) when wire was applied.
+   * 0 when not wired. Used for UI display and SCAR timing.
+   * Do NOT use (currentDay − wireAppliedDay) for set/scar decisions via stress model.
+   */
+  wireAppliedDay: number;
+
+  /**
+   * Bend angle (degrees, signed) applied by the wire action.
+   * Stored for spring-back on removal: branch.angle -= wireAngle × springBackFraction.
+   * 0 when not wired.
+   */
+  wireAngle: number;
+
+  /**
+   * True when the wire bend has permanently set (currentStress crossed
+   * STRESS_SET_THRESHOLD at wire removal time). Bend is permanent; no spring-back.
+   * Reset to false when wire is re-applied (WireEngine.wire sets it to false).
+   */
+  wireSet: boolean;
+
+  /**
+   * True when wire was left on too long (SCAR trigger in applyDailyUpdate).
+   * SCAR voxels scheduled on next voxelization. Permanent once set.
+   * Twine and weight NEVER set wireScarred.
+   */
+  wireScarred: boolean;
+
+  // ── Twine Binding State ──────────────────────────────────────────────────────
+
+  /** True when natural-fiber twine is currently applied. Default: false. */
+  twined: boolean;
+
+  /**
+   * Absolute game-day when twine was applied. 0 when not twined.
+   * daysSinceTwine = currentDay − twineAppliedDay (computed, not stored).
+   */
+  twineAppliedDay: number;
+
+  /**
+   * Bend angle (degrees, signed) applied by the twine action. Clamped ±28°.
+   * 0 when not twined.
+   */
+  twineAngle: number;
+
+  /**
+   * Per-tick tension increment for twine (Newtons per game day).
+   * Twine tightens progressively: τ_twine(t) = twineForcePerDay × daysSinceApply × length × sin(θ).
+   * Default: 0. Set to TWINE_FORCE_PER_DAY (0.02 N/day) when applyTwine is called.
+   * Set to 0 when removeTwine is called.
+   */
+  twineForcePerDay: number;
+
+  // ── Weight Binding State ─────────────────────────────────────────────────────
+
+  /** True when one or more weight bags are attached. Default: false. */
+  weighted: boolean;
+
+  /**
+   * Number of weight bags attached. Integer 1–4 when weighted===true; 0 otherwise.
+   * Cap enforced by TwineWeightEngine at apply time.
+   * Each weight contributes ≈7° downward (incrementally per tick).
+   */
+  weightCount: number;
+
+  // ── Twine Degradation Cache (MAJOR-2 fix, 2026-08-01) ───────────────────────
+
+  /**
+   * The game day on which twine begins to degrade.
+   * Set at applyTwine time: twineDegradesDay = twineAppliedDay + degradeDays.
+   * Cached here for O(1) per-tick degradation check in applyDailyUpdate step 4d.
+   * 0 when not twined.
+   */
+  twineDegradesDay: number;
+
+  // ── Permanent-Set Sentinel (CRITICAL-C fix, 2026-08-02) ─────────────────────
+
+  /**
+   * True when the bend from twine or weight has permanently set — i.e., the binding
+   * was removed after wireDaysApplied/twineDaysApplied/weightDaysApplied >= setDays.
+   * When true, step 4a in applyDailyUpdate skips stress recalculation (the branch has
+   * "learned" its new shape and stress is no longer accumulating toward a set condition).
+   *
+   * Set to true in removeWire (when wireDaysApplied >= computeSetDays(diameter)),
+   * and in Phase 2 removeTwine/removeWeight when their daysApplied >= setDays.
+   * Never reset to false once set (permanent history).
+   * Default: false.
+   */
+  bendSet: boolean;
 }
 
 export interface TreeState {
@@ -235,3 +356,34 @@ export const SPECIES_PARAMS: Record<SpeciesClass, SpeciesParams> = {
   evergreen: { extensionMultiplier: 0.8, forkSpreadMin: 0.1, forkSpreadMax: 0.4, secondaryForkChance: 0.35, trunkMaturationRate: 0.04 },
   tropical:  { extensionMultiplier: 1.3, forkSpreadMin: 0.5, forkSpreadMax: 1.2, secondaryForkChance: 0.25, trunkMaturationRate: 0.06 },
 };
+
+// ---------------------------------------------------------------------------
+// Branch physics result types (2026-08-01)
+// Specification: ARCHITECT-BRANCH-PHYSICS-2026-08-01.md Part G
+// ---------------------------------------------------------------------------
+
+// Carmack C-5 fix (2026-08-02): 'too-thick' removed — no TWINE_MAX_THICKNESS constant defined
+// (OQ-PHYSICS-4 unresolved) and no code path produces this reason. Removed until Phase 2.
+export type TwineRejectReason = 'not-found' | 'pruned' | 'already-twined';
+export interface TwineResult {
+  ok: boolean;
+  reason?: TwineRejectReason;
+  oldAngle?: number;
+  newAngle?: number;
+}
+
+export type WeightRejectReason = 'not-found' | 'pruned' | 'weight-cap-exceeded';
+export interface WeightResult {
+  ok: boolean;
+  reason?: WeightRejectReason;
+  torqueContribution?: number;
+}
+
+// Carmack C-5 fix (2026-08-02): 'already-jin' removed — no Branch.jinned field exists
+// and no code path produces this reason in Phase 1. Removed until Phase 2.
+export type JinRejectReason = 'not-found' | 'pruned' | 'segment-out-of-range';
+export interface JinResult {
+  ok: boolean;
+  reason?: JinRejectReason;
+  scarVoxelCount?: number;
+}

@@ -4,6 +4,7 @@ import { BonsaiTree } from './BonsaiTree.js';
 import { GrowthEngine } from './GrowthEngine.js';
 import { PruneEngine } from './PruneEngine.js';
 import { WireEngine } from './WireEngine.js';
+export { CareLogReplayError } from './errors.js';
 
 /**
  * Maximum number of game days the engine will replay.
@@ -12,17 +13,9 @@ import { WireEngine } from './WireEngine.js';
  */
 export const MAX_REPLAY_DAYS = 36_500;
 
-/**
- * Thrown by CareLogReplay.reconstruct() when inputs are invalid or when the
- * care log contains an action type the engine has not yet implemented.
- * Callers (server edge functions) should catch this and reject the replay.
- */
-export class CareLogReplayError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'CareLogReplayError';
-  }
-}
+// CareLogReplayError is defined in errors.ts (to avoid circular import with BonsaiTree.ts)
+// and re-exported above via `export { CareLogReplayError } from './errors.js'`.
+import { CareLogReplayError } from './errors.js';
 
 export class CareLogReplay {
   /**
@@ -82,11 +75,31 @@ export class CareLogReplay {
       );
     }
 
+    // --- Carmack C-1 fix (2026-08-02): careLog.length guard ---
+    // A log with more entries than MAX_REPLAY_DAYS cannot be valid for a replay of
+    // totalDays days (at most one action per day per action type). Reject it early to
+    // prevent the O(n×m) loop below from becoming a DoS vector.
+    if (careLog.length > MAX_REPLAY_DAYS) {
+      throw new CareLogReplayError(
+        `careLog.length (${careLog.length}) exceeds MAX_REPLAY_DAYS (${MAX_REPLAY_DAYS}). Cannot replay.`
+      );
+    }
+
+    // Pre-group care log entries by day for O(1) lookup in the day loop.
+    // Without this, the inner scan is O(totalDays × careLog.length) = O(n²) at full scale.
+    const byDay = new Map<number, CareLogEntry[]>();
+    for (const entry of careLog) {
+      if (!byDay.has(entry.day)) byDay.set(entry.day, []);
+      byDay.get(entry.day)!.push(entry);
+    }
+
     const tree = new BonsaiTree(seed, species);
     for (let day = 0; day < totalDays; day++) {
-      // Apply care actions logged for this day before the tick
-      for (const entry of careLog) {
-        if (entry.day === day) {
+      // Apply care actions logged for this day before the tick.
+      // O(actions_on_this_day) — not O(careLog.length).
+      const dayEntries = byDay.get(day) ?? [];
+      for (const entry of dayEntries) {
+        {
           const a = entry.action;
           if (a.type === 'water') {
             // Re-wrap any validation error so callers see CareLogReplayError,
@@ -107,64 +120,35 @@ export class CareLogReplay {
           } else if (a.type === 'wire') {
             WireEngine.wire(tree, a.branchId, a.angleDelta);
           } else if (a.type === 'wire-remove') {
-            // GAP-1: WireRemoveEngine not yet implemented.
-            // Spring-back = angleDelta × (currentStress / stressInitial) per BLOCKER-1.
-            console.warn(
-              `[CareLogReplay] 'wire-remove' handler not yet implemented (branchId=${a.branchId}, day=${day}). Replay is incomplete.`
-            );
-            throw new CareLogReplayError(
-              `Action type 'wire-remove' is not yet implemented. A care log containing wire-remove cannot be replayed faithfully — spring-back would be missing and all downstream voxels would be misplaced.`
-            );
+            // Delegates to BonsaiTree.removeWire → WireEngine.removeWire.
+            // Spring-back from (currentStress / stressInitial) model. (2026-08-01)
+            tree.removeWire(a.branchId);
           } else if (a.type === 'twine') {
-            // GAP-1: TwineEngine not yet implemented.
-            console.warn(
-              `[CareLogReplay] 'twine' handler not yet implemented (branchId=${a.branchId}, day=${day}). Replay is incomplete.`
-            );
-            throw new CareLogReplayError(
-              `Action type 'twine' is not yet implemented. A care log containing twine cannot be replayed faithfully.`
-            );
+            // Delegates to BonsaiTree.applyTwine → TwineWeightEngine.applyTwine.
+            // Phase 1 stub: TwineWeightEngine.applyTwine throws "not implemented".
+            // CareLogReplay will propagate that error until Phase 2 implementation lands.
+            tree.applyTwine(a.branchId, a.angleDelta);
           } else if (a.type === 'twine-remove') {
-            // GAP-1: TwineEngine not yet implemented.
-            console.warn(
-              `[CareLogReplay] 'twine-remove' handler not yet implemented (branchId=${a.branchId}, day=${day}). Replay is incomplete.`
-            );
-            throw new CareLogReplayError(
-              `Action type 'twine-remove' is not yet implemented. A care log containing twine-remove cannot be replayed faithfully.`
-            );
+            // Delegates to BonsaiTree.removeTwine → TwineWeightEngine.removeTwine.
+            // Phase 1 stub.
+            tree.removeTwine(a.branchId);
           } else if (a.type === 'weight') {
-            // GAP-1: WeightEngine not yet implemented.
-            console.warn(
-              `[CareLogReplay] 'weight' handler not yet implemented (branchId=${a.branchId}, day=${day}). Replay is incomplete.`
-            );
-            throw new CareLogReplayError(
-              `Action type 'weight' is not yet implemented. A care log containing weight cannot be replayed faithfully.`
-            );
+            // Delegates to BonsaiTree.applyWeight → TwineWeightEngine.applyWeight.
+            // Uses a.weightCount (integer 1–4); a.torqueContribution stored for future
+            // replay-independence use (MAJOR-7 pattern) when Phase 2 implements storedTorque overload.
+            // Phase 1 stub.
+            tree.applyWeight(a.branchId, a.weightCount);
           } else if (a.type === 'weight-remove') {
-            // GAP-1: WeightEngine not yet implemented.
-            console.warn(
-              `[CareLogReplay] 'weight-remove' handler not yet implemented (branchId=${a.branchId}, day=${day}). Replay is incomplete.`
-            );
-            throw new CareLogReplayError(
-              `Action type 'weight-remove' is not yet implemented. A care log containing weight-remove cannot be replayed faithfully.`
-            );
+            // Delegates to BonsaiTree.removeWeight → TwineWeightEngine.removeWeight.
+            // Phase 1 stub.
+            tree.removeWeight(a.branchId);
           } else if (a.type === 'jin') {
-            // GAP-1: JinEngine not yet implemented.
-            // jin permanently converts bark to SCAR voxels (GDD §3.2); without replay, defense stat diverges.
-            console.warn(
-              `[CareLogReplay] 'jin' handler not yet implemented (branchId=${a.branchId}, day=${day}). Replay is incomplete.`
-            );
-            throw new CareLogReplayError(
-              `Action type 'jin' is not yet implemented. A care log containing jin cannot be replayed faithfully — SCAR voxels and defense stat would be missing from the replayed tree.`
-            );
+            // Delegates to BonsaiTree.applyJin → JinEngine.applyJin.
+            // Phase 1 stub: JinEngine.applyJin throws "not implemented".
+            tree.applyJin(a.branchId, a.segmentIndex, a.jinCost);
           } else if (a.type === 'landscape') {
-            // GAP-1: Landscape elements affect TechniqueClassifier counts.
-            // No tree/voxel effect in current engine, but raise anyway for strict correctness.
-            console.warn(
-              `[CareLogReplay] 'landscape' handler not yet implemented (elementType=${a.elementType}, day=${day}). Replay is incomplete.`
-            );
-            throw new CareLogReplayError(
-              `Action type 'landscape' is not yet implemented. A care log containing landscape cannot be replayed faithfully.`
-            );
+            // Delegates to BonsaiTree.addLandscape (logs + markDirty — fully implemented in Phase 1).
+            tree.addLandscape(a.elementType, a.position);
           } else {
             // Exhaustiveness guard: the TypeScript union is fully covered above,
             // but at runtime a crafted care log can include arbitrary type strings.

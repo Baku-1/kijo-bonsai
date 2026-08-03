@@ -33,7 +33,27 @@ export function createTree(seed: number, species: SpeciesClass): TreeState {
     fertilizerCooldown: 0,
     rngState: seed | 0,
     branches: [
-      { id: 0, parent: null, depth: 0, angle: 0, length: 8, thickness: 2, pruned: false, children: [], attachmentY: 0 }
+      {
+        id: 0, parent: null, depth: 0, angle: 0, length: 8, thickness: 2, pruned: false, children: [], attachmentY: 0,
+        // Physics fields (2026-08-01): trunk starts at thickness=2 (radius), so diameter=4.
+        // All binding fields default to 0/false (no bindings on creation).
+        diameter:         4,      // round4(2 × thickness=2) = 4.0
+        currentStress:    0,
+        stressInitial:    0,
+        wired:            false,
+        wireAppliedDay:   0,
+        wireAngle:        0,
+        wireSet:          false,
+        wireScarred:      false,
+        twined:           false,
+        twineAppliedDay:  0,
+        twineAngle:       0,
+        twineForcePerDay: 0,
+        weighted:         false,
+        weightCount:      0,
+        twineDegradesDay: 0,
+        bendSet:          false,  // CRITICAL-C fix 2026-08-02
+      }
     ]
   };
 }
@@ -128,18 +148,36 @@ export function tick(prev: TreeState): TreeState {
       const attachmentY = (b.depth === 0 && i === 0 && existingD1 === 0)
         ? round4(b.length * 0.33)
         : round4(b.length);
+      const childThickness = Math.max(0.3, b.thickness * 0.5);
       const child = {
         id: s.branches.length,
         parent: b.id,
         depth: b.depth + 1,
         angle: side * sp.forkAngle * (0.5 + r.value),
         length: 1,
-        thickness: Math.max(0.3, b.thickness * 0.5),
+        thickness: childThickness,
         pruned: false,
-        children: [],
+        children: [] as number[],
         attachmentY,
+        // Physics fields (2026-08-01): zero/false defaults for new branches.
+        diameter:         round4(2 * childThickness),
+        currentStress:    0,
+        stressInitial:    0,
+        wired:            false,
+        wireAppliedDay:   0,
+        wireAngle:        0,
+        wireSet:          false,
+        wireScarred:      false,
+        twined:           false,
+        twineAppliedDay:  0,
+        twineAngle:       0,
+        twineForcePerDay: 0,
+        weighted:         false,
+        weightCount:      0,
+        twineDegradesDay: 0,
+        bendSet:          false,  // CRITICAL-C fix 2026-08-02
       };
-      s.branches.push(child);
+      s.branches.push(child as unknown as import('@kijo/shared').Branch);
       b.children.push(child.id);
     }
   }
@@ -151,6 +189,17 @@ export function tick(prev: TreeState): TreeState {
     if (living > 0) b.thickness += sp.thickenRate * 0.5 * living;
   }
   s.branches[0].thickness += sp.thickenRate;
+
+  // Major-1 fix (2026-08-02): sync diameter after all thickness updates.
+  // Without this, physics code run on a tick()-produced tree computes wrong S = τ/D³.
+  // GrowthEngine.thickeningPass() already does this for the GrowthEngine path; this
+  // fixes the legacy tick() path (used by determinism tests and replay).
+  // Audit confirmed 1.6 voxel diameter drift at day 10 on this path.
+  for (const b of s.branches) {
+    if (!b.pruned) {
+      b.diameter = round4(2 * b.thickness);
+    }
+  }
 
   return s;
 }

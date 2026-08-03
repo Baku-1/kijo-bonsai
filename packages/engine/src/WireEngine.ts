@@ -1,6 +1,7 @@
 import { round4 } from '@kijo/shared';
 import type { CareLogEntry } from '@kijo/shared';
 import type { BonsaiTree } from './BonsaiTree.js';
+import { computeSetDays } from './TwineWeightEngine.js';
 
 /**
  * WireEngine — stateless wire-bend logic ("Gu Ahao's Tied and Cut Toolkit").
@@ -77,6 +78,13 @@ export class WireEngine {
 
     b.angle = newAngle;
 
+    // Update wire binding state on Branch (2026-08-01 physics fields).
+    // Reset wireSet to false (MAJOR-3 fix: re-wiring clears prior set so SCAR can trigger again).
+    b.wired = true;
+    b.wireAppliedDay = tree.getAge();
+    b.wireAngle = appliedDelta;
+    b.wireSet = false;
+
     const entry: CareLogEntry = {
       day: tree.getAge(),
       action: { type: 'wire', branchId, angleDelta: appliedDelta, oldAngle, newAngle, wireCost },
@@ -85,5 +93,66 @@ export class WireEngine {
     tree.markDirty();
 
     return { ok: true, wireCost, oldAngle, newAngle };
+  }
+
+  /**
+   * Remove wire from a branch. Free action — no consumable cost.
+   *
+   * Timing determines outcome (time-ratio model — CRITICAL-A fix 2026-08-02):
+   *   Wire does NOT contribute to τ/currentStress, so the stress-based model cannot
+   *   distinguish early vs. late removal for wire-only branches. Instead, timing is
+   *   determined by wireDaysApplied relative to computeSetDays(diameter).
+   *
+   *   - wireDaysApplied >= setDays (wire removed after set window):
+   *       wireSet = true, bendSet = true. No spring-back. Bend is permanent.
+   *   - wireDaysApplied < setDays (wire removed early):
+   *       springBackFraction = 1 - wireDaysApplied/setDays, clamped [0, 1].
+   *       springBackAmount = wireAngle × fraction.
+   *       angle springs back by springBackAmount, clamped to polar range.
+   *
+   *   wireScarred branches: bend permanent; wire-remove stops further SCAR accumulation
+   *   (the step-4c SCAR timer is gated on b.wired, cleared below).
+   *
+   * No-op (silent) if branchId out of range, branch pruned, or !branch.wired.
+   * Uses tree._logCare() (established pattern from PruneEngine).
+   */
+  static removeWire(tree: BonsaiTree, branchId: number): void {
+    const branches = tree.getBranches();
+    const b = branches[branchId];
+    if (!b) return;
+    if (b.pruned) return;
+    if (!b.wired) return;
+
+    // Time-ratio spring-back (CRITICAL-A fix). wireAppliedDay is the absolute day wire
+    // was applied; tree.getAge() is the current day. wireDaysApplied is the elapsed time.
+    const wireDaysApplied = tree.getAge() - b.wireAppliedDay;
+    const setDays = computeSetDays(b.diameter);
+
+    if (wireDaysApplied >= setDays) {
+      // Wire left on long enough — bend has permanently set, no spring-back.
+      b.wireSet = true;
+      b.bendSet = true;
+    } else {
+      // Wire removed early — partial spring-back proportional to remaining set time.
+      // Fraction = 1 at day 0 (full spring-back), approaches 0 as wireDaysApplied → setDays.
+      // Clamped [0, 1] to guard edge cases (CRITICAL-B / Carmack C-3).
+      const springBackFraction = Math.max(0, Math.min(1, 1 - wireDaysApplied / setDays));
+      const springBackAmount = round4(b.wireAngle * springBackFraction);
+      // Clamp result to polar range (Carmack C-3 fix).
+      b.angle = round4(clamp(b.angle - springBackAmount, POLAR_MIN_DEG, POLAR_MAX_DEG));
+    }
+
+    // Clear wire binding state.
+    b.wired = false;
+    b.wireAngle = 0;
+    b.wireAppliedDay = 0;
+    // wireSet, wireScarred, and bendSet persist (history / permanent-set state).
+
+    const entry: CareLogEntry = {
+      day: tree.getAge(),
+      action: { type: 'wire-remove', branchId },
+    };
+    tree._logCare(entry);
+    tree.markDirty();
   }
 }

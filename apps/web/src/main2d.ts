@@ -1,7 +1,19 @@
-import { BonsaiTree, GrowthEngine, StatDeriver } from '@kijo/engine';
+import { BonsaiTree, GrowthEngine, StatDeriver, CareLogReplay } from '@kijo/engine';
 import type { Branch, SpeciesClass } from '@kijo/shared';
 import { WATER_AMOUNT } from '@kijo/shared';
 import { Voxelizer } from '@kijo/voxelizer';
+import {
+  getSession,
+  loadCareLog,
+  persistCareAction,
+  applyCurrentDayEntries,
+  type KijoSession,
+} from './persistence.js';
+
+// ---------------------------------------------------------------------------
+// Persistence state — null = local / guest mode (no server wiring).
+// ---------------------------------------------------------------------------
+let kijoSession: KijoSession | null = null;
 
 // ---------------------------------------------------------------------------
 // State — BonsaiTree is the single source of truth; we re-render on dirty.
@@ -156,9 +168,112 @@ function refreshStats(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Persistence helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Fire-and-forget care action persist: applies the action locally first (UI is
+ * already updated by the caller), then persists to Supabase in the background.
+ * If there is no session or the session is read-only, the action is silently
+ * skipped — the page continues to work in local-only mode.
+ *
+ * Errors are logged to the console (not shown as UI alerts) because the 2D
+ * page is a debug tool and a transient network failure shouldn't break the UI.
+ * The local tree state is already consistent; the only risk is state diverging
+ * from the server until the next successful persist.
+ */
+function persistAsync(action: Parameters<typeof persistCareAction>[1]): void {
+  if (!kijoSession || !kijoSession.access_token || !kijoSession.wallet_row_id) return;
+  const session = kijoSession;
+  persistCareAction(session, action).catch((err: unknown) => {
+    console.error('[kijo] persist failed:', err instanceof Error ? err.message : err);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Mount: load tree from Supabase and replay care log to restore state.
+// ---------------------------------------------------------------------------
+
+/**
+ * On mount:
+ *   1. Read session from sessionStorage / URL params.
+ *   2. If a tree_id is known, fetch the tree from the get-tree Edge Function.
+ *   3. Replay past-day entries via CareLogReplay.reconstruct (up to current_day ticks).
+ *   4. Apply current-day entries (game_day === current_day) directly — these
+ *      happened after the most recent tick and must not be ticked again.
+ *   5. Sync the seed/species DOM inputs to the server values.
+ *   6. Render.
+ *
+ * Falls back to a fresh in-memory tree (current behavior) if:
+ *   - No session / tree_id available (guest / dev mode).
+ *   - get-tree fetch fails (network error, tree not found, etc.).
+ *
+ * Note: the "Advance day ×N" debug button is intentionally NOT persisted.
+ *   The server advances game days based on real wall-clock time (8 hr = 1 day).
+ *   Local day-advances are a sandbox convenience and will be overwritten on the
+ *   next refresh by the server's current_day.
+ */
+async function init(): Promise<void> {
+  kijoSession = getSession();
+
+  if (kijoSession?.tree_id) {
+    try {
+      const { treeData, careLog } = await loadCareLog(kijoSession.tree_id);
+
+      if (treeData.current_day === 0) {
+        // No ticks have elapsed yet — start with the server's seed/species.
+        // Do NOT call CareLogReplay.reconstruct (it throws on totalDays <= 0).
+        tree = new BonsaiTree(treeData.seed, treeData.species as SpeciesClass);
+        // Apply any day-0 actions (e.g., watering before the first tick).
+        const day0Entries = careLog.filter((e) => e.day === 0);
+        applyCurrentDayEntries(tree, day0Entries);
+      } else {
+        // Replay completed tick-cycles.
+        // Past entries: game_day < current_day — each has a tick after it.
+        const priorLog = careLog.filter((e) => e.day < treeData.current_day);
+        tree = CareLogReplay.reconstruct(
+          treeData.seed,
+          treeData.species as SpeciesClass,
+          priorLog,
+          treeData.current_day,
+        );
+        // Current-day entries: game_day === current_day — after the last tick,
+        // before the next one.  Apply directly without growTick.
+        const currentDayEntries = careLog.filter(
+          (e) => e.day === treeData.current_day,
+        );
+        applyCurrentDayEntries(tree, currentDayEntries);
+      }
+
+      // Sync DOM inputs to the server's authoritative seed/species.
+      (document.getElementById('seed') as HTMLInputElement).value = String(treeData.seed);
+      (document.getElementById('species') as HTMLSelectElement).value = treeData.species;
+
+      const mode = kijoSession.access_token ? 'read-write' : 'read-only';
+      console.info(
+        `[kijo] tree restored — id=${kijoSession.tree_id} ` +
+        `day=${treeData.current_day} actions=${careLog.length} mode=${mode}`,
+      );
+    } catch (err: unknown) {
+      console.error(
+        '[kijo] failed to restore tree from Supabase; starting fresh.',
+        err instanceof Error ? err.message : err,
+      );
+      // Fall through: tree remains the initial newTree() value.
+    }
+  }
+
+  refreshStats();
+  render();
+}
+
+// ---------------------------------------------------------------------------
 // Controls
 // ---------------------------------------------------------------------------
 document.getElementById('btn-new')!.addEventListener('click', () => {
+  // Creating a new in-memory tree severs the link to the persisted tree.
+  // Clear the session so subsequent care actions are not sent to the wrong tree.
+  kijoSession = null;
   tree = newTree();
   pruneMode = false;
   document.getElementById('btn-prune')!.classList.remove('active');
@@ -171,16 +286,19 @@ document.getElementById('btn-water')!.addEventListener('click', () => {
   tree.water(WATER_AMOUNT);
   tree.markDirty();
   render();
+  persistAsync({ type: 'water', amount: WATER_AMOUNT });
 });
 
 document.getElementById('btn-fertilize')!.addEventListener('click', () => {
   tree.fertilize();
   render();
+  persistAsync({ type: 'fertilize' });
 });
 
 document.getElementById('btn-rotate')!.addEventListener('click', () => {
   tree.rotate();
   render();
+  persistAsync({ type: 'rotate' });
 });
 
 const pruneBtn = document.getElementById('btn-prune')!;
@@ -197,10 +315,13 @@ canvas.addEventListener('click', (e) => {
     tree.prune(id);
     refreshStats();
     render();
+    persistAsync({ type: 'prune', branchId: id });
   }
 });
 
 document.getElementById('btn-day')!.addEventListener('click', () => {
+  // Local-only debug advance: not persisted to Supabase.
+  // The server advances days based on real time (8 hr = 1 game day).
   const n = Math.max(1, Math.min(30, (document.getElementById('days-multi') as HTMLInputElement).valueAsNumber || 1));
   for (let i = 0; i < n; i++) {
     GrowthEngine.growTick(tree);
@@ -240,6 +361,5 @@ document.getElementById('btn-copy')!.addEventListener('click', async () => {
   if (exportOut.value) await navigator.clipboard.writeText(exportOut.value);
 });
 
-// Boot
-refreshStats();
-render();
+// Boot — restore from Supabase if session is available, otherwise start fresh.
+void init();
