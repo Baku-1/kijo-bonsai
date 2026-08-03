@@ -154,8 +154,8 @@ Deno.serve(async (req) => {
     const { data: c, error: cErr } = await serviceClient
       .from('consumables')
       .select('id, quantity')
-      .eq('tree_id', tree_id)
-      .eq('type', consumableType)
+      .eq('wallet_id', wallet_row_id)
+      .eq('item_type', consumableType)
       .single();
 
     if (cErr || !c) {

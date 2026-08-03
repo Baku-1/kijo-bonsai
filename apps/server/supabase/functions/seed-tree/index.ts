@@ -124,15 +124,18 @@ Deno.serve(async (req) => {
   //    Guest trees (has_spirit=false) skip this — no consumables tracked.
   // -------------------------------------------------------------------------
   if (has_spirit) {
-    const consumableRows = STARTER_CONSUMABLE_TYPES.map((type) => ({
-      tree_id,
-      type,
+    // wallet_row_id is the FK into consumables.wallet_id.
+    // Upsert is idempotent: if the wallet already has rows (second tree minted),
+    // the unique constraint on (wallet_id, item_type) makes ignoreDuplicates safe.
+    const consumableRows = STARTER_CONSUMABLE_TYPES.map((itemType) => ({
+      wallet_id: wallet_row_id,
+      item_type: itemType,
       quantity: 0,
     }));
 
     const { error: consumableErr } = await serviceClient
       .from('consumables')
-      .insert(consumableRows);
+      .upsert(consumableRows, { onConflict: 'wallet_id,item_type', ignoreDuplicates: true });
 
     if (consumableErr) {
       // Best-effort cleanup of the orphaned tree row, then surface the error.
