@@ -31,6 +31,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
+import { SESSION_KEY } from "../persistence.js";
 
 // Server-controlled treasury wallet that accepts RON payments.
 const TREASURY = "0x68bd10cf714217eb9877b37812a548b801a94894" as `0x${string}`;
@@ -136,6 +137,16 @@ export function useSeedPurchase(
 
       if (res.ok && data.tree_id) {
         setTreeId(data.tree_id);
+        // Write session so ThreeCanvas can find this tree on mount and persist
+        // care actions. Overrides any prior session (one active tree per tab).
+        sessionStorage.setItem(
+          SESSION_KEY,
+          JSON.stringify({
+            tree_id: data.tree_id,
+            access_token: token,
+            wallet_row_id: wrid,
+          }),
+        );
       } else {
         const msg = data.error ?? "Tree setup failed";
         if (res.status === 401) {

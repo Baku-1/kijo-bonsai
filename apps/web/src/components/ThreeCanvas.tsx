@@ -5,14 +5,29 @@
 //
 // initialized.current guard: React StrictMode calls effects twice in dev.
 // Without it the scene would double-mount and leak a WebGL context.
+//
+// DB wiring: on mount we call getSession() from persistence.ts.
+//   • Session present  → load tree from Supabase, replay care log.
+//     Care buttons call persistCareAction (fire-and-forget) in addition to
+//     the local engine method, so actions are durably saved.
+//   • No session (guest / URL-param mode) → boot locally from ?seed & ?species,
+//     identical to the previous behaviour. No server calls are made.
 // ---------------------------------------------------------------------------
 import React, { useEffect, useRef } from 'react';
-import { BonsaiTree } from '@kijo/engine';
+import { BonsaiTree, CareLogReplay } from '@kijo/engine';
 import type { SpeciesClass } from '@kijo/shared';
+import { WATER_AMOUNT } from '@kijo/shared';
 import { createScene } from '../renderer/scene.js';
 import { buildTreeMesh } from '../renderer/tree_mesh.js';
 import { CareBridge } from '../bridge/care_bridge.js';
 import { CareHud } from '../ui/hud.js';
+import {
+  getSession,
+  loadCareLog,
+  persistCareAction,
+  applyCurrentDayEntries,
+  type KijoSession,
+} from '../persistence.js';
 
 export function ThreeCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -23,7 +38,7 @@ export function ThreeCanvas() {
     initialized.current = true;
 
     // -----------------------------------------------------------------------
-    // Replicated from src/main.ts — wiring only, no engine logic lives here.
+    // Local fallback params (used in guest mode when no session is present).
     // -----------------------------------------------------------------------
     const params = new URLSearchParams(location.search);
     const seed = Number(params.get('seed')) || 464497;
@@ -33,7 +48,15 @@ export function ThreeCanvas() {
         ? speciesParam
         : 'hardwood';
 
-    const tree = new BonsaiTree(seed, species);
+    // `tree` is `let` so the async DB load can swap it out after boot.
+    // Closures below reference the variable, not its initial value, so the
+    // swap is automatically reflected in refreshView / livingBranchCount.
+    let tree = new BonsaiTree(seed, species);
+
+    // Session is set by the async init; persistAsync reads it from the closure
+    // so it is always current even if set after the hud callbacks are wired.
+    let session: KijoSession | null = null;
+
     const careScene = createScene(containerRef.current!);
 
     function livingBranchCount(): number {
@@ -48,10 +71,33 @@ export function ThreeCanvas() {
       hud.update(tree, livingBranchCount());
     }
 
+    // Fire-and-forget: applies action locally (already done by the caller) and
+    // persists to Supabase in the background.  Skipped when there is no active
+    // read-write session.  Errors are logged as warnings — they must not crash
+    // the UI, and local tree state is already consistent.
+    function persistAsync(
+      action: Parameters<typeof persistCareAction>[1],
+    ): void {
+      if (!session || !session.access_token || !session.wallet_row_id) return;
+      const s = session; // snapshot — avoids stale closure if session is cleared
+      persistCareAction(s, action).catch((err: unknown) => {
+        console.warn(
+          '[kijo-care] persistCareAction failed:',
+          err instanceof Error ? err.message : err,
+        );
+      });
+    }
+
     const bridge = new CareBridge(tree, refreshView);
 
     const hud = new CareHud({
-      onWater:      () => bridge.water(),
+      // Water: apply locally via bridge, then persist async.
+      onWater: () => {
+        bridge.water();
+        persistAsync({ type: 'water', amount: WATER_AMOUNT });
+      },
+      // nextDay is a local debug advance only — the server drives real days by
+      // wall-clock time.  Same intentional non-persist as main2d.ts.
       onNextDay:    () => bridge.nextDay(),
       onToggleAuto: () => bridge.toggleAuto(),
     });
@@ -69,6 +115,74 @@ export function ThreeCanvas() {
       careScene.renderer.render(careScene.scene, careScene.camera);
     }
     animate();
+
+    // -----------------------------------------------------------------------
+    // Async DB load — runs AFTER the animation loop is already rendering.
+    // Mirrors the init() pattern in main2d.ts exactly.
+    //
+    // Guest / URL-param mode: session is null → returns immediately, leaving
+    // the locally-booted tree in place.  Behaviour identical to before this PR.
+    //
+    // Authenticated mode: swaps in the server tree after replay so the 3D view
+    // shows the same state as the DB.  bridge.setTree() is required because
+    // CareBridge holds its own reference and must be updated alongside the
+    // outer `tree` variable so future water() calls hit the right object.
+    // -----------------------------------------------------------------------
+    void (async () => {
+      session = getSession();
+      if (!session?.tree_id) return;
+
+      try {
+        const { treeData, careLog } = await loadCareLog(session.tree_id);
+
+        let dbTree: BonsaiTree;
+        if (treeData.current_day === 0) {
+          // No ticks yet — start from server seed/species; do NOT call reconstruct
+          // (it throws on totalDays <= 0).
+          dbTree = new BonsaiTree(
+            treeData.seed,
+            treeData.species as SpeciesClass,
+          );
+          const day0Entries = careLog.filter((e) => e.day === 0);
+          applyCurrentDayEntries(dbTree, day0Entries);
+        } else {
+          // Replay completed tick-cycles via CareLogReplay.
+          const priorLog = careLog.filter(
+            (e) => e.day < treeData.current_day,
+          );
+          dbTree = CareLogReplay.reconstruct(
+            treeData.seed,
+            treeData.species as SpeciesClass,
+            priorLog,
+            treeData.current_day,
+          );
+          // Apply current-day actions that happened after the last tick but
+          // before the next one — must NOT call growTick again.
+          const currentDayEntries = careLog.filter(
+            (e) => e.day === treeData.current_day,
+          );
+          applyCurrentDayEntries(dbTree, currentDayEntries);
+        }
+
+        // Swap in the DB tree.  bridge.setTree also stops any running auto mode.
+        tree = dbTree;
+        bridge.setTree(tree);
+        buildTreeMesh(careScene.treeRoot, tree);
+        hud.update(tree, livingBranchCount());
+
+        const mode = session.access_token ? 'read-write' : 'read-only';
+        console.info(
+          `[kijo-care] tree restored — id=${session.tree_id} ` +
+            `day=${treeData.current_day} actions=${careLog.length} mode=${mode}`,
+        );
+      } catch (err: unknown) {
+        // Network error or tree not found — keep the locally-booted tree.
+        console.warn(
+          '[kijo-care] failed to load tree from DB; falling back to local tree.',
+          err instanceof Error ? err.message : err,
+        );
+      }
+    })();
 
     return () => {
       cancelAnimationFrame(animId);
