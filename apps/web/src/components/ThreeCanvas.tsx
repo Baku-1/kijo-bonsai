@@ -184,9 +184,16 @@ export function ThreeCanvas() {
         buildTreeMesh(careScene.treeRoot, tree);
         hud.update(tree, livingBranchCount());
 
+        const activeInfoEl = document.getElementById('active-tree-info');
+        if (activeInfoEl) {
+          activeInfoEl.textContent =
+            `🌳 ${treeData.species} · Seed ${treeData.seed} · Day ${treeData.current_day}`;
+        }
+
         const mode = session.access_token ? 'read-write' : 'read-only';
         console.info(
           `[kijo-care] tree restored — id=${session.tree_id} ` +
+            `seed=${treeData.seed} species=${treeData.species} ` +
             `day=${treeData.current_day} actions=${careLog.length} mode=${mode}`,
         );
       } catch (err: unknown) {
@@ -243,6 +250,7 @@ export function ThreeCanvas() {
           <button id="btn-buy-seed" className="primary">🌱 Buy Seed</button>
         </div>
         <div id="info-line">Seed #— · — branches · —</div>
+        <div id="active-tree-info" style={{ fontSize: '12px', color: 'var(--muted, #888)', padding: '4px 8px' }} />
       </div>
     </>
   );
