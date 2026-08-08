@@ -43,7 +43,7 @@ export function SeedShopModal() {
   async function handleBuy() {
     setError(null);
     try {
-      await buySeeds(count);
+      await buySeeds(count, "hardwood"); // DEPRECATED: StoreModal.tsx has species picker
     } catch (e) {
       setError(e instanceof Error ? e.message : "Transaction failed");
     }

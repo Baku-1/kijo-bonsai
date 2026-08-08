@@ -440,13 +440,15 @@ Species is chosen at mint and **permanent**. It determines growth curve, seasona
 
 ```typescript
 export const SPECIES_PARAMS: Record<SpeciesClass, SpeciesParams> = {
-  hardwood:  { extensionMultiplier: 1.0, forkSpreadMin: 0.3, forkSpreadMax: 0.8, secondaryForkChance: 0.45, trunkMaturationRate: 0.05 },
-  evergreen: { extensionMultiplier: 0.8, forkSpreadMin: 0.1, forkSpreadMax: 0.4, secondaryForkChance: 0.35, trunkMaturationRate: 0.04 },
-  tropical:  { extensionMultiplier: 1.3, forkSpreadMin: 0.5, forkSpreadMax: 1.2, secondaryForkChance: 0.25, trunkMaturationRate: 0.06 },
+  hardwood:  { extensionMultiplier: 1.0, forkSpreadMin: 0.50, forkSpreadMax: 1.00, secondaryForkChance: 0.45, trunkMaturationRate: 0.05 },
+  evergreen: { extensionMultiplier: 0.8, forkSpreadMin: 0.30, forkSpreadMax: 0.70, secondaryForkChance: 0.35, trunkMaturationRate: 0.04 },
+  tropical:  { extensionMultiplier: 1.3, forkSpreadMin: 0.10, forkSpreadMax: 0.40, secondaryForkChance: 0.25, trunkMaturationRate: 0.06 },
 };
+// Updated 2026-08-07 (BUG-3b): forkSpread ordering corrected per GDD s3.3.
+// hardwood=widest (0.50-1.00), evergreen=middle (0.30-0.70), tropical=narrowest (0.10-0.40).
 ```
 
-Tropical grows fastest (1.3× extension), hardwood forks widest (0.3–0.8 rad spread → broader canopy → more Ki), evergreen grows most upright (0.1–0.4 rad spread → compact, columnar).
+Tropical grows fastest (1.3x extension), hardwood forks widest (0.50-1.00 rad spread -> broader canopy -> more Ki), evergreen is middle spread (0.30-0.70 rad spread -> layered, flowing forms), tropical is narrowest (0.10-0.40 rad spread -> tight clusters, cascade/literati silhouette). Per GDD s3.3: hardwood widest, tropical tightest.
 
 ### 6.3 Bonsai Styles as Stat Templates (8 Styles)
 

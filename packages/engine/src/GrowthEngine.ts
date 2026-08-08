@@ -117,7 +117,7 @@ export class GrowthEngine {
               id:                childId,
               parent:            b.id,
               depth:             b.depth + 1,
-              angle:             round4(side * spread),
+              angle:             round4(side * spread * (180 / Math.PI)), // SPECIES_PARAMS forkSpread is in radians; branch.angle is stored in degrees
               length:            round4(1.0),
               thickness:         childThickness,
               pruned:            false,

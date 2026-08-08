@@ -140,7 +140,8 @@ Deno.serve(async (req) => {
         current_day: currentDay,
         last_ticked_at: new Date(now).toISOString(),
       })
-      .eq('id', tree_id);
+      .eq('id', tree_id)
+      .eq('wallet_id', wallet_row_id);
     if (treeUpdateErr) return json({ error: treeUpdateErr.message }, 500);
   }
 
@@ -184,22 +185,17 @@ Deno.serve(async (req) => {
   if (insertErr) return json({ error: insertErr.message }, 500);
 
   // -------------------------------------------------------------------------
-  // 6. Decrement consumable quantity
+  // 6. Atomic consumable decrement via RPC.
+  //    quantity = quantity - 1 is evaluated server-side; prevents double-spend
+  //    race where two requests both read quantity > 1 and both write quantity - 1.
+  //    Returns the updated row if quantity > 0; empty if already consumed.
   // -------------------------------------------------------------------------
   if (consumableRow !== null) {
-    // Atomic guard: only update if quantity > 0 at write time.
-    // If two concurrent requests race past the earlier quantity check, this
-    // filter ensures at most one succeeds. Checking decremented.length === 0
-    // detects the case where the row was not updated (quantity already at 0).
-    // NOTE: this prevents going below 0, but does not prevent double-decrement
-    // when quantity > 1 and two requests arrive simultaneously — a fully atomic
-    // `SET quantity = quantity - 1` requires a stored procedure (deferred).
     const { data: decremented, error: decrErr } = await serviceClient
-      .from('consumables')
-      .update({ quantity: consumableRow.quantity - 1 })
-      .eq('id', consumableRow.id)
-      .gt('quantity', 0)
-      .select('id');
+      .rpc('decrement_consumable', {
+        p_consumable_id: consumableRow.id,
+        p_wallet_id:     wallet_row_id,
+      });
     if (decrErr) return json({ error: decrErr.message }, 500);
     if (!decremented || decremented.length === 0) {
       return json({ error: 'Consumable already consumed or insufficient quantity' }, 409);

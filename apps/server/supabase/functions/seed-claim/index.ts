@@ -1,17 +1,20 @@
-// seed-claim — POST
+// seed-claim -- POST (v2 -- multi-mint loop)
 // Called after a buyer sends RON to the treasury wallet.
-// Verifies the on-chain payment before recording the claim.
+// Verifies on-chain payment, then loops count times: for each token --
+//   assigns tokenId from sequence, INSERTs trees row, submits on-chain mint.
+// Waits for all receipts in parallel, enqueues render jobs, records token_ids.
 //
-// ALL 5 payment checks must pass before any mint is attempted:
+// ALL 5 payment checks must pass before the mint loop starts:
 //   1. tx exists and is mined (blockNumber present)
 //   2. tx.to === TREASURY
 //   3. tx.value >= SEED_PRICE_WEI * count
 //   4. tx.from === caller's authenticated Ronin address
-//   5. INSERT into seed_claims succeeds (replay guard — unique PK on tx_hash)
+//   5. INSERT into seed_claims succeeds (replay guard -- unique PK on tx_hash)
+//      On 23505 (duplicate): find-or-create -- return previously-minted tokens
+//      if token_ids is populated (idempotent 200), or 409 if mid-loop die.
 //
-// Mint is stubbed: KIJONSAI_CONTRACT_ADDRESS not yet set. Wire it in after deploy.
-//
-// JWT auth pattern copied exactly from care-action/index.ts.
+// Response shape v2: { v:2, ok, tokens:[{tokenId,treeId,mintTxHash,ok}], partial }
+// JWT auth pattern copied from care-action/index.ts.
 // Service-role client used for all DB writes (bypasses RLS).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -30,11 +33,8 @@ const CORS = {
 const TREASURY = '0x68bd10cf714217eb9877b37812a548b801a94894';
 const SEED_PRICE_WEI = 3_000_000_000_000_000_000n; // 3 RON in wei
 const RONIN_RPC = 'https://saigon-testnet.roninchain.com/rpc';
-// MIN_CONFIRMATIONS = 1: having a blockNumber proves the tx is in at least one
-// confirmed block. For stricter N-block finality, fetch eth_blockNumber, compare
-// currentBlock - tx.blockNumber >= MIN_CONFIRMATIONS, and return 422 if not yet
-// final. For testnet a single confirmation is sufficient.
-// const _MIN_CONFIRMATIONS = 1; // declared but unused — kept as documentation
+const RECEIPT_TIMEOUT_MS = 60_000;
+const RONIN_SAIGON_CHAIN_ID = 202601;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,11 +66,28 @@ async function rpcCall(
 }
 
 // ---------------------------------------------------------------------------
-// Ronin Saigon testnet chain definition (viem doesn't ship it)
+// enqueueRender -- best-effort; failure logged but does not fail the response
+// ---------------------------------------------------------------------------
+
+async function enqueueRender(
+  // deno-lint-ignore no-explicit-any
+  client: any,
+  tokenId: number,
+  treeId: string,
+  trigger: 'mint' | 'prune' | 'wire' | 'tick',
+): Promise<void> {
+  const { error } = await client.from('render_queue').insert({
+    token_id: tokenId, tree_id: treeId, trigger, status: 'pending',
+  });
+  if (error) console.error('render_queue insert failed:', error.message);
+}
+
+// ---------------------------------------------------------------------------
+// Ronin Saigon testnet chain definition (viem does not ship it)
 // ---------------------------------------------------------------------------
 
 const roninSaigon = defineChain({
-  id: 202601,
+  id: RONIN_SAIGON_CHAIN_ID,
   name: 'Ronin Saigon Testnet',
   nativeCurrency: { name: 'RON', symbol: 'RON', decimals: 18 },
   rpcUrls: { default: { http: ['https://saigon-testnet.roninchain.com/rpc'] } },
@@ -103,12 +120,11 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
 
   // -------------------------------------------------------------------------
-  // 0. JWT verification — copy of care-action pattern
+  // 0. JWT verification
   // -------------------------------------------------------------------------
   const token = req.headers.get('Authorization')?.replace('Bearer ', '');
   if (!token) return json({ error: 'Unauthorized' }, 401);
 
-  // Use anon client to validate JWT against Supabase auth (not service role).
   const anonClient = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -117,7 +133,6 @@ Deno.serve(async (req) => {
   const { data: { user }, error: authErr } = await anonClient.auth.getUser(token);
   if (authErr || !user) return json({ error: 'Unauthorized' }, 401);
 
-  // Service-role client for all DB operations.
   const serviceClient = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -126,21 +141,16 @@ Deno.serve(async (req) => {
   // -------------------------------------------------------------------------
   // 1. Parse and validate request body
   // -------------------------------------------------------------------------
-  let body: { txHash?: unknown; count?: unknown };
+  let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
     return json({ error: 'invalid JSON' }, 400);
   }
 
-  const { txHash, count } = body;
+  const { txHash, count } = body as { txHash?: unknown; count?: unknown };
 
-  if (
-    !txHash ||
-    typeof txHash !== 'string' ||
-    count == null ||
-    typeof count !== 'number'
-  ) {
+  if (!txHash || typeof txHash !== 'string' || count == null || typeof count !== 'number') {
     return json({ error: 'Missing txHash or count' }, 400);
   }
 
@@ -148,8 +158,31 @@ Deno.serve(async (req) => {
     return json({ error: 'count must be an integer between 1 and 10' }, 400);
   }
 
-  // Validate txHash format before forwarding to eth_getTransactionByHash.
-  // Prevents malformed input from reaching the RPC node.
+  // seeds array: one per token, genome for each tree
+  if (!Array.isArray(body.seeds) || (body.seeds as unknown[]).length !== count
+      || !(body.seeds as unknown[]).every((s: unknown) => typeof s === 'number')) {
+    return json({ error: 'seeds must be a number[] of length count' }, 400);
+  }
+  const seeds: number[] = body.seeds as number[];
+
+  // species validation
+  const validSpecies = ['hardwood', 'evergreen', 'tropical'] as const;
+  type SpeciesType = typeof validSpecies[number];
+  if (!validSpecies.includes(body.species as SpeciesType)) {
+    return json({ error: 'invalid species' }, 400);
+  }
+  const species = body.species as SpeciesType;
+
+  // has_spirit must be true for mint path
+  if (body.has_spirit !== true) {
+    return json({ error: 'has_spirit must be true for mint path' }, 400);
+  }
+
+  // care_log: optional guest history; first token only
+  const care_log: unknown[] | undefined =
+    Array.isArray(body.care_log) ? (body.care_log as unknown[]) : undefined;
+
+  // txHash format check before RPC call
   if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
     return json({ error: 'Invalid txHash format' }, 400);
   }
@@ -158,21 +191,10 @@ Deno.serve(async (req) => {
 
   // -------------------------------------------------------------------------
   // 2. Resolve caller's Ronin wallet address for sender verification (check 4)
-  //
-  //    The JWT carries wallet_row_id — the UUID of the row in the `wallets`
-  //    table for this user. We query that row for the stored Ronin address.
-  //
-  //    VERIFIED COLUMN NAME: `wallet_address`
-  //    Confirmed via live Supabase DB query on 2026-07-22.
-  //    wallets table columns: id, wallet_address, guest_token, is_guest,
-  //    tutorial_day, tutorial_done, tutorial_shear_used, created_at
   // -------------------------------------------------------------------------
   const walletRowId = user.user_metadata?.wallet_row_id as string | undefined;
   if (!walletRowId) {
-    return new Response(JSON.stringify({ error: 'Wallet not linked to account' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ error: 'Wallet not linked to account' }, 401);
   }
 
   const { data: walletRow, error: walletErr } = await serviceClient
@@ -191,10 +213,9 @@ Deno.serve(async (req) => {
   }
 
   // -------------------------------------------------------------------------
-  // 3. Payment verification — all 5 checks before any mint
+  // 3. Payment verification -- all 5 checks before any mint
   // -------------------------------------------------------------------------
 
-  // Check 1: Fetch the transaction; confirm it exists and is mined (blockNumber set).
   type TxResult = {
     blockNumber: string | null;
     to: string | null;
@@ -210,77 +231,80 @@ Deno.serve(async (req) => {
   }
 
   if (!tx || !tx.blockNumber) {
-    // tx is null (not found) or blockNumber is null (pending / not yet mined).
     return json({ error: 'Transaction not found or not yet mined' }, 422);
   }
 
-  // Check 2: Verify destination is the treasury wallet.
   if (!tx.to || tx.to.toLowerCase() !== TREASURY.toLowerCase()) {
     return json({ error: 'Transaction destination mismatch' }, 422);
   }
 
-  // Check 3: Verify amount covers the full order.
-  // tx.value is a hex string (e.g. "0x29a2241af62c0000"). BigInt() handles "0x" prefixes.
   let valuePaid: bigint;
   try {
     valuePaid = BigInt(tx.value ?? '0x0');
   } catch {
-    return new Response(JSON.stringify({ error: 'Malformed transaction value from RPC' }), {
-      status: 502,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return json({ error: 'Malformed transaction value from RPC' }, 502);
   }
   const amountRequired = SEED_PRICE_WEI * BigInt(count);
   if (valuePaid < amountRequired) {
     return json({ error: 'Insufficient payment' }, 402);
   }
 
-  // Check 4: Verify sender is the authenticated caller.
-  // The person who paid must be the person claiming — prevents claiming
-  // someone else's payment hash.
   if (!tx.from || tx.from.toLowerCase() !== callerWalletAddress.toLowerCase()) {
     return json({ error: 'Transaction sender does not match authenticated wallet' }, 422);
   }
 
-  // Check 5: Replay guard — INSERT into seed_claims.
-  // tx_hash is the PRIMARY KEY, so a second INSERT with the same hash
-  // triggers a unique violation (Postgres code 23505) → 409 Conflict.
-  // This is the difference between safe and exploitable: without this guard,
-  // a valid txHash could be replayed to claim seeds multiple times.
+  // Check 5: Replay guard -- find-or-create (MAJOR-1 fix)
   const { error: claimErr } = await serviceClient
     .from('seed_claims')
-    .insert({
-      tx_hash: normalizedTxHash,
-      claimed_by: user.id,
-      count,
-    });
+    .insert({ tx_hash: normalizedTxHash, claimed_by: user.id, count });
 
   if (claimErr) {
     if (claimErr.code === '23505') {
-      return json({ error: 'Transaction already claimed' }, 409);
+      // tx_hash already claimed. Return previously-minted tokens if available.
+      const { data: existing } = await serviceClient
+        .from('seed_claims')
+        .select('token_ids, count')
+        .eq('tx_hash', normalizedTxHash)
+        .single();
+
+      if (existing?.token_ids?.length) {
+        // Previous run completed -- recover treeIds from trees table.
+        const { data: treesRows } = await serviceClient
+          .from('trees')
+          .select('id, token_id')
+          .in('token_id', existing.token_ids);
+
+        const treeMap = new Map(
+          (treesRows ?? []).map((t: { id: string; token_id: number }) =>
+            [Number(t.token_id), t.id]
+          )
+        );
+
+        return json({
+          v: 2,
+          ok: true,
+          tokens: (existing.token_ids as number[]).map((tid: number) => ({
+            tokenId: String(tid),
+            treeId: treeMap.get(tid) ?? null,
+            mintTxHash: null,
+            ok: true,
+          })),
+          partial: false,
+          replay: true,
+        });
+      }
+
+      // token_ids is NULL: previous run died mid-loop.
+      return json({
+        error: 'Transaction already claimed but mint may be incomplete -- contact support',
+        claimRecorded: true,
+      }, 409);
     }
     return json({ error: claimErr.message }, 500);
   }
 
   // -------------------------------------------------------------------------
-  // 5a. Assign tokenId atomically from Postgres sequence
-  //     Uses get_next_kijonsai_token_id() — a SECURITY DEFINER wrapper around
-  //     nextval('kijonsai_token_id_seq'). See migration 20260722130000.
-  // -------------------------------------------------------------------------
-  const { data: tokenIdData, error: seqErr } = await serviceClient
-    .rpc('get_next_kijonsai_token_id');
-  if (seqErr || tokenIdData == null) {
-    return json({ error: 'Failed to assign token ID' }, 500);
-  }
-  const tokenId = BigInt(tokenIdData as number);
-
-  // -------------------------------------------------------------------------
-  // 5b. Build metadata URI
-  // -------------------------------------------------------------------------
-  const metadataUri = `https://api.kijo.xyz/nft/metadata/${tokenId}`;
-
-  // -------------------------------------------------------------------------
-  // 5c. Call mintKijonsai on-chain via viem
+  // 4. Setup wallet/public client and fetch base nonce (BLOCKER-2 fix)
   // -------------------------------------------------------------------------
   const contractAddress = Deno.env.get('KIJONSAI_CONTRACT_ADDRESS') as `0x${string}`;
   const minterKey = Deno.env.get('MINTER_PRIVATE_KEY') as `0x${string}`;
@@ -293,33 +317,201 @@ Deno.serve(async (req) => {
   const walletClient = createWalletClient({ account, chain: roninSaigon, transport: http() });
   const publicClient = createPublicClient({ chain: roninSaigon, transport: http() });
 
-  let mintTxHash: `0x${string}`;
-  try {
-    mintTxHash = await walletClient.writeContract({
-      address: contractAddress,
-      abi: KIJONSAI_ABI,
-      functionName: 'mintKijonsai',
-      args: [callerWalletAddress as `0x${string}`, tokenId, metadataUri],
-    });
-  } catch (err) {
-    // Mint failed after payment verified and claim recorded.
-    // Log for manual remediation — do NOT return 500 silently.
-    console.error('mintKijonsai failed after claim recorded:', err);
-    return json({
-      error: 'Mint transaction failed — payment is recorded, contact support',
-      claimRecorded: true,
-    }, 502);
+  // Fetch base nonce once before the loop. Explicit increment guarantees
+  // distinct nonces for all N submissions even if the node's "pending"
+  // tag returns a stale count (Ronin OP Stack risk -- see ARCH doc ss6.4).
+  const baseNonce: number = await publicClient.getTransactionCount({
+    address: account.address,
+    blockTag: 'pending',
+  });
+
+  // -------------------------------------------------------------------------
+  // 5. Mint loop: count iterations
+  // -------------------------------------------------------------------------
+
+  type Submission = {
+    tokenId: bigint;
+    treeId: string | null;
+    mintTxHash: `0x${string}` | null;
+    ok: boolean;
+    error?: string;
+  };
+  const submissions: Submission[] = [];
+  const now = new Date().toISOString();
+
+  for (let i = 0; i < count; i++) {
+
+    // Step A: Atomically claim next tokenId from Postgres sequence (inside loop).
+    const { data: tokenIdData, error: seqErr } =
+      await serviceClient.rpc('get_next_kijonsai_token_id');
+    if (seqErr || tokenIdData == null) {
+      submissions.push({
+        tokenId: 0n, treeId: null, mintTxHash: null, ok: false,
+        error: 'Failed to assign token ID',
+      });
+      continue;
+    }
+    const tokenId = BigInt(tokenIdData as number);
+
+    // Step B: Insert trees row (BLOCKER-1 fix -- seed-claim creates the row).
+    // seeds[i] is the genome for this specific token (MAJOR-3 fix).
+    const { data: treeRow, error: treeErr } = await serviceClient
+      .from('trees')
+      .insert({
+        wallet_id:      walletRowId,
+        seed:           seeds[i],
+        species,
+        has_spirit:     true,
+        born_at:        now,
+        current_day:    0,
+        last_ticked_at: now,
+        token_id:       Number(tokenId),
+      })
+      .select('id')
+      .single();
+
+    if (treeErr || !treeRow) {
+      console.error(`trees INSERT failed for tokenId ${tokenId}:`, treeErr?.message);
+      submissions.push({
+        tokenId, treeId: null, mintTxHash: null, ok: false,
+        error: `Tree INSERT failed: ${treeErr?.message ?? 'unknown'}`,
+      });
+      continue;
+    }
+
+    const treeId: string = treeRow.id as string;
+
+    // Step C: care_log hand-off -- first token only (guest -> wallet conversion).
+    if (i === 0 && care_log && care_log.length > 0) {
+      // 409 guard: skip if care_log_entries already exist for this tree_id.
+      const { count: existingLogCount } = await serviceClient
+        .from('care_log_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('tree_id', treeId);
+
+      if (!existingLogCount) {
+        const entries = care_log.map((entry: unknown, seq: number) => {
+          const e = entry as { day?: number; type?: string; data?: unknown };
+          return {
+            tree_id:     treeId,
+            game_day:    e.day ?? 0,
+            sequence:    seq,
+            action_type: e.type ?? '',
+            action_data: e.data ?? null,
+          };
+        });
+        const { error: logErr } = await serviceClient
+          .from('care_log_entries')
+          .insert(entries);
+        if (logErr) {
+          // Non-fatal: tree row exists; care log is lost. Log for manual recovery.
+          console.error('care_log_entries INSERT failed (non-fatal):', logErr.message);
+        }
+      }
+    }
+
+    // Step D: Submit on-chain mint with explicit nonce (BLOCKER-2 fix).
+    const metadataUri = `https://api.kijo.xyz/nft/metadata/${tokenId}`;
+    try {
+      const mintTxHash = await walletClient.writeContract({
+        address:      contractAddress,
+        abi:          KIJONSAI_ABI,
+        functionName: 'mintKijonsai',
+        args:         [callerWalletAddress as `0x${string}`, tokenId, metadataUri],
+        nonce:        baseNonce + i,
+      });
+      submissions.push({ tokenId, treeId, mintTxHash, ok: true });
+    } catch (err) {
+      // Tree row exists and tokenId is consumed from the sequence.
+      // Support must call mintKijonsai directly for this tokenId.
+      console.error(
+        `mintKijonsai failed for tokenId ${tokenId} (tree ${treeId}),`,
+        `nonce ${baseNonce + i}:`, err,
+      );
+      submissions.push({
+        tokenId, treeId, mintTxHash: null, ok: false,
+        error: (err as Error).message,
+      });
+      console.warn(
+        `STUCK_NONCE_CANDIDATE: minter ${account.address} nonce ${baseNonce + i}`,
+        `-- check eth_getTransactionCount after this request`
+      );
+    }
   }
 
-  // Wait for 1 confirmation
-  const receipt = await publicClient.waitForTransactionReceipt({ hash: mintTxHash, confirmations: 1, timeout: 30_000 });
-  if (receipt.status !== 'success') {
-    return json({
-      error: 'Mint transaction reverted — payment is recorded, contact support',
-      claimRecorded: true,
-      mintTxHash,
-    }, 502);
+  // -------------------------------------------------------------------------
+  // 6. Parallel receipt wait
+  // -------------------------------------------------------------------------
+  const successfulSubmissions = submissions.filter(s => s.ok && s.mintTxHash);
+
+  const settled = await Promise.allSettled(
+    successfulSubmissions.map(async (s) => {
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash:          s.mintTxHash as `0x${string}`,
+        confirmations: 1,
+        timeout:       RECEIPT_TIMEOUT_MS,
+      });
+      return { ...s, receiptStatus: receipt.status };
+    })
+  );
+
+  // Merge receipt results back.
+  let settledIdx = 0;
+  for (let i = 0; i < submissions.length; i++) {
+    if (!submissions[i].ok || !submissions[i].mintTxHash) continue;
+    const result = settled[settledIdx++];
+    if (result.status === 'rejected') {
+      submissions[i] = {
+        ...submissions[i], ok: false,
+        error: 'Receipt wait failed or timed out',
+      };
+    } else if ((result.value as { receiptStatus: string }).receiptStatus !== 'success') {
+      submissions[i] = {
+        ...submissions[i], mintTxHash: null, ok: false,
+        error: 'Mint tx reverted on-chain',
+      };
+    }
   }
 
-  return json({ ok: true, tokenId: tokenId.toString(), mintTxHash });
+  // -------------------------------------------------------------------------
+  // 7. Enqueue render jobs for confirmed mints (MAJOR-2 fix)
+  // -------------------------------------------------------------------------
+  for (const s of submissions) {
+    if (s.ok && s.treeId) {
+      await enqueueRender(serviceClient, Number(s.tokenId), s.treeId, 'mint');
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 8. Update seed_claims with minted token_ids (feeds idempotent replay)
+  // -------------------------------------------------------------------------
+  const mintedIds = submissions.filter(s => s.ok).map(s => Number(s.tokenId));
+  if (mintedIds.length > 0) {
+    const { error: updateErr } = await serviceClient
+      .from('seed_claims')
+      .update({ token_ids: mintedIds })
+      .eq('tx_hash', normalizedTxHash);
+    if (updateErr) {
+      console.error('seed_claims token_ids update failed:', updateErr.message);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 9. Response
+  // -------------------------------------------------------------------------
+  const partial = submissions.some(s => !s.ok);
+
+  return json({
+    v: 2,
+    ok: true,
+    tokens: submissions.map(s => ({
+      tokenId:    s.tokenId > 0n ? s.tokenId.toString() : null,
+      treeId:     s.treeId,
+      mintTxHash: s.mintTxHash ?? null,
+      ok:         s.ok,
+      ...(s.error ? { error: s.error } : {}),
+    })),
+    partial,
+    ...(partial ? { claimRecorded: true } : {}),
+  });
 });

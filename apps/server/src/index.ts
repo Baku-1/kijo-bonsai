@@ -1,10 +1,10 @@
 /**
- * Kijo game server — Phase 1 stub.
+ * Kijo game server -- Phase 1 stub.
  * Will own: server-authoritative day ticks, care-log append + Merkle root,
  * action validation, matchmaking. The engine is shared with the client so
- * the server replays the same deterministic simulation (GDD §9.2).
+ * the server replays the same deterministic simulation (GDD s9.2).
+ *
+ * NOTE: createTree()/tick() were retired 2026-08-07 (dual-engine cleanup).
+ * When this stub is wired up, use GrowthEngine.growTick() via CareLogReplay.
  */
-import { createTree, tick } from '@kijo/engine';
-
-const demo = tick(createTree(1, 'evergreen'));
-console.log(`kijo server stub — engine linked ok (day ${demo.day})`);
+console.log('kijo server stub -- ready');

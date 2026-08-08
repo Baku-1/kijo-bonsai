@@ -16,7 +16,7 @@ import { computeSetDays } from './TwineWeightEngine.js';
  *   - Thickness limit: above WIRE_MAX_THICKNESS the branch cannot be wired at
  *     all (real bonsai: thick caliper needs a jack/rebar, not wire).
  *   - Bend is caregiver-chosen, clamped to +/-WIRE_MAX_ANGLE_DELTA per action
- *     and to the voxelizer's valid polar range [0.1, 1.4] rad.
+ *     and to the voxelizer's valid polar range [0.1, 2.618] rad.
  *   - Wire is a consumable: cost scales with branch thickness
  *     (thin = 1 wire, thick = 2). Multi-wire / purchase flow = later phase.
  *   - Wire removes NO voxels and changes NO branch counts — same mass,
@@ -28,10 +28,10 @@ export const WIRE_MAX_ANGLE_DELTA = 45;  // degrees per wire action (GDD s3.2)
 export const WIRE_MAX_THICKNESS = 3.0;   // voxel units; above = too thick to wire
 export const WIRE_COST_T1_MAX = 1.5;     // thickness <= this costs 1 wire, else 2
 
-// Voxelizer polar clamp [0.1, 1.4] rad, in degrees. For depth-1 branches the
+// Polar clamp [0.1, 2.618] rad (150°), in degrees. For depth-1 branches the
 // parent is the trunk (straight up), so branch angle == polar angle.
 const POLAR_MIN_DEG = 5.7296;  // 0.1 rad
-const POLAR_MAX_DEG = 80.2141; // 1.4 rad
+const POLAR_MAX_DEG = 150;     // 2.618 rad — matches KENGAI_POLAR_MAX (TwineWeightEngine.ts:28)
 
 export type WireRejectReason = 'not-found' | 'pruned' | 'too-thick';
 
@@ -73,10 +73,19 @@ export class WireEngine {
     const oldAngle = b.angle;
     const delta = round4(clamp(angleDelta, -WIRE_MAX_ANGLE_DELTA, WIRE_MAX_ANGLE_DELTA));
     const newAngle = round4(clamp(oldAngle + delta, POLAR_MIN_DEG, POLAR_MAX_DEG));
-    const appliedDelta = round4(newAngle - oldAngle);
+    // Increment FIRST so the gate reads the post-application count.
+    // Cascade gate: branch needs ≥3 wire applications before exceeding 120° (GDD §3.2).
+    // wireCount < 3 → Han-Kengai ceiling (120°); wireCount >= 3 → full Kengai ceiling (150°).
+    b.wireCount = (b.wireCount ?? 0) + 1;
+    const HAN_KENGAI_GATE_DEG = 120; // Semi-cascade ceiling before full Cascade unlocks
+    const cascadeGate = b.wireCount >= 3 ? POLAR_MAX_DEG : Math.min(HAN_KENGAI_GATE_DEG, POLAR_MAX_DEG);
+    // newAngle is already clamped to [POLAR_MIN_DEG, POLAR_MAX_DEG], so always positive.
+    // Math.sign/Math.abs are dead code here — removed (Carmack C-1 fix, 2026-08-07).
+    const clampedAngle = round4(Math.max(POLAR_MIN_DEG, Math.min(cascadeGate, newAngle)));
+    const appliedDelta = round4(clampedAngle - oldAngle);
     const wireCost = WireEngine.wireCostFor(b.thickness);
 
-    b.angle = newAngle;
+    b.angle = clampedAngle;
 
     // Update wire binding state on Branch (2026-08-01 physics fields).
     // Reset wireSet to false (MAJOR-3 fix: re-wiring clears prior set so SCAR can trigger again).
@@ -87,12 +96,12 @@ export class WireEngine {
 
     const entry: CareLogEntry = {
       day: tree.getAge(),
-      action: { type: 'wire', branchId, angleDelta: appliedDelta, oldAngle, newAngle, wireCost },
+      action: { type: 'wire', branchId, angleDelta: appliedDelta, oldAngle, newAngle: clampedAngle, wireCost },
     };
     tree.getCareLog().push(entry);
     tree.markDirty();
 
-    return { ok: true, wireCost, oldAngle, newAngle };
+    return { ok: true, wireCost, oldAngle, newAngle: clampedAngle };
   }
 
   /**

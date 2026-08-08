@@ -138,6 +138,20 @@ export interface Branch {
    * Default: false.
    */
   bendSet: boolean;
+
+  /**
+   * Number of times metal wire has been successfully applied to this branch.
+   * Drives the Cascade gate in WireEngine: branches with wireCount < 3 are capped
+   * at 120° (Han-Kengai range); wireCount >= 3 unlocks the full 150° Cascade ceiling.
+   * Optional for backward-compat with branches created before this field existed;
+   * treated as 0 when absent (new branches initialized by wire() on first application).
+   * (GDD §3.2; owner decision 2026-08-07)
+   *
+   * ⚠️ ALWAYS read as `(b.wireCount ?? 0)` — undefined means zero prior wire applications.
+   *    Never access directly without the nullish coalesce guard or you will get NaN on
+   *    pre-physics-field branches. When all creation paths set wireCount:0, remove the `?`.
+   */
+  wireCount?: number;
 }
 
 export interface TreeState {
@@ -352,9 +366,12 @@ export interface SpeciesParams {
 }
 
 export const SPECIES_PARAMS: Record<SpeciesClass, SpeciesParams> = {
-  hardwood:  { extensionMultiplier: 1.0, forkSpreadMin: 0.3, forkSpreadMax: 0.8, secondaryForkChance: 0.45, trunkMaturationRate: 0.05 },
-  evergreen: { extensionMultiplier: 0.8, forkSpreadMin: 0.1, forkSpreadMax: 0.4, secondaryForkChance: 0.35, trunkMaturationRate: 0.04 },
-  tropical:  { extensionMultiplier: 1.3, forkSpreadMin: 0.5, forkSpreadMax: 1.2, secondaryForkChance: 0.25, trunkMaturationRate: 0.06 },
+  hardwood:  { extensionMultiplier: 1.0, forkSpreadMin: 0.50, forkSpreadMax: 1.00, secondaryForkChance: 0.45, trunkMaturationRate: 0.05 },
+  evergreen: { extensionMultiplier: 0.8, forkSpreadMin: 0.30, forkSpreadMax: 0.70, secondaryForkChance: 0.35, trunkMaturationRate: 0.04 },
+  tropical:  { extensionMultiplier: 1.3, forkSpreadMin: 0.10, forkSpreadMax: 0.40, secondaryForkChance: 0.25, trunkMaturationRate: 0.06 },
+  // NOTE: tropical forkSpreadMin/Max equals historical evergreen values intentionally.
+  // GDD s3.3 "tighter clusters" grounds tropical here; species differentiated further
+  // by forkChance (TR:0.16 highest, from engine/src/species.ts), secondaryForkChance (TR:0.25 lowest), extensionMultiplier (TR:1.3).
 };
 
 // ---------------------------------------------------------------------------

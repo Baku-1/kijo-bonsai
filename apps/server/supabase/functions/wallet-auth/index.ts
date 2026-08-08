@@ -7,9 +7,9 @@
 //           { error: string } + status on failure
 //
 // Nonce strategy: timestamp-based (Date.now().toString()), valid for 5 minutes.
-// TESTNET LIMITATION: nonces are NOT stored server-side, so replay is possible
-// within the 5-minute window. Production must write used nonces to a DB table
-// with a TTL index and reject duplicates.
+// Nonces are stored server-side in the used_nonces table (PRIMARY KEY on nonce text).
+// First use INSERTs the nonce; a duplicate INSERT (code 23505) means replay -- returns 409.
+// Expired nonces are cleaned up on each successful auth call (best-effort DELETE).
 //
 // Session creation:
 //   admin.createSession() does NOT exist in @supabase/supabase-js@2.
@@ -117,6 +117,35 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
+
+  // -------------------------------------------------------------------------
+  // 2b. Nonce one-time-use enforcement -- prevents replay within the 5-min window.
+  //     INSERT fails on PRIMARY KEY violation (code '23505') if nonce already used.
+  //     Cleanup of expired rows runs here to avoid unbounded table growth.
+  // -------------------------------------------------------------------------
+
+  // Cleanup expired nonces (best-effort: log but do not fail the request on error)
+  const { error: cleanupErr } = await serviceClient
+    .from('used_nonces')
+    .delete()
+    .lt('expires_at', new Date().toISOString());
+  if (cleanupErr) {
+    console.warn('used_nonces cleanup failed (non-fatal):', cleanupErr.message);
+  }
+
+  // Record nonce as used. If INSERT fails with 23505, the nonce was already consumed.
+  const { error: nonceInsertErr } = await serviceClient
+    .from('used_nonces')
+    .insert({
+      nonce,
+      expires_at: new Date(nonceMs + NONCE_WINDOW_MS).toISOString(),
+    });
+  if (nonceInsertErr) {
+    if (nonceInsertErr.code === '23505') {
+      return json({ error: 'Nonce already used -- generate a new authentication request' }, 409);
+    }
+    return json({ error: `Nonce storage failed: ${nonceInsertErr.message}` }, 500);
+  }
 
   // -------------------------------------------------------------------------
   // 6. Resolve user_id from wallet address via SECURITY DEFINER RPC

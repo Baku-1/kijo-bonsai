@@ -11,20 +11,24 @@
     "@kijo/engine": "*",
     "@kijo/shared": "*",
     "@kijo/voxelizer": "*",
-    "three": "^0.166.0",
+    "@sky-mavis/tanto-connect": "0.0.22",
+    "@sky-mavis/tanto-wagmi": "^0.0.11",
+    "@tanstack/react-query": "^5.62.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "@sky-mavis/tanto-wagmi": "^0.0.11",
-    "@sky-mavis/tanto-connect": "0.0.22",
-    "wagmi": "^2.14.0",
+    "three": "^0.166.0",
     "viem": "^2.21.0",
-    "@tanstack/react-query": "^5.62.0"
+    "wagmi": "^2.14.0"
   },
   "devDependencies": {
-    "vite": "^5.4.0",
-    "@vitejs/plugin-react": "^4.3.0",
-    "@types/three": "^0.166.0",
     "@types/react": "^18.3.0",
-    "@types/react-dom": "^18.3.0"
+    "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.166.0",
+    "@typescript-eslint/eslint-plugin": "^8.66.0",
+    "@typescript-eslint/parser": "^8.66.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "eslint": "^10.8.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "vite": "^5.4.0"
   }
 }

@@ -218,7 +218,8 @@ export class Voxelizer {
         }
       : parentStart;
 
-    const polar = Math.max(0.1, Math.min(1.4, Math.abs(b.angle) * Math.PI / 180));
+    const polar = Math.max(0.1, Math.min(150 * Math.PI / 180, Math.abs(b.angle) * Math.PI / 180));
+    // 150° max = Cascade (Kengai) ceiling; 0.1 rad min = POLAR_MIN_DEG equivalent
     const azimuthal = (b.id * 137.508 * Math.PI / 180) % (2 * Math.PI);
     const dir = rotateDirection(parentDir, polar, azimuthal);
     const end: Vec3 = {
