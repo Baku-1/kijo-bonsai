@@ -26,7 +26,11 @@ import {
   loadCareLog,
   persistCareAction,
   applyCurrentDayEntries,
+  saveTreeCache,
+  loadTreeCache,
+  clearTreeCache,
   type KijoSession,
+  type CareLogEntry,
 } from '../persistence.js';
 
 export function ThreeCanvas() {
@@ -57,6 +61,20 @@ export function ThreeCanvas() {
     // so it is always current even if set after the hud callbacks are wired.
     let session: KijoSession | null = null;
 
+    // Local care log — tracks all actions applied (server + local) so we can
+    // cache them in sessionStorage and survive full-page navigation.
+    let localCareLog: CareLogEntry[] = [];
+    let cacheReady = false;
+
+    function cacheTree(): void {
+      if (!cacheReady) return;
+      saveTreeCache(
+        session?.tree_id ?? null,
+        tree.getSeed(), tree.getSpecies(),
+        tree.getAge(), localCareLog,
+      );
+    }
+
     const careScene = createScene(containerRef.current!);
 
     function livingBranchCount(): number {
@@ -69,6 +87,7 @@ export function ThreeCanvas() {
         tree.clearDirty();
       }
       hud.update(tree, livingBranchCount());
+      cacheTree();
     }
 
     // Fire-and-forget: applies action locally (already done by the caller) and
@@ -92,12 +111,16 @@ export function ThreeCanvas() {
 
     const hud = new CareHud({
       // Water: apply locally via bridge, then persist async.
+      // Push to localCareLog BEFORE bridge.water() — bridge calls refreshView
+      // which calls cacheTree, so the log must be updated first.
       onWater: () => {
+        localCareLog.push({ day: tree.getAge(), action: { type: 'water', amount: WATER_AMOUNT } });
         bridge.water();
         persistAsync({ type: 'water', amount: WATER_AMOUNT });
       },
       // nextDay is a local debug advance only — the server drives real days by
-      // wall-clock time.  Same intentional non-persist as main2d.ts.
+      // wall-clock time.  bridge.nextDay() calls refreshView → cacheTree,
+      // which captures the updated age.
       onNextDay:    () => bridge.nextDay(),
       onToggleAuto: () => bridge.toggleAuto(),
     });
@@ -139,10 +162,54 @@ export function ThreeCanvas() {
     // -----------------------------------------------------------------------
     void (async () => {
       session = getSession();
-      if (!session?.tree_id) return;
+      const treeId = session?.tree_id ?? null;
+
+      // --- Local cache check ---------------------------------------------------
+      // If we have a sessionStorage cache matching this tree, reconstruct from
+      // it. This preserves local day advances across full-page navigations.
+      const cache = loadTreeCache();
+      if (cache && cache.tree_id === treeId) {
+        try {
+          let cachedTree: BonsaiTree;
+          if (cache.age === 0) {
+            cachedTree = new BonsaiTree(cache.seed, cache.species as SpeciesClass);
+            applyCurrentDayEntries(cachedTree, cache.careLog.filter((e) => e.day === 0));
+          } else {
+            cachedTree = CareLogReplay.reconstruct(
+              cache.seed, cache.species as SpeciesClass,
+              cache.careLog.filter((e) => e.day < cache.age),
+              cache.age,
+            );
+            applyCurrentDayEntries(
+              cachedTree,
+              cache.careLog.filter((e) => e.day === cache.age),
+            );
+          }
+          tree = cachedTree;
+          bridge.setTree(tree);
+          localCareLog = cache.careLog;
+          cacheReady = true;
+          buildTreeMesh(careScene.treeRoot, tree);
+          hud.update(tree, livingBranchCount());
+          console.info(
+            `[kijo-care] restored from local cache — age=${cache.age} actions=${cache.careLog.length}`,
+          );
+          return;
+        } catch (err: unknown) {
+          console.warn('[kijo-care] cache reconstruction failed; falling back to server.', err);
+          clearTreeCache();
+        }
+      }
+
+      // --- Server load (existing behaviour) ------------------------------------
+      if (!treeId) {
+        cacheReady = true;
+        cacheTree();
+        return;
+      }
 
       try {
-        const { treeData, careLog } = await loadCareLog(session.tree_id);
+        const { treeData, careLog } = await loadCareLog(treeId);
 
         // Bail out if the component unmounted during the fetch.
         // careScene.renderer.dispose() will have already run; calling
@@ -181,6 +248,9 @@ export function ThreeCanvas() {
         // Swap in the DB tree.  bridge.setTree also stops any running auto mode.
         tree = dbTree;
         bridge.setTree(tree);
+        localCareLog = careLog;
+        cacheReady = true;
+        cacheTree();
         buildTreeMesh(careScene.treeRoot, tree);
         hud.update(tree, livingBranchCount());
 
@@ -190,6 +260,7 @@ export function ThreeCanvas() {
             `🌳 ${treeData.species} · Seed ${treeData.seed} · Day ${treeData.current_day}`;
         }
 
+        if (!session) return; // invariant: non-null because treeId was non-null above
         const mode = session.access_token ? 'read-write' : 'read-only';
         console.info(
           `[kijo-care] tree restored — id=${session.tree_id} ` +
@@ -198,6 +269,7 @@ export function ThreeCanvas() {
         );
       } catch (err: unknown) {
         // Network error or tree not found — keep the locally-booted tree.
+        cacheReady = true;
         console.warn(
           '[kijo-care] failed to load tree from DB; falling back to local tree.',
           err instanceof Error ? err.message : err,

@@ -58,7 +58,7 @@ console.log('\nT1 — Determinism (100 calls for seed=464497, coord=34,120,88)')
 // ---------------------------------------------------------------------------
 console.log('\nT2 — Distribution (64³ grid, seed=1)');
 {
-  const counts = { hp: 0, power: 0, endurance: 0, ki: 0, skill_point: 0, neutral: 0 };
+  const counts = { hp: 0, power: 0, endurance: 0, ki: 0, skill_point: 0, defense: 0, stability: 0, neutral: 0 };
   const SAMPLES = 64;
   const total = SAMPLES ** 3;
 
@@ -79,7 +79,7 @@ console.log('\nT2 — Distribution (64³ grid, seed=1)');
     console.log(`    ${k.padEnd(12)}: ${v} (${pct}%) ${ok ? '✓' : '← OUT OF RANGE'}`);
     if (!ok) allInRange = false;
   }
-  assert(allInRange, 'All 6 buckets in ~12–22% range (roughly uniform)');
+  assert(allInRange, 'All 8 buckets in ~12–22% range (roughly uniform)');
 }
 
 // ---------------------------------------------------------------------------
@@ -112,7 +112,7 @@ console.log('\nT3 — Proximity multiplier checks');
 console.log('\nT4 — calculateMatch range (seed=464497, hardwood, 200 days)');
 {
   const tree    = growTree(464497, 'hardwood', 200);
-  const voxels  = Voxelizer.voxelize(tree);
+  const { voxels } = Voxelizer.voxelize(tree);
   const match   = StatTerrain.calculateMatch(voxels, 464497);
   console.log(`  Match%: ${(match * 100).toFixed(4)}%  (raw ${match})`);
   assert(match >= 0.0 && match <= 1.0, `match ∈ [0,1]`, `got ${match}`);
@@ -124,7 +124,7 @@ console.log('\nT4 — calculateMatch range (seed=464497, hardwood, 200 days)');
 console.log('\nT5 — calculateMatch determinism (same tree, same seed)');
 {
   const tree   = growTree(464497, 'hardwood', 200);
-  const voxels = Voxelizer.voxelize(tree);
+  const { voxels } = Voxelizer.voxelize(tree);
   const m1     = StatTerrain.calculateMatch(voxels, 464497);
   const m2     = StatTerrain.calculateMatch(voxels, 464497);
   console.log(`  Run 1: ${m1}   Run 2: ${m2}`);
@@ -141,7 +141,7 @@ console.log('\nT6 — Cross-seed variance (same geometry, seeds 1–5)');
   // return identical match%. Real variance assertion blocked until styles 1–7 ship.
   // TODO: replace range-only check with actual variance assertion when styles land.
   const tree   = growTree(464497, 'hardwood', 200);
-  const voxels = Voxelizer.voxelize(tree);
+  const { voxels } = Voxelizer.voxelize(tree);
   const seeds  = [1, 2, 3, 4, 5];
   const matches = [];
   for (const s of seeds) {

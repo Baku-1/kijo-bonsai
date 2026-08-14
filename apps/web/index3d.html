@@ -65,12 +65,27 @@
           <button id="btn-fertilize" class="grow">Fertilize</button>
         </div>
         <div class="row" style="margin-top:6px">
-          <button id="btn-prune" class="grow">Prune…</button>
-          <button id="btn-rotate" class="grow">Rotate 90°</button>
+          <button id="btn-prune" class="grow">Prune...</button>
+          <button id="btn-rotate" class="grow">Rotate 90&#176;</button>
         </div>
         <div class="row" style="margin-top:6px">
-          <button id="btn-day" class="grow">Advance day ▶</button>
-          <span>×</span>
+          <button id="btn-wire" class="grow">Wire...</button>
+        </div>
+        <div id="wire-controls" style="display:none; margin-top:6px; border-top:1px solid var(--edge); padding-top:6px">
+          <div id="wire-branch-info" style="font-size:11px; opacity:.7; margin-bottom:4px">&#8212;</div>
+          <div class="row">
+            <label for="wire-angle" style="font-size:11px; white-space:nowrap">Bend &#916;</label>
+            <input id="wire-angle" type="range" min="-45" max="45" value="0" class="grow" style="cursor:pointer" />
+            <span id="wire-angle-label" style="font-size:12px; min-width:38px; text-align:right">0&#176;</span>
+          </div>
+          <div class="row" style="margin-top:4px">
+            <button id="btn-wire-apply" class="grow">Apply</button>
+            <button id="btn-wire-remove">Remove</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="btn-day" class="grow">Advance day &#9654;</button>
+          <span>&#215;</span>
           <input id="days-multi" type="number" value="1" min="1" max="30" style="width:56px" />
         </div>
         <div id="fert-status"></div>
@@ -89,7 +104,7 @@
           <button id="btn-export" class="grow">Generate fighter JSON</button>
           <button id="btn-copy">Copy</button>
         </div>
-        <textarea id="export-out" readonly placeholder="fighter JSON appears here — drop into res://fixtures/ to fight with it"></textarea>
+        <textarea id="export-out" readonly placeholder="fighter JSON appears here -- drop into res://fixtures/ to fight with it"></textarea>
       </fieldset>
     </div>
   </div>

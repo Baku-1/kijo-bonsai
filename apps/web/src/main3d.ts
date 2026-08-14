@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { BonsaiTree, GrowthEngine, StatDeriver, CareLogReplay } from '@kijo/engine';
 import type { SpeciesClass } from '@kijo/shared';
-import { WATER_AMOUNT } from '@kijo/shared';
+import { WATER_AMOUNT, round4 } from '@kijo/shared';
 import { Voxelizer, VoxelRole, Material } from '@kijo/voxelizer';
 import type { SparseVoxelSet, VoxelizeResult } from '@kijo/voxelizer';
 import { mossMat } from './renderer/tree_mesh.js';
@@ -11,17 +11,21 @@ import {
   loadCareLog,
   persistCareAction,
   applyCurrentDayEntries,
+  saveTreeCache,
+  loadTreeCache,
+  clearTreeCache,
   type KijoSession,
+  type CareLogEntry,
 } from './persistence.js';
 
 // ===========================================================================
-// Kijo 3D care loop — the voxel grid is the truth; this renders it.
+// Kijo 3D care loop -- the voxel grid is the truth; this renders it.
 //
 // Design decisions baked in here (owner directives 2026-07-18):
-//  • Lazy-load by structure: trunk + depth-1 limbs appear instantly, depth-2
+//  * Lazy-load by structure: trunk + depth-1 limbs appear instantly, depth-2
 //    branches next, then the leaf/canopy flood streams in last. Structure
-//    first, decoration last — also the perf story for 9k+ voxel trees.
-//  • Ideal-path guidance is a HINT, not a solution: a soft ghost column
+//    first, decoration last -- also the perf story for 9k+ voxel trees.
+//  * Ideal-path guidance is a HINT, not a solution: a soft ghost column
 //    shows roughly where the favoured form lives. No per-voxel heat map,
 //    no paint-by-numbers. Mastery is the player's.
 // ===========================================================================
@@ -33,6 +37,15 @@ const voxelCountEl = document.getElementById('voxel-count')!;
 const fertStatus = document.getElementById('fert-status')!;
 const exportOut = document.getElementById('export-out') as HTMLTextAreaElement;
 const hintEl = document.getElementById('hint')!;
+
+// Wire UI element references (WIRE-ADD 2026-08-14)
+const wireControls   = document.getElementById('wire-controls')! as HTMLDivElement;
+const wireBranchInfo = document.getElementById('wire-branch-info')!;
+const wireAngleInput = document.getElementById('wire-angle')! as HTMLInputElement;
+const wireAngleLabel = document.getElementById('wire-angle-label')!;
+const btnWireApply   = document.getElementById('btn-wire-apply')!;
+const btnWireRemove  = document.getElementById('btn-wire-remove')!;
+const wireBtn        = document.getElementById('btn-wire')!;
 
 // ---------------------------------------------------------------------------
 // Three.js scene
@@ -54,7 +67,7 @@ controls.dampingFactor = 0.08;
 controls.maxDistance = 600;
 controls.minDistance = 40;
 
-// World transform: grid (0..255, y up) → world centered on pot.
+// World transform: grid (0..255, y up) -> world centered on pot.
 function gridToWorld(x: number, y: number, z: number, out: THREE.Vector3): THREE.Vector3 {
   return out.set(x - 128, y - BASE_Y, z - 128);
 }
@@ -80,7 +93,7 @@ scene.add(fill);
   ground.position.y = -6;
   scene.add(ground);
 }
-// Pot — PBR ceramic material.
+// Pot -- PBR ceramic material.
 {
   const tl = new THREE.TextureLoader();
   const potBase = tl.load('/textures/Bonsai_LowPoly_Pot_BaseColor.jpg');
@@ -100,7 +113,7 @@ scene.add(fill);
   pot.position.y = 0;
   scene.add(pot);
 
-  // Moss soil disc — sits at the top of the pot (y=5 = top rim).
+  // Moss soil disc -- sits at the top of the pot (y=5 = top rim).
   const soilGeo = new THREE.CircleGeometry(15.5, 32);
   const soil = new THREE.Mesh(soilGeo, mossMat);
   soil.rotation.x = -Math.PI / 2;
@@ -109,7 +122,7 @@ scene.add(fill);
 }
 
 // ---------------------------------------------------------------------------
-// Ghost hint — soft shell around the ideal-path region (Chokkan: vertical
+// Ghost hint -- soft shell around the ideal-path region (Chokkan: vertical
 // axis at x=z=128, y 38..220, radius = IDEAL_REGION_DISTANCE = 10).
 // Deliberately vague: a region, not a line.
 // ---------------------------------------------------------------------------
@@ -131,12 +144,24 @@ const ghost = new THREE.Group();
 scene.add(ghost);
 let ghostVisible = true;
 
+// Wire selection indicator -- a wireframe sphere placed at the clicked voxel's
+// world position to mark the selected branch. NOT added to the meshes Map so
+// it survives rebuildVoxels() which calls clearVoxels() (WIRE-ADD 2026-08-14).
+const selectionIndicator = (() => {
+  const g = new THREE.SphereGeometry(2.5, 8, 6);
+  const m = new THREE.MeshBasicMaterial({ color: 0xffdd00, wireframe: true });
+  const mesh = new THREE.Mesh(g, m);
+  mesh.visible = false;
+  scene.add(mesh);
+  return mesh;
+})();
+
 // Map populated in the init block below.
 const VOXEL_MATS: Record<number, THREE.MeshStandardMaterial> = {};
 
 // ---------------------------------------------------------------------------
-// Voxel instancing — one InstancedMesh per material, rebuilt after mutations.
-// Stream order: structure (depth ≤2 wood + trunk/root) first, canopy last.
+// Voxel instancing -- one InstancedMesh per material, rebuilt after mutations.
+// Stream order: structure (depth <=2 wood + trunk/root) first, canopy last.
 // PBR textures: trunk/bark share bark maps; leaves get leaf maps; roots/scar
 // stay flat-color (below pot line, rarely visible).
 // ---------------------------------------------------------------------------
@@ -155,7 +180,7 @@ const VOXEL_MATS: Record<number, THREE.MeshStandardMaterial> = {};
   const lNormal = rep(tl.load('/textures/Bonsai_LowPoly_Leaves_NormalGL.jpg'), linear, 1, 1);
   const lRough  = rep(tl.load('/textures/Bonsai_LowPoly_Leaves_Roughness.jpg'), linear, 1, 1);
 
-  // Bark PBR — shared by HEARTWOOD + BARK + BRANCH_WOOD voxel types.
+  // Bark PBR -- shared by HEARTWOOD + BARK + BRANCH_WOOD voxel types.
   const barkMat = new THREE.MeshStandardMaterial({
     map: tBase, normalMap: tNormal, normalScale: new THREE.Vector2(0.7, 0.7),
     roughnessMap: tAMR, aoMap: tAMR, roughness: 0.88, metalness: 0.0,
@@ -233,7 +258,7 @@ function rebuildVoxels(voxels: SparseVoxelSet): void {
   spawnGroup(structure);
   for (const mesh of meshes.values()) mesh.count = mesh.instanceMatrix.count;
 
-  // Canopy streams in over ~1.5s — leaves flood in last.
+  // Canopy streams in over ~1.5s -- leaves flood in last.
   spawnGroup(canopy);
   const canopyMeshes: THREE.InstancedMesh[] = [];
   for (const [mat, cells] of canopy) {
@@ -255,12 +280,28 @@ const STREAM_SECONDS = 1.5;
 // ---------------------------------------------------------------------------
 let tree: BonsaiTree = newTree();
 let pruneMode = false;
+// Wire mode state (WIRE-ADD 2026-08-14)
+let wireMode = false;
+let selectedBranchId: number | null = null;
 let latestVoxels: VoxelizeResult | null = null;
 
 // ---------------------------------------------------------------------------
-// Persistence state — null = local / guest mode (no server wiring).
+// Persistence state -- null = local / guest mode (no server wiring).
 // ---------------------------------------------------------------------------
 let kijoSession: KijoSession | null = null;
+
+// Local care log -- tracks all actions for sessionStorage cache.
+let localCareLog: CareLogEntry[] = [];
+let cacheReady = false;
+
+function cacheTree(): void {
+  if (!cacheReady) return;
+  saveTreeCache(
+    kijoSession?.tree_id ?? null,
+    tree.getSeed(), tree.getSpecies(),
+    tree.getAge(), localCareLog,
+  );
+}
 
 function newTree(): BonsaiTree {
   const seed = (document.getElementById('seed') as HTMLInputElement).valueAsNumber || 42;
@@ -299,44 +340,72 @@ function refreshAll(): void {
     `health ${tree.getHealth().toFixed(0)} · moisture ${tree.getMoisture().toFixed(0)} · ` +
     `${tree.countLivingBranches()} branches (${tree.getPrunedCount()} pruned)`;
   meta.className = tree.getMoisture() < 15 || tree.getMoisture() > 80 ? 'moisture-bad' : '';
-  fertStatus.textContent = tree.isFertilizerActive() ? 'fertilizer ACTIVE (1.7× growth)' : '';
+  fertStatus.textContent = tree.isFertilizerActive() ? 'fertilizer ACTIVE (1.7x growth)' : '';
 
   rebuildVoxels(latestVoxels.voxels);
+  cacheTree();
 }
 
 // ---------------------------------------------------------------------------
-// Prune picking — raycast against voxel instances, map instanceId → branchId
+// Pointer picking -- raycast against voxel instances, map instanceId -> branchId
 // via the voxel set's branchId at that coordinate.
+// Handles both prune mode (click to cut) and wire mode (click to select branch).
 // ---------------------------------------------------------------------------
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
-  if (!pruneMode || !latestVoxels) return;
+  if (!latestVoxels) return;
+  if (!pruneMode && !wireMode) return;
+
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
 
   const hits = raycaster.intersectObjects([...meshes.values()], false);
+  let hitBranch = false;
+
   for (const hit of hits) {
     if (hit.instanceId === undefined) continue;
     const mesh = hit.object as THREE.InstancedMesh;
     mesh.getMatrixAt(hit.instanceId, dummy.matrix);
     tmpVec.setFromMatrixPosition(dummy.matrix);
-    // world → grid
+    // world -> grid
     const gx = Math.round(tmpVec.x + 128);
     const gy = Math.round(tmpVec.y + BASE_Y);
     const gz = Math.round(tmpVec.z + 128);
     const cell = latestVoxels.voxels.get(gx, gy, gz);
     if (!cell) continue;
-    if (cell.branchId === 0) continue; // trunk protected
-    const prunedId = cell.branchId;
-    tree.prune(prunedId);
-    refreshAll();
-    persistAsync({ type: 'prune', branchId: prunedId });
-    return;
+
+    if (pruneMode) {
+      if (cell.branchId === 0) continue; // trunk protected from prune
+      const prunedId = cell.branchId;
+      localCareLog.push({ day: tree.getAge(), action: { type: 'prune', branchId: prunedId } });
+      tree.prune(prunedId);
+      refreshAll();
+      persistAsync({ type: 'prune', branchId: prunedId });
+      return;
+    }
+
+    if (wireMode) {
+      // Trunk (branchId 0) IS wireable (OQ-1 resolution, DECISIONS.md 2026-07-31).
+      hitBranch = true;
+      const clickedId = cell.branchId;
+      if (selectedBranchId === clickedId) {
+        // Clicking the already-selected branch toggles off (deselects).
+        deselectWireBranch();
+      } else {
+        // tmpVec.clone() is required: tmpVec is a reused scratch vector and will be
+        // mutated on the next raycaster call. Clone captures the current position.
+        selectWireBranch(clickedId, tmpVec.clone());
+      }
+      return;
+    }
   }
+
+  // Wire mode: clicking empty space (no valid voxel hit) deselects.
+  if (wireMode && !hitBranch) deselectWireBranch();
 });
 
 // ---------------------------------------------------------------------------
@@ -361,22 +430,56 @@ function persistAsync(action: Parameters<typeof persistCareAction>[1]): void {
  * render) and starts the animate loop BEFORE this resolves so the Three.js
  * scene is visible immediately while the server round-trip completes.
  *
- * Note: the "Advance day ×N" button is intentionally NOT persisted — see
+ * Note: the "Advance day xN" button is intentionally NOT persisted -- see
  * main2d.ts init() for the full rationale.
  */
 async function init(): Promise<void> {
   kijoSession = getSession();
+  const treeId = kijoSession?.tree_id ?? null;
 
-  if (kijoSession?.tree_id) {
+  // --- Local cache check ---------------------------------------------------
+  const cache = loadTreeCache();
+  if (cache && cache.tree_id === treeId) {
     try {
-      const { treeData, careLog } = await loadCareLog(kijoSession.tree_id);
+      if (cache.age === 0) {
+        tree = new BonsaiTree(cache.seed, cache.species as SpeciesClass);
+        applyCurrentDayEntries(tree, cache.careLog.filter((e) => e.day === 0));
+      } else {
+        tree = CareLogReplay.reconstruct(
+          cache.seed, cache.species as SpeciesClass,
+          cache.careLog.filter((e) => e.day < cache.age),
+          cache.age,
+        );
+        applyCurrentDayEntries(
+          tree,
+          cache.careLog.filter((e) => e.day === cache.age),
+        );
+      }
+      (document.getElementById('seed') as HTMLInputElement).value = String(cache.seed);
+      (document.getElementById('species') as HTMLSelectElement).value = cache.species;
+      localCareLog = cache.careLog;
+      cacheReady = true;
+      console.info(
+        `[kijo] restored from local cache -- age=${cache.age} actions=${cache.careLog.length}`,
+      );
+      ghost.visible = ghostVisible && (((tree.getSeed() % 7) + 7) % 7 === 0);
+      refreshAll();
+      return;
+    } catch (err: unknown) {
+      console.warn('[kijo] cache reconstruction failed; falling back to server.', err);
+      clearTreeCache();
+    }
+  }
+
+  // --- Server load (existing behaviour) ------------------------------------
+  if (treeId) {
+    try {
+      const { treeData, careLog } = await loadCareLog(treeId);
 
       if (treeData.current_day === 0) {
-        // No ticks yet — construct directly, apply any day-0 care actions.
         tree = new BonsaiTree(treeData.seed, treeData.species as SpeciesClass);
         applyCurrentDayEntries(tree, careLog.filter((e) => e.day === 0));
       } else {
-        // Replay completed tick-cycles.
         const priorLog = careLog.filter((e) => e.day < treeData.current_day);
         tree = CareLogReplay.reconstruct(
           treeData.seed,
@@ -384,20 +487,19 @@ async function init(): Promise<void> {
           priorLog,
           treeData.current_day,
         );
-        // Apply current-day tail entries (after last tick, no extra growTick).
         applyCurrentDayEntries(
           tree,
           careLog.filter((e) => e.day === treeData.current_day),
         );
       }
 
-      // Sync DOM inputs to the server's authoritative seed/species.
       (document.getElementById('seed') as HTMLInputElement).value = String(treeData.seed);
       (document.getElementById('species') as HTMLSelectElement).value = treeData.species;
+      localCareLog = careLog;
 
-      const mode = kijoSession.access_token ? 'read-write' : 'read-only';
+      const mode = kijoSession!.access_token ? 'read-write' : 'read-only';
       console.info(
-        `[kijo] tree restored — id=${kijoSession.tree_id} ` +
+        `[kijo] tree restored -- id=${treeId} ` +
         `day=${treeData.current_day} actions=${careLog.length} mode=${mode}`,
       );
     } catch (err: unknown) {
@@ -405,11 +507,11 @@ async function init(): Promise<void> {
         '[kijo] failed to restore tree from Supabase; starting fresh.',
         err instanceof Error ? err.message : err,
       );
-      // Fall through: tree remains the initial newTree() value.
     }
   }
 
-  // Rebuild voxels and HUD with whichever tree is now active.
+  cacheReady = true;
+  ghost.visible = ghostVisible && (((tree.getSeed() % 7) + 7) % 7 === 0);
   refreshAll();
 }
 
@@ -417,36 +519,142 @@ async function init(): Promise<void> {
 // Controls
 // ---------------------------------------------------------------------------
 document.getElementById('btn-new')!.addEventListener('click', () => {
-  // Creating a new in-memory tree severs the link to the persisted tree.
   kijoSession = null;
   tree = newTree();
+  localCareLog = [];
+  cacheReady = true;
+  clearTreeCache();
   pruneMode = false;
   document.getElementById('btn-prune')!.classList.remove('active');
+  wireMode = false;                 // WIRE-ADD
+  wireBtn.classList.remove('active'); // WIRE-ADD
+  deselectWireBranch();             // WIRE-ADD
+  controls.enableRotate = true;     // WIRE-ADD
   exportOut.value = '';
   refreshAll();
 });
 document.getElementById('btn-water')!.addEventListener('click', () => {
+  localCareLog.push({ day: tree.getAge(), action: { type: 'water', amount: WATER_AMOUNT } });
   tree.water(WATER_AMOUNT);
   tree.markDirty();
   refreshAll();
   persistAsync({ type: 'water', amount: WATER_AMOUNT });
 });
 document.getElementById('btn-fertilize')!.addEventListener('click', () => {
+  localCareLog.push({ day: tree.getAge(), action: { type: 'fertilize' } });
   tree.fertilize();
   refreshAll();
   persistAsync({ type: 'fertilize' });
 });
 document.getElementById('btn-rotate')!.addEventListener('click', () => {
+  localCareLog.push({ day: tree.getAge(), action: { type: 'rotate' } });
   tree.rotate();
   refreshAll();
   persistAsync({ type: 'rotate' });
+});
+
+// ---------------------------------------------------------------------------
+// Wire mode helpers (WIRE-ADD 2026-08-14)
+// ---------------------------------------------------------------------------
+
+/** Clear branch selection: hide indicator, hide controls, reset angle input. */
+function deselectWireBranch(): void {
+  selectedBranchId = null;
+  selectionIndicator.visible = false;
+  wireControls.style.display = 'none';
+  wireAngleInput.value = '0';
+  wireAngleLabel.textContent = '0°';
+}
+
+/**
+ * Select a branch in wire mode. Updates the info panel and positions the
+ * selection indicator at the clicked voxel's world position.
+ */
+function selectWireBranch(branchId: number, worldPos: THREE.Vector3): void {
+  selectedBranchId = branchId;
+  selectionIndicator.position.copy(worldPos);
+  selectionIndicator.visible = true;
+
+  const branch = tree.getBranches()[branchId];
+  const wiredLabel = branch.wired
+    ? `wired · angle ${branch.angle.toFixed(1)}° · applied day ${branch.wireAppliedDay}`
+    : `unwired · angle ${branch.angle.toFixed(1)}°`;
+  wireBranchInfo.textContent = `Branch #${branchId} · ${wiredLabel}`;
+  btnWireRemove.style.display = branch.wired ? '' : 'none';
+  wireControls.style.display = '';
+  wireAngleInput.value = '0';
+  wireAngleLabel.textContent = '0°';
+}
+
+// Bend preview: live angle-preview label on slider drag (no BonsaiTree mutation).
+// POLAR_MIN / POLAR_MAX / HAN_KENGAI_GATE mirror WireEngine.ts constants -- UI read-only.
+const PREVIEW_POLAR_MIN  = 5.7296;  // 0.1 rad (WireEngine.ts:33)
+const PREVIEW_POLAR_MAX  = 150;     // 2.618 rad (WireEngine.ts:34)
+const PREVIEW_HAN_KENGAI = 120;     // Han-Kengai ceiling (WireEngine.ts:80)
+wireAngleInput.addEventListener('input', () => {
+  const delta = parseFloat(wireAngleInput.value);
+  wireAngleLabel.textContent = `${wireAngleInput.value}°`;
+
+  // Update wireBranchInfo with predicted result angle -- pure display, no state mutation.
+  // Reverts automatically when slider returns to 0 or branch is deselected.
+  if (selectedBranchId !== null) {
+    const branch = tree.getBranches()[selectedBranchId];
+    if (branch) {
+      if (delta !== 0) {
+        // Mirror WireEngine cascade gate: wireCount is incremented BEFORE gate check.
+        const nextWireCount = (branch.wireCount ?? 0) + 1;
+        const cascadeGate = nextWireCount >= 3 ? PREVIEW_POLAR_MAX : PREVIEW_HAN_KENGAI;
+        const rawPreview  = Math.min(Math.max(branch.angle + delta, PREVIEW_POLAR_MIN), PREVIEW_POLAR_MAX);
+        const preview     = Math.min(rawPreview, cascadeGate);
+        const baseLabel   = branch.wired ? 'wired' : 'unwired';
+        wireBranchInfo.textContent =
+          `Branch #${selectedBranchId} · ${baseLabel} · ${branch.angle.toFixed(1)}° → ${preview.toFixed(1)}°`;
+      } else {
+        // Slider back at 0 -- restore full static label (no pending change).
+        const wiredLabel = branch.wired
+          ? `wired · angle ${branch.angle.toFixed(1)}° · applied day ${branch.wireAppliedDay}`
+          : `unwired · angle ${branch.angle.toFixed(1)}°`;
+        wireBranchInfo.textContent = `Branch #${selectedBranchId} · ${wiredLabel}`;
+      }
+    }
+  }
+});
+
+wireBtn.addEventListener('click', () => {
+  wireMode = !wireMode;
+  wireBtn.classList.toggle('active', wireMode);
+
+  if (wireMode) {
+    // Deactivate prune if it was active -- only one sculpt mode at a time.
+    if (pruneMode) {
+      pruneMode = false;
+      pruneBtn.classList.remove('active');
+    }
+    controls.enableRotate = false; // disable orbit while selecting voxels
+    hintEl.textContent =
+      'Wire mode: click a branch voxel to select it. Trunk can be wired. ' +
+      'Set bend angle and click Apply.';
+  } else {
+    deselectWireBranch();
+    controls.enableRotate = true;
+    hintEl.textContent =
+      'Drag to orbit · scroll to zoom · the blue ghost is roughly where this seed wants to grow';
+  }
 });
 
 const pruneBtn = document.getElementById('btn-prune')!;
 pruneBtn.addEventListener('click', () => {
   pruneMode = !pruneMode;
   pruneBtn.classList.toggle('active', pruneMode);
-  controls.enableRotate = !pruneMode; // don't fight the camera while pruning
+
+  if (pruneMode && wireMode) {
+    // Wire mode loses to prune -- clear wire state without clobbering controls.enableRotate yet.
+    wireMode = false;
+    wireBtn.classList.remove('active');
+    deselectWireBranch();
+  }
+
+  controls.enableRotate = !(pruneMode || wireMode);
   hintEl.textContent = pruneMode
     ? 'Prune mode: click a branch voxel to cut it. Trunk is protected.'
     : 'Drag to orbit · scroll to zoom · the blue ghost is roughly where this seed wants to grow';
@@ -491,6 +699,118 @@ document.getElementById('btn-export')!.addEventListener('click', () => {
 });
 document.getElementById('btn-copy')!.addEventListener('click', async () => {
   if (exportOut.value) await navigator.clipboard.writeText(exportOut.value);
+});
+
+// ---------------------------------------------------------------------------
+// Wire apply / remove event listeners (WIRE-ADD 2026-08-14)
+// ---------------------------------------------------------------------------
+
+// Apply wire: call WireEngine via tree.wire(), then persist.
+// NOTE: wire-apply will succeed on server only if 'wire' consumable row exists
+// with quantity > 0. Until OQ-WIRE-2 is resolved (task #161 consumable provisioning),
+// persistAsync will receive a 400 from the server and log to console only.
+btnWireApply.addEventListener('click', () => {
+  if (selectedBranchId === null || !latestVoxels) return;
+
+  const angleDelta = parseFloat(wireAngleInput.value);
+  if (!Number.isFinite(angleDelta)) return; // guard against NaN from empty input
+
+  // Critic finding (CRITIC-WIRE-UI-2026-08-14 §4 FINDING-2):
+  // Guard angleDelta === 0 to avoid wasting a wire consumable on a no-op.
+  // WireEngine.wire(branchId, 0) marks the branch wired and deducts a consumable
+  // without changing branch.angle. Prevent this accidental spend.
+  if (angleDelta === 0) {
+    hintEl.textContent = 'No angle change -- adjust the slider before applying wire.';
+    return;
+  }
+
+  const result = tree.wire(selectedBranchId, angleDelta);
+
+  if (!result.ok) {
+    // Surface engine rejection in the hint bar. Do NOT call persistAsync.
+    // W11 (too-thick rejection): requires branch thickness > 3.0; manual test only --
+    // a fresh tree has all branches near thickness 1.0. Grow to >=30 days first.
+    hintEl.textContent = `Wire failed: ${result.reason}`;
+    return;
+  }
+
+  // result.ok === true guarantees oldAngle, newAngle, wireCost are populated.
+  // Critic finding (CRITIC-WIRE-UI-2026-08-14 §3 DEFECT):
+  // Wrap in round4() to match engine's internal discipline (DECISIONS.md 2026-07-15).
+  // result.newAngle and result.oldAngle are both already round4'd but subtracting
+  // two round4'd floats can produce a result that is not round4'd (binary float).
+  const appliedDelta = round4(result.newAngle! - result.oldAngle!);
+
+  // Push to localCareLog AFTER engine call so we have the post-clamp values.
+  // (Unlike prune which pushes before -- wire requires WireResult fields.)
+  localCareLog.push({
+    day: tree.getAge(),
+    action: {
+      type: 'wire',
+      branchId: selectedBranchId,
+      angleDelta: appliedDelta,
+      oldAngle: result.oldAngle!,
+      newAngle: result.newAngle!,
+      wireCost: result.wireCost!,
+    },
+  });
+
+  refreshAll();
+
+  persistAsync({
+    type: 'wire',
+    branchId: selectedBranchId,
+    angleDelta: appliedDelta,
+    oldAngle: result.oldAngle!,
+    newAngle: result.newAngle!,
+    wireCost: result.wireCost!,
+  });
+
+  // Update the controls to reflect the new wire state without deselecting.
+  const branch = tree.getBranches()[selectedBranchId];
+  wireBranchInfo.textContent =
+    `Branch #${selectedBranchId} · wired · angle ${branch.angle.toFixed(1)}° · applied day ${branch.wireAppliedDay}`;
+  btnWireRemove.style.display = '';
+  wireAngleInput.value = '0';
+  wireAngleLabel.textContent = '0°';
+});
+
+// Remove wire: call WireEngine via tree.removeWire(), then persist.
+// NOTE: 'wire-remove' is now whitelisted in care-action ALLOWED_ACTION_TYPES (v7, 2026-08-14).
+// persistAsync will succeed server-side. GAP-1/OQ-WIRE-1 resolved by task #161.
+// Remaining gap: CareLogReplay.ts does not yet handle wire-remove (throws CareLogReplayError);
+// cold-reload tree reconstruction will crash if care log contains wire-remove entries (tracked separately).
+btnWireRemove.addEventListener('click', () => {
+  if (selectedBranchId === null) return;
+
+  // Guard against stale UI state (branch may have been pruned since selection).
+  const branch = tree.getBranches()[selectedBranchId];
+  if (!branch || !branch.wired) return;
+
+  const branchIdToRemove = selectedBranchId;
+
+  // WireEngine.removeWire: silent no-op if not wired/pruned/not-found.
+  // Spring-back physics: angle reverts proportionally if wire removed before set window.
+  // set window = computeSetDays(branch.diameter). Computed server-side in WireEngine.
+  tree.removeWire(branchIdToRemove);
+
+  localCareLog.push({
+    day: tree.getAge(),
+    action: { type: 'wire-remove', branchId: branchIdToRemove },
+  });
+
+  refreshAll();
+
+  // wire-remove now server-whitelisted (care-action v7). Persists to Supabase.
+  persistAsync({ type: 'wire-remove', branchId: branchIdToRemove });
+
+  // Update controls: branch is now unwired, angle may have sprung back.
+  const updatedBranch = tree.getBranches()[branchIdToRemove];
+  wireBranchInfo.textContent =
+    `Branch #${branchIdToRemove} · unwired · angle ${updatedBranch.angle.toFixed(1)}°`;
+  btnWireRemove.style.display = 'none';
+  wireAngleInput.value = '0';
+  wireAngleLabel.textContent = '0°';
 });
 
 // ---------------------------------------------------------------------------

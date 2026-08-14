@@ -24,6 +24,7 @@
 // ---------------------------------------------------------------------------
 
 import type { CareAction, CareLogEntry } from '@kijo/shared';
+export type { CareLogEntry } from '@kijo/shared';
 import { BonsaiTree } from '@kijo/engine';
 
 const BASE = 'https://xutjubkaskwchzyzwryk.supabase.co/functions/v1';
@@ -306,4 +307,54 @@ export function applyCurrentDayEntries(
       );
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Local tree cache — survives full-page navigation via sessionStorage.
+//
+// The server drives current_day by wall-clock time.  Local "Next Day" button
+// advances are intentionally NOT persisted to Supabase.  Without this cache
+// navigating to index3d.html and back rebuilds from the server's current_day
+// which discards all local growth — the tree appears reset.
+//
+// On every mutation we snapshot {seed, species, age, careLog} into
+// sessionStorage.  On page load, if a matching cache exists we reconstruct
+// from it instead of hitting the server, preserving the full local state.
+// sessionStorage is tab-scoped so this only applies to in-tab navigations.
+// ---------------------------------------------------------------------------
+const LOCAL_CACHE_KEY = 'kijo_tree_cache';
+
+export interface LocalTreeCache {
+  tree_id: string | null;
+  seed: number;
+  species: string;
+  /** tree.getAge() — includes local day advances beyond server current_day. */
+  age: number;
+  /** All care actions applied (server-loaded + locally-applied). */
+  careLog: CareLogEntry[];
+}
+
+export function saveTreeCache(
+  treeId: string | null,
+  seed: number,
+  species: string,
+  age: number,
+  careLog: CareLogEntry[],
+): void {
+  try {
+    sessionStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify({
+      tree_id: treeId, seed, species, age, careLog,
+    } satisfies LocalTreeCache));
+  } catch { /* sessionStorage quota exceeded — non-fatal */ }
+}
+
+export function loadTreeCache(): LocalTreeCache | null {
+  try {
+    const raw = sessionStorage.getItem(LOCAL_CACHE_KEY);
+    return raw ? JSON.parse(raw) as LocalTreeCache : null;
+  } catch { return null; }
+}
+
+export function clearTreeCache(): void {
+  sessionStorage.removeItem(LOCAL_CACHE_KEY);
 }

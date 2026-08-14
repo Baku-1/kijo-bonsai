@@ -42,7 +42,7 @@ export function exportFixture(
   const { voxels, zones } = Voxelizer.voxelize(tree);
 
   // 3. Derive StatSheet: structural (role voxel counts) + terrain bonuses + wisdom + matchPct.
-  //    StatDeriver.derive(tree, voxels, seed, ageDays, zones) -> StatSheet (all 8 keys)
+  //    StatDeriver.derive(tree, voxels, seed, ageDays, zones) -> StatSheet (all 10 keys)
   const sheet = StatDeriver.derive(tree, voxels, seed, tree.getAge(), zones);
 
   // 4. Build fixture envelope.
@@ -62,6 +62,8 @@ export function exportFixture(
       skillPoints: sheet.skillPoints,
       wisdom:      sheet.wisdom,
       matchPct:    sheet.matchPct,
+      defense:     sheet.defense,
+      stability:   sheet.stability,
     },
   };
 

@@ -140,6 +140,8 @@ export class GrowthEngine {
               twineForcePerDay:  0,
               weighted:          false,
               weightCount:       0,
+              weightAppliedDay:  0,   // OQ-1 Option A (2026-08-14)
+              weightAngleDelta:  0,   // OQ-1 Option A (2026-08-14)
               twineDegradesDay:  0,
               bendSet:           false,  // CRITICAL-C fix 2026-08-02
             } as unknown as Branch;

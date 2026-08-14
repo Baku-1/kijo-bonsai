@@ -2,15 +2,17 @@
   "seed": 777001,
   "species": "tropical",
   "ageDays": 200,
-  "generatedAt": "2026-08-01T05:58:52.091Z",
+  "generatedAt": "2026-08-12T01:11:38.279Z",
   "stats": {
-    "hp": 162.75,
-    "power": 55.293,
-    "endurance": 0.224,
-    "ki": 99.054,
+    "hp": 172.55,
+    "power": 54.848,
+    "endurance": 0.223,
+    "ki": 99.058,
     "skillSlots": 3,
     "skillPoints": 0,
     "wisdom": 2,
-    "matchPct": 0.0149
+    "matchPct": 0.0154,
+    "defense": 0.0945,
+    "stability": 0
   }
 }

@@ -1,0 +1,9 @@
+# Supabase Edge Functions config for the Kijo project (ref: xutjubkaskwchzyzwryk).
+# Only derive-stats is listed here. It mirrors get-tree's public stance:
+# ownership is enforced upstream at discovery/list-trees, and the underlying
+# care log is already public via get-tree -- so the function must NOT require
+# a JWT.
+project_id = "xutjubkaskwchzyzwryk"
+
+[functions.derive-stats]
+verify_jwt = false

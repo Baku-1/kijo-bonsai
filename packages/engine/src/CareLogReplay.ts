@@ -120,35 +120,34 @@ export class CareLogReplay {
           } else if (a.type === 'wire') {
             WireEngine.wire(tree, a.branchId, a.angleDelta);
           } else if (a.type === 'wire-remove') {
-            // Delegates to BonsaiTree.removeWire → WireEngine.removeWire.
-            // Spring-back from (currentStress / stressInitial) model. (2026-08-01)
-            tree.removeWire(a.branchId);
+            // Phase 2: WireEngine.removeWire is fully implemented (gate-verified W1-W6).
+            // Time-ratio spring-back; CRITICAL-C at removal time.
+            WireEngine.removeWire(tree, a.branchId);
           } else if (a.type === 'twine') {
-            // Delegates to BonsaiTree.applyTwine → TwineWeightEngine.applyTwine.
-            // Phase 1 stub: TwineWeightEngine.applyTwine throws "not implemented".
-            // CareLogReplay will propagate that error until Phase 2 implementation lands.
-            tree.applyTwine(a.branchId, a.angleDelta);
+            // Pass a.degradeDays so replay uses the stored RNG draw, not a new draw.
+            // Without this, any change to the RNG seed formula would break historical replay.
+            tree.applyTwine(a.branchId, a.angleDelta, a.degradeDays);
           } else if (a.type === 'twine-remove') {
-            // Delegates to BonsaiTree.removeTwine → TwineWeightEngine.removeTwine.
-            // Phase 1 stub.
+            // Phase 2: TwineWeightEngine.removeTwine is fully implemented.
             tree.removeTwine(a.branchId);
           } else if (a.type === 'weight') {
             // Delegates to BonsaiTree.applyWeight → TwineWeightEngine.applyWeight.
-            // Uses a.weightCount (integer 1–4); a.torqueContribution stored for future
-            // replay-independence use (MAJOR-7 pattern) when Phase 2 implements storedTorque overload.
-            // Phase 1 stub.
+            // Uses a.weightCount (integer 1–4); torqueContribution is recomputed at
+            // apply time from current branch state (replay independence, MAJOR-7 pattern).
             tree.applyWeight(a.branchId, a.weightCount);
           } else if (a.type === 'weight-remove') {
-            // Delegates to BonsaiTree.removeWeight → TwineWeightEngine.removeWeight.
-            // Phase 1 stub.
+            // Phase 2: TwineWeightEngine.removeWeight is fully implemented.
             tree.removeWeight(a.branchId);
           } else if (a.type === 'jin') {
             // Delegates to BonsaiTree.applyJin → JinEngine.applyJin.
             // Phase 1 stub: JinEngine.applyJin throws "not implemented".
             tree.applyJin(a.branchId, a.segmentIndex, a.jinCost);
           } else if (a.type === 'landscape') {
-            // Delegates to BonsaiTree.addLandscape (logs + markDirty — fully implemented in Phase 1).
-            tree.addLandscape(a.elementType, a.position);
+            // Phase 1: landscape is not implemented in CareLogReplay.
+            // A care log containing landscape cannot be replayed until Phase 2.
+            throw new CareLogReplayError(
+              `'landscape' is not yet implemented and cannot be replayed (Phase 2).`
+            );
           } else {
             // Exhaustiveness guard: the TypeScript union is fully covered above,
             // but at runtime a crafted care log can include arbitrary type strings.

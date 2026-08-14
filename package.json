@@ -7,7 +7,8 @@
     "build": "npm run build -w @kijo/shared -w @kijo/engine -w @kijo/voxelizer -w @kijo/server",
     "test": "npm run test -w @kijo/engine",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "dev": "npm run dev -w @kijo/web"
+    "dev": "npm run dev -w @kijo/web",
+    "build:engine-bundle": "node apps/server/supabase/functions/derive-stats/build-engine-bundle.mjs"
   },
   "devDependencies": { "typescript": "^5.5.4" }
 }

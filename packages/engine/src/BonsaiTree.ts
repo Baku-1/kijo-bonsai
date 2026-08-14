@@ -200,13 +200,13 @@ export class BonsaiTree {
    * Throws if inputs are non-finite or would be rejected by validation guards.
    * Phase 1 stub: delegates to TwineWeightEngine.applyTwine (throws "not implemented").
    */
-  applyTwine(branchId: number, angleDelta: number): TwineResult {
+  applyTwine(branchId: number, angleDelta: number, storedDegradeDays?: number): TwineResult {
     if (!Number.isFinite(angleDelta)) {
       throw new CareLogReplayError(
         `applyTwine: angleDelta must be finite (got ${angleDelta}).`
       );
     }
-    return TwineWeightEngine.applyTwine(this, branchId, angleDelta);
+    return TwineWeightEngine.applyTwine(this, branchId, angleDelta, storedDegradeDays);
   }
 
   /**

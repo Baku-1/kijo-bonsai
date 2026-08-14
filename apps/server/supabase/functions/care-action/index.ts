@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
   // -------------------------------------------------------------------------
   // Prevents clients from injecting fake server-generated types (e.g. 'tick').
   const actionType = action.type as string;
-  const ALLOWED_ACTION_TYPES = new Set(['water', 'prune', 'wire', 'fertilize', 'rotate']);
+  const ALLOWED_ACTION_TYPES = new Set(['water', 'prune', 'wire', 'wire-remove', 'fertilize', 'rotate']);
   if (!ALLOWED_ACTION_TYPES.has(actionType)) {
     return json({ error: 'Invalid action type' }, 400);
   }

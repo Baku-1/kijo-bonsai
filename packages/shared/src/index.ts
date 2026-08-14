@@ -89,8 +89,23 @@ export interface Branch {
   twineAppliedDay: number;
 
   /**
-   * Bend angle (degrees, signed) applied by the twine action. Clamped ±28°.
+   * Current remaining twine bend angle (degrees, signed).
+   *
+   * At applyTwine time: set to the applied delta (clamped to +/-TWINE_MAX_ANGLE_DELTA).
+   * During natural degradation (processTwineDegrade): decremented by SPRING_RATE (1 deg/day)
+   *   toward 0. Represents REMAINING bend, not original applied delta.
+   * At removeTwine / processTwineDegrade completion: cleared to 0.
    * 0 when not twined.
+   *
+   * The original applied delta is the authoritative historical record stored in the
+   * care log entry (type: 'twine', angleDelta). Do not use this field as the
+   * original delta for any computation that runs after processTwineDegrade has fired.
+   *
+   * Used for spring-back reference in removeTwine:
+   *   springBackAmount = twineAngle * springBackFraction
+   * where springBackFraction = max(0, 1 - twineDaysApplied / setDays).
+   * This is correct because twineAngle at removeTwine time IS the remaining bend
+   * to be reversed.
    */
   twineAngle: number;
 
@@ -110,9 +125,28 @@ export interface Branch {
   /**
    * Number of weight bags attached. Integer 1–4 when weighted===true; 0 otherwise.
    * Cap enforced by TwineWeightEngine at apply time.
-   * Each weight contributes ≈7° downward (incrementally per tick).
+   * Each weight contributes ≈7° downward (applied immediately at applyWeight time).
    */
   weightCount: number;
+
+  /**
+   * Absolute game-day when weight was most recently applied. 0 when not weighted.
+   * Used for time-ratio spring-back in removeWeight (parallel to wireAppliedDay).
+   * weightDaysApplied = currentDay - weightAppliedDay.
+   * (OQ-1 Option A approved by Jeremy, 2026-08-14)
+   */
+  weightAppliedDay: number;
+
+  /**
+   * Accumulated bend angle applied by weight(s) (degrees, always >= 0).
+   * Incremented by applyWeight (STACK: +=, capped at TWINE_MAX_ANGLE_DELTA = 28°).
+   * Immediately applied to branch.angle at applyWeight time (OQ-5 STACK model).
+   * Used as the spring-back reference in removeWeight:
+   *   springBackAmount = weightAngleDelta × springBackFraction.
+   * Reset to 0 on removeWeight. Default: 0.
+   * (OQ-1 Option A approved by Jeremy, 2026-08-14)
+   */
+  weightAngleDelta: number;
 
   // ── Twine Degradation Cache (MAJOR-2 fix, 2026-08-01) ───────────────────────
 

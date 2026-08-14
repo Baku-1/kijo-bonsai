@@ -48,7 +48,7 @@ shape = SubResource("RectangleShape2D_h2t9n")
 [node name="Player1" type="CharacterBody2D" parent="." unique_id=844725604]
 position = Vector2(300, 200)
 script = ExtResource("1_5kujn")
-stats_path = "res://fixtures/hardwood_real.json"
+stats_path = "res://kijo-bonsai/fixtures/hardwood_real.json"
 
 [node name="Collision" type="CollisionShape2D" parent="Player1" unique_id=1843333660]
 position = Vector2(0, -45)
@@ -73,7 +73,7 @@ one_shot = true
 position = Vector2(980, 200)
 script = ExtResource("1_5kujn")
 is_player_one = false
-stats_path = "res://fixtures/tropical_real.json"
+stats_path = "res://kijo-bonsai/fixtures/tropical_real.json"
 
 [node name="Collision" type="CollisionShape2D" parent="Player2" unique_id=1929474141]
 position = Vector2(0, -45)

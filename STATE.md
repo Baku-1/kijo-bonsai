@@ -1,6 +1,6 @@
 # KIJO -- Project State
 
-**Last updated:** 2026-08-07 (Tree picker + auth-lift pipeline COMPLETE. Full pipeline: Architect→Critic v2→Implementer→Auditor→Linter. list-trees Edge Function deployed. idx_trees_wallet_id migration applied. WalletTreeSelector, useListTrees, App.tsx auth-lift, StoreModal props refactor, useSeedPurchase dispatch-order fix all landed clean. One unused import fixed in lint pass. WireEngine W1-W6 gates formally run -- 20/20 assertions pass.)
+**Last updated:** 2026-08-14 (Wire/Remove UI panel COMPLETE -- Task #160. Full pipeline: Architect→Critic→Implementer. Wire button + collapsible controls panel in index3d.html; wireMode, selectionIndicator, selectWireBranch/deselectWireBranch, apply/remove handlers, bend preview, round4 discipline, angleDelta===0 guard all in main3d.ts. tsc --noEmit exits 0. W7-W19 gates verified (W11 manual-only). GAP-1: wire-remove server 400, tracked as Task #161.)
 
 ---
 
@@ -71,6 +71,22 @@ Stat pipeline (Voxelizer + StatTerrain + StatDeriver): end-to-end complete and a
 - W6 -- Thickness-tiered wire cost (thin=1, medium>=2, thick>medium)
 - STATUS: Gates formally run 2026-08-07. All 20/20 assertions pass. Export name mismatch (WIRE_MAX_BEND_DEG->WIRE_MAX_ANGLE_DELTA) fixed 2026-07-19 in index.ts.
 
+**Wire UI W7-W19:** (static code review + tsc --noEmit; browser integration tests manual)
+- W7  -- Wire button toggles `wireMode` and `.active` CSS class
+- W8  -- Activating wire mode deactivates prune mode (mutual exclusion)
+- W9  -- Activating prune mode deactivates wire mode (mutual exclusion)
+- W10 -- `controls.enableRotate = false` while wireMode or pruneMode is active
+- W11 -- too-thick rejection: branch.thickness > 3.0 returns ok=false -- **MANUAL-ONLY** (requires 30+ growth days)
+- W12 -- Click branch voxel in wireMode selects it: selectionIndicator visible, wireControls shown
+- W13 -- Click off-mesh in wireMode deselects: selectionIndicator hidden, wireControls hidden
+- W14 -- selectionIndicator survives `rebuildVoxels()` (added to scene directly, NOT in meshes Map)
+- W15 -- angleDelta===0 guard fires on Apply: shows hint, does NOT call `tree.wire()`
+- W16 -- Apply with valid delta: calls `tree.wire()`, round4(newAngle-oldAngle) stored, localCareLog updated, persistAsync fired
+- W17 -- `result.ok=false` from wire(): shows hint text from `result.reason`, no state change
+- W18 -- Remove button visible only when `branch.wired`; click calls `tree.removeWire()`, localCareLog updated, persistAsync fired (GAP-1: 400 from server, logged only)
+- W19 -- `npx tsc --noEmit` from `apps/web` exits 0 -- **PASSED 2026-08-14**
+- STATUS: W7-W10, W12-W18 verified by code review and tsc. W11 manual-only (marked in comments). W19 PASSED.
+
 **Attachy A1-A9:** (run via `node test_attachy.mjs` from repo root)
 - A1 -- No depth-1 branch with attachmentY < trunk.length * 0.30 at Day 200 (seed 464497 hardwood)
 - A2 -- Lowest depth-1 attachmentY in 30-40% of trunk height: 9.387 (33.0% of trunk 28.4454)
@@ -101,7 +117,7 @@ Multi-page app (index.html / index2d.html / index3d.html). All TypeScript compil
 
 | File | Status | Description |
 |------|--------|-------------|
-| `src/main3d.ts` | Built | 3D voxel viewer: OrbitControls, InstancedMesh voxels, canopy stream, prune raycasting, stat HUD, ghost ideal-path hint, export/copy |
+| `src/main3d.ts` | **Updated 2026-08-14** | 3D voxel viewer: OrbitControls, InstancedMesh voxels, canopy stream, prune raycasting, stat HUD, ghost ideal-path hint, export/copy. **Wire UI added:** wireMode, selectedBranchId, selectionIndicator (outside meshes Map), selectWireBranch/deselectWireBranch, apply/remove handlers, live bend preview (PREVIEW_POLAR_* constants, no state mutation). round4 discipline, angleDelta===0 guard, GAP-1 console.error for wire-remove 400. |
 | `src/main2d.ts` | Built | 2D canvas renderer: recursive branch walk, prune pick, stat panel, export |
 | `src/main.ts` | Built | Entry point |
 | `src/renderer/tree_mesh.ts` | Built | Parametric Three.js mesh builder: tapered cylinders per branch, leaf spheres, prune scars |
@@ -204,6 +220,7 @@ Supabase project: `xutjubkaskwchzyzwryk`. All functions deployed 2026-07-26.
 13. **COMPLETE (2026-08-07):** Multi-mint + tokenId/treeId link pipeline done. Full pipeline: Architect→Critic→Implementer→Auditor→Linter. Both bugs resolved: BUG-1 (multi-mint N->1) and BUG-2 (tokenId/treeId unlinked). seed-claim v2 deployed. Four DB migrations applied (20260806000001–3, 20260807000001). DECISIONS.md updated. See docs/ARCH-MULTI-MINT-TOKENTREE-LINK.md.
 14. **COMPLETE (2026-08-07):** Tree picker + auth-lift pipeline done. Full pipeline: Architect→Critic v2→Implementer→Auditor→Linter. list-trees deployed. WalletTreeSelector built. Auth lifted to App.tsx. idx_trees_wallet_id migration applied. One hooks violation caught by auditor and patched. One unused import fixed in lint. See docs/pipeline/ARCH-TREE-PICKER-2026-08-07.md.
 15. ~~**Run WireEngine W1-W6 gates**~~ -- Complete (2026-08-07). **Next:** TechniqueClassifier classify() implementation (GAP-1 in IMPL-VS-DOCS-COMPARISON.md).
+16. **COMPLETE (2026-08-14):** Wire/Remove UI panel (Task #160). Full pipeline: Architect→Critic→Implementer. Wire button + controls panel in index3d.html; full wire UI in main3d.ts (854 lines). tsc --noEmit exits 0. W7-W19 verified (W11 manual-only). **Open blocker:** GAP-1 -- `'wire-remove'` absent from ALLOWED_ACTION_TYPES in care-action/index.ts, tracked as Task #161 (server fix).
 
 ---
 
