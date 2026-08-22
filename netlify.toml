@@ -1,0 +1,15 @@
+# Netlify proxy rules for NFT metadata and image endpoints.
+# Routes api.kijo.xyz/nft/* -> Supabase Edge Functions on xutjubkaskwchzyzwryk.
+# Build settings are managed in the Netlify dashboard; only redirects here.
+
+[[redirects]]
+  from   = "/nft/metadata/:tokenId"
+  to     = "https://xutjubkaskwchzyzwryk.supabase.co/functions/v1/nft-metadata/:tokenId"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/nft/image/:tokenId"
+  to     = "https://xutjubkaskwchzyzwryk.supabase.co/functions/v1/nft-image/:tokenId"
+  status = 200
+  force  = true
