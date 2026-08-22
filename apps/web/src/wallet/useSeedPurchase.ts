@@ -2,13 +2,15 @@
 // useSeedPurchase -- RON payment hook (wagmi v2) + seed-claim wiring (v2).
 //
 // Flow:
-//   1. buySeeds(count, species) -- validates args, checks auth, captures
-//      a seeds array (one random int per token) and the current care_log
+//   1. buySeeds(count, species) -- validates args, checks auth, optionally
+//      silently refreshes the access token, captures the current care_log
 //      from localStorage, then sends RON on-chain.
 //   2. useWaitForTransactionReceipt -- polls until the tx is mined.
 //   3. useEffect (receipt.status === 'success') -- POSTs txHash + count +
-//      seeds + species + care_log to the seed-claim Edge Function, which
-//      verifies payment, loops count mints, INSERTs one trees row per token,
+//      species + care_log to the seed-claim Edge Function (no seeds in body;
+//      seeds are now CSPRNG-generated server-side). The function returns
+//      seeds in the response for future client use.
+//      seed-claim verifies payment, loops count mints, INSERTs one trees row per token,
 //      and returns { v:2, ok, tokens:[{tokenId,treeId,mintTxHash,ok}], partial }.
 //   4. On success, stores tokens[0].treeId in sessionStorage and clears
 //      localStorage care_log (one-time guest->wallet conversion).
@@ -19,9 +21,9 @@
 // JWT user_metadata, decoded by useWalletAuth). When no token is available,
 // buySeeds() throws before sending any RON.
 //
-// Seeds: an array of random integers generated at buySeeds() call time --
-// one per token so each tree gets a unique genome. Sent to seed-claim so
-// the server pairs seeds[i] with tokens[i] server-side (resolves MAJOR-3).
+// Seeds: generated server-side via crypto.getRandomValues in the seed-claim Edge Function.
+// A5-1/A8-1: client no longer provides seeds (prevents precomputation attacks).
+// The server includes seeds in the response; client may use data.seeds for local replay.
 //
 // care_log: extracted from localStorage at buySeeds() call time (before any
 // RON is sent). Passed to seed-claim for first-token care log hand-off.
@@ -57,6 +59,7 @@ export interface ClaimResult {
 export function useSeedPurchase(
   accessToken: string | null = null,
   walletRowId: string | null = null,
+  silentRefresh?: () => Promise<boolean>,
 ) {
   // -- on-chain tx state ----------------------------------------------------
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
@@ -65,9 +68,6 @@ export function useSeedPurchase(
   // and give the claim effect always-current values without dep-array churn.
   const pendingCountRef   = useRef<number | undefined>(undefined);
   const pendingSpeciesRef = useRef<Species | undefined>(undefined);
-  // One random genome per token -- array of length count.
-  // TODO(pre-mainnet): replace Math.random() with crypto.getRandomValues.
-  const pendingSeedsRef   = useRef<number[]>([]);
   // Guest care_log snapshot -- extracted before sending RON.
   const pendingCareLogRef = useRef<unknown[]>([]);
 
@@ -108,7 +108,6 @@ export function useSeedPurchase(
       !walletRowId ||
       pendingCountRef.current == null ||
       pendingSpeciesRef.current == null ||
-      pendingSeedsRef.current.length === 0 ||
       claimedForTxHashRef.current === txToCheck
     ) {
       return;
@@ -119,7 +118,6 @@ export function useSeedPurchase(
     const wrid:    string  = walletRowId;
     const count:   number  = pendingCountRef.current;
     const species: Species = pendingSpeciesRef.current;
-    const seeds:   number[] = pendingSeedsRef.current.slice();
     const careLog: unknown[] = pendingCareLogRef.current.slice();
 
     // Mark as in-flight immediately -- prevents double-fire on re-render.
@@ -139,7 +137,6 @@ export function useSeedPurchase(
           body: JSON.stringify({
             txHash:     txToCheck,
             count,
-            seeds,
             species,
             has_spirit: true,
             care_log:   careLog,
@@ -149,6 +146,7 @@ export function useSeedPurchase(
         const data: {
           v?: number;
           ok?: boolean;
+          seeds?: number[];          // A5-1: server-generated seeds (available for future use)
           tokens?: Array<{
             tokenId:    string;
             treeId:     string | null;
@@ -250,23 +248,18 @@ export function useSeedPurchase(
     pendingCountRef.current   = count;
     pendingSpeciesRef.current = species;
 
-    // Generate one random seed per token. Math.random() is sufficient for
-    // testnet (aesthetic diversity, not security).
-    // TODO(pre-mainnet): use crypto.getRandomValues for uniform distribution:
-    //   const arr = new Uint32Array(count);
-    //   crypto.getRandomValues(arr);
-    //   pendingSeedsRef.current = Array.from(arr);
-    pendingSeedsRef.current = Array.from(
-      { length: count },
-      () => Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
-    );
-
     // Snapshot care_log BEFORE the RON send (purchase-time snapshot).
     try {
       const raw = localStorage.getItem("care_log");
       pendingCareLogRef.current = raw ? (JSON.parse(raw) as unknown[]) : [];
     } catch {
       pendingCareLogRef.current = [];
+    }
+
+    // A7-2: Non-fatal proactive refresh before committing RON to chain.
+    // If token is near-expired, refresh silently so the claim step has a valid JWT.
+    if (silentRefresh) {
+      await silentRefresh().catch(() => { /* non-fatal -- claim step will 401 if expired */ });
     }
 
     // BigInt arithmetic only -- no floating-point multiplication.

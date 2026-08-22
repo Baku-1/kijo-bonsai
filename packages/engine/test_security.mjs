@@ -239,21 +239,18 @@ console.log('\n━━━ SEC-2: totalDays validation in reconstruct() ━━━'
 
 console.log('\n━━━ SEC-3: Unknown/unimplemented action types ━━━');
 
-// Grow a tree for 50 days to get a valid base state; then test bad care logs.
-// Use totalDays=55 so the actions on day 51 are in range.
-
-// SEC-3-1: wire-remove must NOT silently pass
+// SEC-3-1: wire-remove must be processed (Phase 2 -- no longer throws).
 {
-  const err = assertThrows(
+  const tree = assertNoThrow(
     () => CareLogReplay.reconstruct(42, 'hardwood', [
       { day: 1, action: { type: 'wire-remove', branchId: 0 } }
     ], 10),
-    'SEC-3-1: care log with wire-remove throws (not silently dropped)'
+    'SEC-3-1: care log with wire-remove succeeds (Phase 2 -- WireEngine.removeWire now routed)'
   );
+  assert(tree != null, 'SEC-3-1b: reconstruct returns a tree');
   assert(
-    err && err.constructor.name === 'CareLogReplayError',
-    'SEC-3-1b: thrown error is CareLogReplayError',
-    err ? `got ${err.constructor.name}` : '(no error)'
+    tree != null && tree.getBranches()[0]?.wired === false,
+    'SEC-3-1c: branch 0 remains un-wired after replay (removeWire is no-op when not wired)'
   );
 }
 
@@ -272,43 +269,70 @@ console.log('\n━━━ SEC-3: Unknown/unimplemented action types ━━━');
   );
 }
 
-// SEC-3-3: twine must NOT silently pass
+// SEC-3-3: twine must be processed (Phase 2 -- no longer throws).
+// Phase 1 stubs threw CareLogReplayError; Phase 2 implements the real logic.
+// Verify: reconstruct with a valid twine action succeeds and branch 0 ends up twined.
 {
-  assertThrows(
+  const tree = assertNoThrow(
     () => CareLogReplay.reconstruct(42, 'hardwood', [
       { day: 1, action: { type: 'twine', branchId: 0, angleDelta: 10, oldAngle: 20, newAngle: 30, degradeDays: 10 } }
     ], 10),
-    'SEC-3-3: care log with twine throws (not silently dropped)'
+    'SEC-3-3: care log with valid twine action succeeds (Phase 2 -- applyTwine now implemented)'
+  );
+  assert(tree != null, 'SEC-3-3b: reconstruct returns a tree');
+  assert(
+    tree != null && tree.getBranches()[0]?.twined === true,
+    'SEC-3-3c: branch 0 is twined after replay (Phase 2 applyTwine wired in CareLogReplay)'
   );
 }
 
-// SEC-3-4: twine-remove must NOT silently pass
+// SEC-3-4: twine-remove must be processed (Phase 2 -- no longer throws).
+// removeTwine on an un-twined branch is a no-op; reconstruct must not throw.
+// Verify: branch 0 remains un-twined (was never twined in this log).
 {
-  assertThrows(
+  const tree = assertNoThrow(
     () => CareLogReplay.reconstruct(42, 'hardwood', [
       { day: 1, action: { type: 'twine-remove', branchId: 0 } }
     ], 10),
-    'SEC-3-4: care log with twine-remove throws (not silently dropped)'
+    'SEC-3-4: care log with twine-remove succeeds (Phase 2 -- no-op on un-twined branch)'
+  );
+  assert(tree != null, 'SEC-3-4b: reconstruct returns a tree');
+  assert(
+    tree != null && tree.getBranches()[0]?.twined === false,
+    'SEC-3-4c: branch 0 remains un-twined after replay (removeTwine is no-op when not twined)'
   );
 }
 
-// SEC-3-5: weight must NOT silently pass
+// SEC-3-5: weight must be processed (Phase 2 -- no longer throws).
+// Verify: reconstruct with a valid weight action succeeds and branch 0 ends up weighted.
 {
-  assertThrows(
+  const tree = assertNoThrow(
     () => CareLogReplay.reconstruct(42, 'hardwood', [
       { day: 1, action: { type: 'weight', branchId: 0, weightCount: 1, torqueContribution: 0.5 } }
     ], 10),
-    'SEC-3-5: care log with weight throws (not silently dropped)'
+    'SEC-3-5: care log with valid weight action succeeds (Phase 2 -- applyWeight now implemented)'
+  );
+  assert(tree != null, 'SEC-3-5b: reconstruct returns a tree');
+  assert(
+    tree != null && tree.getBranches()[0]?.weighted === true,
+    'SEC-3-5c: branch 0 is weighted after replay (Phase 2 applyWeight wired in CareLogReplay)'
   );
 }
 
-// SEC-3-6: weight-remove must NOT silently pass
+// SEC-3-6: weight-remove must be processed (Phase 2 -- no longer throws).
+// removeWeight on an un-weighted branch is a no-op; reconstruct must not throw.
+// Verify: branch 0 remains un-weighted (was never weighted in this log).
 {
-  assertThrows(
+  const tree = assertNoThrow(
     () => CareLogReplay.reconstruct(42, 'hardwood', [
       { day: 1, action: { type: 'weight-remove', branchId: 0 } }
     ], 10),
-    'SEC-3-6: care log with weight-remove throws (not silently dropped)'
+    'SEC-3-6: care log with weight-remove succeeds (Phase 2 -- no-op on un-weighted branch)'
+  );
+  assert(tree != null, 'SEC-3-6b: reconstruct returns a tree');
+  assert(
+    tree != null && tree.getBranches()[0]?.weighted === false,
+    'SEC-3-6c: branch 0 remains un-weighted after replay (removeWeight is no-op when not weighted)'
   );
 }
 
@@ -545,6 +569,37 @@ console.log('\n━━━ SEC-5: NaN propagation sentinel ━━━');
   assert(
     allThrew,
     'SEC-5-5: every bad water amount in a care log throws before corrupting the tree'
+  );
+}
+
+// ===========================================================================
+// SECTION 6 -- BonsaiTree guard layer validation (CAVEAT-C, 2026-08-14)
+// ===========================================================================
+//
+// The engine (TwineWeightEngine) assumes valid inputs; the guard layer lives in
+// BonsaiTree. Direct callers of TwineWeightEngine bypass these guards and must
+// ensure valid inputs themselves. This section verifies that BonsaiTree's guards
+// are present and functional for the applyTwine path.
+//
+// See: AUDIT-TWINEWEIGHT-PHASE2-2026-08-14.md CAVEAT-C
+//      IMPL-TWE-CAVEAT-FIXES-2026-08-14.md (this fix)
+// NOTE: applyWeight guard coverage (non-finite, non-integer, out-of-range) is deferred to a future task.
+
+console.log('\n--- SEC-6: BonsaiTree guard layer validation ---');
+
+// SEC-6-1: BonsaiTree.applyTwine(0, NaN) must throw CareLogReplayError.
+// Guard is in BonsaiTree (line 204-208): !Number.isFinite(angleDelta) throws.
+// NOT in TwineWeightEngine -- direct engine calls bypass this guard entirely.
+{
+  const tree = growTree(42, 'hardwood', 5);
+  const err = assertThrows(
+    () => tree.applyTwine(0, NaN),
+    'SEC-6-1: BonsaiTree.applyTwine(0, NaN) throws (non-finite angleDelta rejected by guard)'
+  );
+  assert(
+    err && err.constructor.name === 'CareLogReplayError',
+    'SEC-6-1b: thrown error is CareLogReplayError (BonsaiTree guard, not a generic Error)',
+    err ? `got ${err.constructor.name}` : '(no error)'
   );
 }
 

@@ -1,0 +1,21 @@
+{
+  "name": "@kijo/render-worker",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "tsx src/worker.ts"
+  },
+  "dependencies": {
+    "@kijo/engine": "*",
+    "@kijo/voxelizer": "*",
+    "@supabase/supabase-js": "^2.45.0",
+    "@gltf-transform/core": "^4.4.2",
+    "@gltf-transform/extensions": "^4.4.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0"
+  }
+}

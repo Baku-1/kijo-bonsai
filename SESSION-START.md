@@ -49,12 +49,28 @@ Kijo-specific auditor checks (all mandatory):
 - Confirm STATE.md updated and matches task pointer
 - Confirm import boundaries: engine→shared only, voxelizer→shared+engine only
 
+## Mainnet Blockers (do not deploy to mainnet until resolved)
+
+- **A3-1 (CRITICAL):** wallet-auth uses raw `personal_sign` with no chain ID — testnet auth signatures are valid on mainnet. Replace with `signTypedData` + EIP-712 domain separator including `chainId` before mainnet deploy. See `docs/pipeline/AUDIT-WEB3-PURCHASE-SECURITY-2026-08-17.md`.
+- **A5-1 / A8-1 (CRITICAL):** Seeds are client-chosen integers — players can precompute optimal seeds offline. Move seed generation to server-side `crypto.getRandomValues` in the Edge Function before mainnet deploy.
+
+## Planned Skills (develop when Jeremy says go)
+
+- **cited-logic-validator**: Goal-driven logic/test validation skill. Every claim about what code does must be grounded in cited spec or known-developer source, with +/-25 lines of surrounding context read before validating any logic. Works for tests AND implementation logic. No assertion without a citation. Scope: any engineering logic gate — not just test coverage.
+
+## Pipeline Stage Completions (2026-08-14/17)
+
+- TwineWeightEngine Phase 2: COMPLETE. TWE1-TWE9 pass (37/37). Security tests 55/55. OQ-5 STACK semantics documented in DECISIONS.md.
+- CareLogReplay wire-remove fix: COMPLETE. CLR-WIRE-1/2/3/4 pass (23 assertions). Auditor + Linter pending.
+- Web3 purchase security audit: COMPLETE. CONDITIONALLY SECURE. 0 critical, 6 advisory. See above mainnet blockers.
+
 ## Never
 
 - Never call `Math.random()`, `Date.now()`, or any non-deterministic source in engine or voxelizer
 - Never call `clearDirty()` except in the Renderer
 - Never commit (no git commands in task sessions)
 - Never start the next package until the current one is gated and Jeremy says go
+- Never deploy to mainnet without resolving A3-1 and A5-1/A8-1 above
 
 ## File I/O Rules (prevent truncation)
 

@@ -112,6 +112,17 @@ const KIJONSAI_ABI = [
 ] as const;
 
 // ---------------------------------------------------------------------------
+// A8-2: Care-log action whitelist — module level for audit visibility.
+// Matches care-action/index.ts ALLOWED_ACTION_TYPES exactly (GDD §3.1, §8.2).
+// tick: excluded — server-scheduled, never a guest submission (GDD §8.2).
+// rotate: included — valid user action (GDD §3.1, light-side bias).
+// CRITIC B1 MANDATORY CORRECTION: tick OUT, rotate IN (opposite of architect spec).
+// ---------------------------------------------------------------------------
+const ALLOWED_GUEST_ACTION_TYPES = new Set([
+  'water', 'prune', 'wire', 'wire-remove', 'fertilize', 'rotate',
+]);
+
+// ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
@@ -158,12 +169,14 @@ Deno.serve(async (req) => {
     return json({ error: 'count must be an integer between 1 and 10' }, 400);
   }
 
-  // seeds array: one per token, genome for each tree
-  if (!Array.isArray(body.seeds) || (body.seeds as unknown[]).length !== count
-      || !(body.seeds as unknown[]).every((s: unknown) => typeof s === 'number')) {
-    return json({ error: 'seeds must be a number[] of length count' }, 400);
-  }
-  const seeds: number[] = body.seeds as number[];
+  // Generate seeds server-side using CSPRNG. Client no longer provides seeds.
+  // A5-1/A8-1: Prevents clients from precomputing optimal seeds offline.
+  // crypto.getRandomValues is Deno's built-in Web Crypto API (synchronous, no await).
+  // Uint32Array gives values in [0, 2^32-1] -- sufficient genome entropy.
+  // NIST SP 800-90A: CSPRNG required for values affecting asset allocation.
+  const seedArray = new Uint32Array(count);
+  crypto.getRandomValues(seedArray);
+  const seeds: number[] = Array.from(seedArray);
 
   // species validation
   const validSpecies = ['hardwood', 'evergreen', 'tropical'] as const;
@@ -390,12 +403,24 @@ Deno.serve(async (req) => {
         .eq('tree_id', treeId);
 
       if (!existingLogCount) {
-        const entries = care_log.map((entry: unknown, seq: number) => {
+        // A8-2: ALLOWED_GUEST_ACTION_TYPES defined at module level for audit visibility.
+        // See module-level comment above Deno.serve for rationale (GDD §3.1, §8.2).
+
+        const validEntries = (care_log as unknown[]).filter((entry: unknown) => {
+          const e = entry as { type?: string };
+          const allowed = ALLOWED_GUEST_ACTION_TYPES.has(e.type ?? '');
+          if (!allowed) {
+            console.warn(`care_log entry skipped (invalid action_type='${e.type ?? ''}') for tree ${treeId}`);
+          }
+          return allowed;
+        });
+
+        const entries = validEntries.map((entry: unknown, seq: number) => {
           const e = entry as { day?: number; type?: string; data?: unknown };
           return {
             tree_id:     treeId,
             game_day:    e.day ?? 0,
-            sequence:    seq,
+            sequence:    seq,          // sequence re-derived from filtered index
             action_type: e.type ?? '',
             action_data: e.data ?? null,
           };
@@ -504,6 +529,7 @@ Deno.serve(async (req) => {
   return json({
     v: 2,
     ok: true,
+    seeds,           // A5-1: server-generated seeds for client guest session init
     tokens: submissions.map(s => ({
       tokenId:    s.tokenId > 0n ? s.tokenId.toString() : null,
       treeId:     s.treeId,

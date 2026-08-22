@@ -5,7 +5,7 @@
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --test test/determinism.test.js test/WireEngine.test.js test/carelog-determinism.test.js",
+    "test": "node --test test/determinism.test.js test/WireEngine.test.js test/carelog-determinism.test.js test/TwineWeightEngine.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": { "@kijo/shared": "*" }

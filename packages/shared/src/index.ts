@@ -409,6 +409,79 @@ export const SPECIES_PARAMS: Record<SpeciesClass, SpeciesParams> = {
 };
 
 // ---------------------------------------------------------------------------
+// Species visual traits — leaf color, bark color, sub-type.
+// §6.4 COMBAT-METADATA-REQUIREMENTS.md + bark color extension.
+// Canonical source: all consumers import from here.
+// ---------------------------------------------------------------------------
+
+/** Leaf color palette per species. Last entry is rare (~3% roll). */
+export const LEAF_COLORS: Record<SpeciesClass, readonly string[]> = {
+  hardwood:  ['Red', 'Green', 'Maroon'],                   // §6.4: Maroon (blood-red) rare
+  evergreen: ['Green', 'Blue', 'Cyan'],                     // §6.4: Cyan rare
+  tropical:  ['Green', 'Dark Green', 'Tan', 'Yellow'],      // §6.4: Yellow rare
+};
+
+/** Bark color tint per species (hex, applied as multiply over base texture).
+ *  Last entry is rare (~3% roll). */
+export const BARK_COLORS: Record<SpeciesClass, readonly number[]> = {
+  hardwood:  [0x8B6914, 0x3E2723, 0x9E9E9E],       // warm brown, dark umber, silver grey (rare)
+  evergreen: [0x6D5D4E, 0x4E4E4E, 0xB87333],       // grey-brown, ashen, copper (rare)
+  tropical:  [0xC4A882, 0xA89F91, 0xE8DFD0],       // tan, pale grey, white (rare)
+};
+
+/** Bark color human-readable names (parallel to BARK_COLORS). For NFT metadata. */
+export const BARK_COLOR_NAMES: Record<SpeciesClass, readonly string[]> = {
+  hardwood:  ['Warm Brown', 'Dark Umber', 'Silver Grey'],
+  evergreen: ['Grey-Brown', 'Ashen', 'Copper'],
+  tropical:  ['Tan', 'Pale Grey', 'Bleached'],
+};
+
+/** Species sub-type names. Seed-deterministic, cosmetic. */
+export const SPECIES_SUBTYPES: Record<SpeciesClass, readonly string[]> = {
+  hardwood:  ['Straight Trunk', 'Twisted Trunk', 'Multi-Trunk'],
+  evergreen: ['Compact', 'Layered', 'Cascading'],
+  tropical:  ['Aerial Roots', 'Spreading', 'Curved'],
+};
+
+/** Probability of rolling the rare (last) color in a palette. */
+export const RARE_COLOR_CHANCE = 0.03;
+
+/** Derive visual traits deterministically from seed + species.
+ *  Uses SeededRNG for proper probability distribution (~3% rare). */
+export function deriveVisualTraits(
+  seed: number,
+  species: SpeciesClass,
+): { subtype: string; leafColor: string; barkColor: number; barkColorName: string } {
+  const rng = new SeededRNG(seed * 7919);   // prime salt to decorrelate from growth RNG
+
+  // Sub-type: uniform across all entries
+  const subtypes = SPECIES_SUBTYPES[species];
+  const subtype = subtypes[Math.floor(rng.next() * subtypes.length)];
+
+  // Leaf color: ~3% chance for last entry (rare), uniform among commons
+  const leafPalette = LEAF_COLORS[species];
+  const leafRoll = rng.next();
+  const leafIdx = leafRoll < RARE_COLOR_CHANCE
+    ? leafPalette.length - 1                                                      // rare
+    : Math.floor(leafRoll * (leafPalette.length - 1)) % (leafPalette.length - 1); // common
+
+  // Bark color: same ~3% rare mechanic
+  const barkPalette = BARK_COLORS[species];
+  const barkNames = BARK_COLOR_NAMES[species];
+  const barkRoll = rng.next();
+  const barkIdx = barkRoll < RARE_COLOR_CHANCE
+    ? barkPalette.length - 1
+    : Math.floor(barkRoll * (barkPalette.length - 1)) % (barkPalette.length - 1);
+
+  return {
+    subtype,
+    leafColor: leafPalette[leafIdx],
+    barkColor: barkPalette[barkIdx],
+    barkColorName: barkNames[barkIdx],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Branch physics result types (2026-08-01)
 // Specification: ARCHITECT-BRANCH-PHYSICS-2026-08-01.md Part G
 // ---------------------------------------------------------------------------

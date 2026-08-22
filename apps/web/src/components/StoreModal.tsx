@@ -123,6 +123,7 @@ interface StoreModalProps {
   isAuthenticating: boolean;
   authError: string | null;
   signIn: () => Promise<void>;
+  silentRefresh?: () => Promise<boolean>; // A7-2: passed to useSeedPurchase for proactive refresh
 }
 
 export function StoreModal({
@@ -133,6 +134,7 @@ export function StoreModal({
   isAuthenticating,
   authError,
   signIn,
+  silentRefresh,
 }: StoreModalProps) {
   // BUG-3 fix: renamed from `open`/`setOpen` to `localOpen`/`setLocalOpen`.
   // The DOM listener (#btn-buy-seed) sets localOpen; the parent sets propOpen.
@@ -157,7 +159,7 @@ export function StoreModal({
     isClaiming,
     claimResult,
     claimError,
-  } = useSeedPurchase(accessToken, walletRowId);
+  } = useSeedPurchase(accessToken, walletRowId, silentRefresh);
 
   // Wire the Buy Seed button (rendered by ThreeCanvas) to open this modal.
   // BUG-3 fix: handler calls setLocalOpen(true), not the removed setOpen(true).

@@ -28,12 +28,38 @@
 // Import pattern copied from seed-claim/index.ts.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { verifyMessage } from 'npm:viem@2';
+import { verifyTypedData } from 'npm:viem@2';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// JWT expiry: set to 3600 seconds (1 hour) in Supabase Dashboard -> Auth -> JWT Settings.
+// DO NOT increase above 3600s. A longer expiry increases the blast radius of a stolen token.
+// Confirmed setting: xutjubkaskwchzyzwryk project. RFC 7519 ss4.1.4; OWASP JWT Cheat Sheet.
+const JWT_EXPIRY_SECONDS_EXPECTED = 3600; // informational -- not enforced in code
+void JWT_EXPIRY_SECONDS_EXPECTED;        // suppress unused-var lint warning
+
+// EIP-712 type definitions -- MUST match useWallet.ts KIJO_AUTH_TYPES exactly.
+// Any divergence (field names, types, primaryType) will fail signature verification.
+const KIJO_AUTH_TYPES = {
+  KijoAuth: [
+    { name: 'address', type: 'address' },
+    { name: 'nonce',   type: 'string'  },
+  ],
+} as const;
+
+// Expected chain ID for this deployment (202601 = Saigon testnet, 2020 = mainnet).
+// Set via Supabase secret RONIN_CHAIN_ID; defaults to testnet if not set.
+const RONIN_CHAIN_ID = parseInt(Deno.env.get('RONIN_CHAIN_ID') ?? '202601', 10) || 202601;
+
+// Kijonsai contract address -- set as Supabase secret (shared with seed-claim).
+// Used as EIP-712 verifyingContract to bind auth signatures to this specific deployment.
+const KIJONSAI_CONTRACT_ADDRESS = (
+  Deno.env.get('KIJONSAI_CONTRACT_ADDRESS') ??
+  '0x4447F631F5868bFA03A6e6ae2D2da9f22c787E44'
+) as `0x${string}`;
 
 // 5-minute nonce window. Replay possible within this period (testnet acceptable).
 const NONCE_WINDOW_MS = 5 * 60 * 1000;
@@ -88,19 +114,32 @@ Deno.serve(async (req) => {
   }
 
   // -------------------------------------------------------------------------
-  // 3. Reconstruct message — must match useWallet.ts authenticate() exactly
+  // 3. Reconstruct EIP-712 domain + message -- must match useWallet.ts authenticate() exactly.
+  //    Any divergence (chainId, types, primaryType, field names) will fail signature check.
   // -------------------------------------------------------------------------
-  const message = `Kijo authentication\nAddress: ${address}\nNonce: ${nonce}`;
+  const domain = {
+    name:              'Kijo',
+    version:           '1',
+    chainId:           RONIN_CHAIN_ID,
+    verifyingContract: KIJONSAI_CONTRACT_ADDRESS,
+  };
+  const authMessage = {
+    address: address as `0x${string}`,
+    nonce,
+  };
 
   // -------------------------------------------------------------------------
   // 4. Verify ECDSA signature via viem — recovers signer from the message hash
   // -------------------------------------------------------------------------
   let signatureValid: boolean;
   try {
-    signatureValid = await verifyMessage({
-      address: address as `0x${string}`,
-      message,
-      signature: signature as `0x${string}`,
+    signatureValid = await verifyTypedData({
+      address:     address as `0x${string}`,
+      domain,
+      types:       KIJO_AUTH_TYPES,
+      primaryType: 'KijoAuth',
+      message:     authMessage,
+      signature:   signature as `0x${string}`,
     });
   } catch (err) {
     return json({ error: `Signature verification error: ${(err as Error).message}` }, 400);
@@ -215,7 +254,8 @@ Deno.serve(async (req) => {
   }
 
   return json({
-    access_token: otpData.session.access_token,
-    user_id: user.id,
+    access_token:  otpData.session.access_token,
+    refresh_token: otpData.session.refresh_token,  // A7-2: expose for client silent refresh
+    user_id:       user.id,
   });
 });

@@ -474,11 +474,12 @@ Cross-style builds produce unusual fighters. A hardwood in Literati style fights
 
 Partial parametric curve definitions exist in KIJO-TECH-SPEC.md §3.2 for Chokkan, Kengai, Moyogi, and Bunjin only. Shakan, Fukinagashi, Hokidachi, and Sekijoju are **undefined** (open research R4 — HIGH priority).
 
-### 6.4 Sub-type and Leaf Color Tables — Status
+### 6.4 Species Visual Traits — Leaf Color, Bark Color, Sub-type
 
-**UNRESOLVED — OQ-3 in NFT-METADATA-IMAGE-ARCH.md:**
+**RESOLVED — OQ-3 CLOSED 2026-08-17.**
 
-> "Species Sub-type + Leaf Color trait tables: Who defines the possible values and the seed-derivation function?"
+Canonical source: `packages/shared/src/index.ts` — `deriveVisualTraits(seed, species)`.
+All consumers (nft-metadata, web renderer, Blender render_tree.py, Godot combat) import from `@kijo/shared`.
 
 **Leaf Color palettes (from GDD — cosmetic only, does not affect stats):**
 
@@ -486,11 +487,27 @@ Partial parametric curve definitions exist in KIJO-TECH-SPEC.md §3.2 for Chokka
 |---|---|---|
 | Hardwood | Red, Green | Maroon (blood-red) |
 | Evergreen | Green, Blue | Cyan |
-| Tropical | Green, Dark Green, Tan/Brown | Yellow |
+| Tropical | Green, Dark Green, Tan | Yellow |
 
 Rare colors are **undocumented by design** — not advertised on mint screen. Community discovers them organically. The leaf color modifies the seasonal palette (it doesn't replace it) and is visible on both the Kijonsai NFT and the kijo's crown in combat.
 
-**Sub-type values:** GDD examples mention "Twisted Trunk" for Hardwood. No complete table exists in any document. The function that maps seed → sub-type within a species class is not defined.
+**Bark Color palettes (new — color-multiply tint over `Bonsai_Trunk_BaseColor` texture):**
+
+| Species Class | Common 1 | Common 2 | Rare (~3%) |
+|---|---|---|---|
+| Hardwood | Warm Brown `#8B6914` | Dark Umber `#3E2723` | Silver Grey `#9E9E9E` |
+| Evergreen | Grey-Brown `#6D5D4E` | Ashen `#4E4E4E` | Copper `#B87333` |
+| Tropical | Tan `#C4A882` | Pale Grey `#A89F91` | Bleached `#E8DFD0` |
+
+**Sub-type table (3 per species, seed-deterministic, cosmetic):**
+
+| Hardwood | Evergreen | Tropical |
+|---|---|---|
+| Straight Trunk | Compact | Aerial Roots |
+| Twisted Trunk | Layered | Spreading |
+| Multi-Trunk | Cascading | Curved |
+
+**Seed derivation algorithm:** `deriveVisualTraits(seed, species)` uses `SeededRNG(seed * 7919)` (prime salt, decorrelated from growth RNG). Sub-type is uniform across entries. Leaf and bark colors use a ~3% (`RARE_COLOR_CHANCE = 0.03`) probability for the last (rare) entry; remaining probability is uniform among common entries.
 
 ---
 

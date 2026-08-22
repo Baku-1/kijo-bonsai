@@ -35,7 +35,7 @@ function readStoredTreeId(): string | null {
 
 export function App() {
   const { isConnected } = useWallet();
-  const { accessToken, walletRowId, isAuthenticating, authError, signIn } =
+  const { accessToken, walletRowId, isAuthenticating, authError, signIn, silentRefresh } =
     useWalletAuth();
 
   // activeTreeId drives ThreeCanvas remounting via key prop.
@@ -90,6 +90,7 @@ export function App() {
         isAuthenticating={isAuthenticating}
         authError={authError}
         signIn={signIn}
+        silentRefresh={silentRefresh}
       />
 
       {/* First-time tutorial overlay — self-dismisses after completion */}

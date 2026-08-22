@@ -887,18 +887,18 @@ Full schema per `KIJONSAI-CONTRACT-ARCH.md §12`. The `image` field points to th
 
 ## Open Questions
 
-| # | Question | Blocking? | Owner |
+| # | Question | Blocking? | Status |
 |---|---|---|---|
-| **OQ-1** | **Bonsai-Raw.blend template objects**: Jeremy must set up one named mesh object per voxel material type in the .blend file (`tpl_heartwood`, `tpl_bark`, `tpl_branch_wood`, `tpl_leaf`, `tpl_root`). Are these already modeled, or does this require Blender authoring work? | ✅ YES — render worker cannot function without these | Jeremy |
-| **OQ-2** | **Routing config**: How does `api.kijo.xyz/nft/*` route to Supabase Edge Functions — Netlify proxy rule, custom domain on Supabase, or something else? Must be confirmed before deploying `nft-image` Edge Function. | ✅ YES | Jeremy / check Netlify `_redirects` or `netlify.toml` |
-| **OQ-3** | **Species Sub-type + Leaf Color trait tables**: Who defines the possible values and the seed-derivation function? Referenced in metadata schema. | Yes for metadata completeness | Jeremy |
-| **OQ-4** | **Technique classifier**: `TechniqueClassifier.classify(care_log)` not exported from `packages/engine/src/index.ts`. Ship Phase 1 metadata with `"Unclassified"` placeholder or build it? | Partial — can ship `"Unclassified"` | Implementer |
-| **OQ-5** | **Cycles samples vs render time**: 64 samples targets ~3–8 min/render on Railway CPU. Is this acceptable, or should Jeremy upgrade to a Railway GPU box for faster EEVEE renders? | No — can tune post-deploy | Jeremy |
-| **OQ-6** | **Supabase Storage bucket name and public URL pattern**: confirm project ref and whether a custom storage domain (`storage.kijo.xyz`) is set up, which changes the redirect URL in `nft-image`. | Yes — needed before `nft-image` goes live | Jeremy / Supabase project settings |
-| **OQ-7** | **Placeholder PNG**: A seedling placeholder PNG must be authored and pre-uploaded to Supabase Storage as `renders/placeholder.png` before the first mint. Does Jeremy author this in Blender (a static seedling render) or is it an existing asset? | YES — must exist before launch | Jeremy |
-| **OQ-8** | **Esbuild bundle versioning**: `_shared/kijo-engine.js` must be regenerated when engine packages change. CI gate or pre-commit hook needed. | No — must be planned before first deploy | Implementer |
-| **OQ-9** | **`updateMetadata` on spirit awakening**: When spirit is set, should `care-action` emit an on-chain `MetadataUpdate` event? Gas cost ~30–50k on Saigon. | No — defer to Phase 2 | Jeremy |
-| **OQ-10** | **Blender file location in Docker image**: The Dockerfile `COPY . .` copies the full repo; confirm `kijo/assets/Bonsai-Raw.blend` is committed to the repo (not gitignored for file size reasons). If gitignored, needs a separate asset delivery strategy (LFS, download step in Dockerfile). | ✅ YES | Implementer (check `.gitignore`) |
+| **OQ-1** | **Bonsai-Raw.blend template objects**: Named mesh objects per voxel material type — `tpl_heartwood`, `tpl_bark`, etc. | ✅ YES — render worker needs these | **CLOSED 2026-08-17** — Jeremy confirmed mesh labels exist in `Bonsai-Raw.blend`. File verified at `kijo/assets/Bonsai-Raw.blend` (76MB). |
+| **OQ-2** | **Routing config**: How does `api.kijo.xyz/nft/*` route to Supabase Edge Functions? | ✅ YES — needed before public URL works | **OPEN** — No `netlify.toml` exists in `kijo-bonsai/` yet. Proxy rules `/nft/metadata/*` and `/nft/image/*` must be added before deploy goes live. |
+| **OQ-3** | **Species Sub-type + Leaf Color + Bark Color trait tables** | ~~Blocks complete metadata~~ | **CLOSED 2026-08-17** — All visual traits implemented in `packages/shared/src/index.ts` as `deriveVisualTraits(seed, species)`. Leaf colors per §6.4 (Hardwood: Red/Green/Maroon rare; Evergreen: Green/Blue/Cyan rare; Tropical: Green/Dark Green/Tan/Yellow rare). Bark color (new): species-natural tints applied as multiply over base texture (~3% rare per species). Sub-types: Hardwood=Straight Trunk/Twisted Trunk/Multi-Trunk; Evergreen=Compact/Layered/Cascading; Tropical=Aerial Roots/Spreading/Curved. Seed derivation: `SeededRNG(seed * 7919)`, ~3% rare roll via `RARE_COLOR_CHANCE`. NFT metadata emits `Bark Color` attribute. Sub-types Phase 1 approved, mainnet review pending. |
+| **OQ-4** | **Technique classifier export** | — | **CLOSED 2026-08-17** — `TechniqueClassifier` built, exported from `packages/engine/src/index.ts`, wired into `nft-metadata`. 48-assertion test suite audited VERIFIED. Ships fully classified (not "Unclassified"). |
+| **OQ-5** | **Cycles samples vs render time**: 64 samples targets ~3–8 min/render on Railway CPU. | No — can tune post-deploy | **OPEN** — deferred, tune after first deploy |
+| **OQ-6** | **Supabase Storage bucket + public URL** | Yes — needed before `nft-image` goes live | **CLOSED 2026-08-17** — Project ref `xutjubkaskwchzyzwryk`. No custom storage domain. Public URL pattern: `https://xutjubkaskwchzyzwryk.supabase.co/storage/v1/object/public/renders/{tokenId}.png`. Placeholder: `…/renders/placeholder.png`. `RONIN_CHAIN_ID=202601` secret confirmed set. |
+| **OQ-7** | **Placeholder PNG** | YES — must exist before launch | **PARTIALLY CLOSED 2026-08-17** — Existing rendered assets confirmed in `kijo/assets/images/` (Jeremy confirmed 2026-08-17). Still needs upload to Supabase Storage `renders/` bucket as `renders/placeholder.png` with public access enabled. |
+| **OQ-8** | **Esbuild bundle versioning**: `_shared/kijo-engine.js` must be regenerated when engine packages change. | No — plan before first deploy | **OPEN** — `build-edge.sh` script exists. CI gate or pre-commit hook not yet set up. |
+| **OQ-9** | **`updateMetadata` on spirit awakening** | No — Phase 2 | **OPEN — DEFERRED to Phase 2** |
+| **OQ-10** | **Blender file in Docker image** | ✅ YES | **CLOSED 2026-08-17** — `kijo/.gitignore` does NOT exclude `.blend` files. `Bonsai-Raw.blend` (76MB) is committed. `COPY . .` in Dockerfile will include it. No LFS or separate download needed. |
 
 ---
 
@@ -911,8 +911,8 @@ apps/server/supabase/functions/nft-metadata/index.ts
   ← GET /nft/metadata/{tokenId}  (Supabase Edge Function / Deno)
   ← Queries trees + care_log_entries, runs engine pipeline (via _shared bundle), returns JSON
   ← image field: "https://api.kijo.xyz/nft/image/{tokenId}"
-  ← Uses CareLogReplay.reconstruct(seed, species, careLog, totalDays)  [4 args]
-  ← Uses StatDeriver.derive(tree, voxels, seed, ageDays)              [4 args]
+  ← Uses CareLogReplay.reconstruct(seed, species, careLog, totalDays)       [4 args]
+  ← Uses StatDeriver.derive(tree, voxels, seed, ageDays, zones)            [5 args — arch doc was wrong; verified 2026-08-17]
 
 apps/server/supabase/functions/nft-image/index.ts
   ← GET /nft/image/{tokenId}  (Supabase Edge Function / Deno)

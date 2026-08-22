@@ -1,6 +1,6 @@
 # KIJO -- Project State
 
-**Last updated:** 2026-08-14 (Wire/Remove UI panel COMPLETE -- Task #160. Full pipeline: Architect→Critic→Implementer. Wire button + collapsible controls panel in index3d.html; wireMode, selectionIndicator, selectWireBranch/deselectWireBranch, apply/remove handlers, bend preview, round4 discipline, angleDelta===0 guard all in main3d.ts. tsc --noEmit exits 0. W7-W19 gates verified (W11 manual-only). GAP-1: wire-remove server 400, tracked as Task #161.)
+**Last updated:** 2026-08-22 (LINTER: viewer.ts line 134 `renderer.useLegacyLights = false` DELETED. apps/render-worker tsc EXIT:0 (regression clean). apps/web tsc EXIT:2 — but remaining errors are pre-existing TS2305 in tree_mesh.ts (LEAF_COLORS, BARK_COLORS, RARE_COLOR_CHANCE missing from @kijo/shared), unrelated to useLegacyLights fix and outside linter scope. The specific defect identified by auditor is closed. Prior: render-worker AUDITOR: VERIFIED WITH CAVEATS. One required fix: delete `renderer.useLegacyLights = false` from viewer.ts line 134 -- property removed in Three.js r155, apps/web uses r166, causes TS error. Fix is one line. render-worker tsc exits 0 (OBSERVED). spatialHash Python/TS equivalence VERIFIED step-by-step. All landscape filters verified (worker.ts, viewer.ts, get-tree-public). glb_path update ordering correct (before PNG, non-fatal). All 14 files verified. See docs/pipeline/AUDIT-RENDER-WORKER-2026-08-22.md. Prior: IMPLEMENTATION COMPLETE + CARMACK-LINUS SELF-AUDIT PASSED.)
 
 ---
 
@@ -15,6 +15,8 @@
 | `@kijo/engine` (StatTerrain) | Built | T1-T6 | All pass (7/7 assertions) |
 | `@kijo/engine` (StatDeriver) | ACCEPTED (auditor 2026-07-17) | D1-D7 35/35 | All pass (35/35 assertions) |
 | `@kijo/engine` (WireEngine) | Gate-verified (2026-08-07) | W1-W6 | All pass -- 20/20 assertions |
+| `@kijo/engine` (TwineWeightEngine) | Phase 2 complete + Linter CLEAN (2026-08-17) | TWE1-TWE9 | All pass -- 37/37 assertions, 55/55 security tests |
+| `@kijo/engine` (TechniqueClassifier) | **Auditor VERIFIED (2026-08-17)** | TC1-TC19 + TC17b | All pass -- 48/48 assertions. See AUDIT-TECHNIQUE-TESTS-2026-08-17.md. |
 
 Stat pipeline (Voxelizer + StatTerrain + StatDeriver): end-to-end complete and auditor-verified.
 
@@ -111,6 +113,43 @@ Proven through V6 (CareLogReplay roundtrip, 200 days, no prune) and P6 (CareLogR
 
 ## Apps Built
 
+### `apps/render-worker` -- NFT Render Service (Railway / Docker)
+
+**Status: IMPLEMENTATION COMPLETE 2026-08-22. tsc clean. spatialHash verified.**
+
+| File | Status | Description |
+|------|--------|-------------|
+| `Dockerfile` | Built | Ubuntu 22.04 + Blender 4.2.23 LTS + Node.js 20 (NodeSource). Railway root=kijo/, WORKDIR /app/kijo-bonsai for npm install. CMD: tsx apps/render-worker/src/worker.ts |
+| `package.json` | Built | `@kijo/engine`, `@kijo/voxelizer`, `@supabase/supabase-js ^2.45.0`, `@gltf-transform/core ^4.4.2`, `@gltf-transform/extensions ^4.4.2`, `tsx ^4.7.0`, `typescript ^5.5.4` |
+| `tsconfig.json` | Built | Extends tsconfig.base.json (NodeNext, ES2022, strict). noEmit: true. |
+| `src/queue.ts` | Built | claimJob via supabase.rpc('claim_render_job') (FOR UPDATE SKIP LOCKED). markDone/markFailed/markPending. RenderJob interface. |
+| `src/storage.ts` | Built | uploadRender(supabase, localPath, storagePath, contentType). Reads file, upserts to 'renders' bucket. |
+| `src/blender.ts` | Built | invokeBlender(opts): spawns `blender --background` + Python script with token-id/out/voxel-data args. Streams stdout/stderr. Rejects on non-zero exit. |
+| `src/glb.ts` | Built | buildGlb(): merged InstancedMesh-style GLB via @gltf-transform. One primitive per material group (wood/leaf/root). KHR_materials_transmission on leaf (Transmission property, factor=0.3, transmissionMap). Two-call extension pattern (createExtension idempotent). Post-audit fix: KHRMaterialsTransmission/Transmission import split. |
+| `src/worker.ts` | Built | Main polling loop. claim→reconstruct (CareLogReplay + BonsaiTree day-0 branch)→GLB (non-fatal try/catch)→Blender→uploadRender PNG→markDone. glb_path column updated on GLB success. attempts>=3 → markFailed else markPending. |
+| `scripts/render_tree.py` | Built | Blender Python script. CYCLES 64 samples 1024×1024 PNG. spatialHash matches TS exactly (verified). Z-up Blender coordinate mapping. |
+
+**Deferred (documented):**
+- Pot mesh GLB merge (Phase 2 OQ-P3 -- Document.merge() not available in gltf-transform v4)
+- Indexed geometry in GLB (Phase 2 -- reduces file size ~6×)
+- No SRI hash on @lookingglass/webxr CDN script in index-viewer.html
+- No exponential backoff on markPending retry
+
+### `apps/server/supabase`
+
+| File | Status | Description |
+|------|--------|-------------|
+| `functions/get-tree-public/index.ts` | Built 2026-08-22 | Deno Edge Function. verify_jwt: false. Reads by token_id. Service role client. Filters landscape+tick server-side. Returns seed/species/current_day/health/care_log_entries. Excludes wallet_id. 404 on PGRST116. |
+| `migrations/20260817000001_claim_render_job_fn.sql` | Built | claim_render_job() stored function. UPDATE...FOR UPDATE SKIP LOCKED RETURNING *. |
+| `migrations/20260822000001_render_queue_glb_path.sql` | Built | ALTER TABLE render_queue ADD COLUMN IF NOT EXISTS glb_path TEXT. |
+
+### `apps/web` (viewer additions)
+
+| File | Status | Description |
+|------|--------|-------------|
+| `src/viewer.ts` | Built 2026-08-22 | Public animation_url viewer. Fetches get-tree-public, reconstructs via CareLogReplay+Voxelizer client-side. MeshPhysicalMaterial transmission=0.3 + transmissionMap for leaves. Two-pass grunge overlay (separate grungeMesh alphaMap). renderer.setAnimationLoop for WebXR. @lookingglass/webxr init (~20 lines). GLB download link. No Math.random(). Post-audit: voxels.forEach() not serialize(), CareAction['type'] typed set. |
+| `index-viewer.html` | Built 2026-08-22 | Vite entry for viewer.ts. @lookingglass/webxr v0.6.0 CDN UMD script loaded before module. |
+
 ### `apps/web` -- Care Game Client (Vite + React + Three.js)
 
 Multi-page app (index.html / index2d.html / index3d.html). All TypeScript compiles clean.
@@ -123,8 +162,8 @@ Multi-page app (index.html / index2d.html / index3d.html). All TypeScript compil
 | `src/renderer/tree_mesh.ts` | Built | Parametric Three.js mesh builder: tapered cylinders per branch, leaf spheres, prune scars |
 | `src/bridge/care_bridge.ts` | Built | Care action bridge -- imports WATER_AMOUNT from @kijo/shared (C-1 fix 2026-07-26) |
 | `src/ui/hud.ts` | Built | HUD component |
-| `src/wallet/useWalletAuth.ts` | Built (2026-07-26) | Generates nonce, signs with Ronin wallet, POSTs to wallet-auth, stores access_token in memory |
-| `src/wallet/useSeedPurchase.ts` | Updated (2026-08-07) | Dispatch-order fix (Race 4): sessionStorage write → localStorage.removeItem → kijo:tree-created event |
+| `src/wallet/useWalletAuth.ts` | **Updated 2026-08-17** (A7-2) | Generates nonce, signs with EIP-712 via useWallet, POSTs to wallet-auth, stores access_token in memory + refresh_token in sessionStorage. silentRefresh() via GoTrue /auth/v1/token. signOut() clears RT. |
+| `src/wallet/useSeedPurchase.ts` | **Updated 2026-08-17** (A5-1, A7-2) | No seeds in request body (server-side CSPRNG). silentRefresh() called before RON send. Accepts optional silentRefresh param. |
 | `src/wallet/useListTrees.ts` | Built (2026-08-07) | Fetches all trees for authenticated wallet from list-trees Edge Function; re-fetches on kijo:tree-created |
 | `src/components/WalletTreeSelector.tsx` | Built (2026-08-07) | Full-screen overlay: 0 trees→store, 1 tree→auto-select, 2+→picker grid. DC-1: callback props only. |
 | `src/App.tsx` | Rewritten (2026-08-07) | Auth lifted here (single useWalletAuth). activeTreeId + storeOpen state. ThreeCanvas key={activeTreeId}. |
@@ -149,6 +188,8 @@ Supabase project: `xutjubkaskwchzyzwryk`. All functions deployed 2026-07-26.
 | `get-tree` | true | Deployed (existing) | Retrieve tree state |
 | `seed-tree` | true | Deployed (existing) | Seed a new tree |
 | `list-trees` | **false** | Deployed (2026-08-07) | Authenticated GET -- derives wallet_id from JWT, returns all trees for that wallet. `{ trees: [{ id, token_id, species, current_day, born_at }] }`. Empty array (not 404) when wallet has no trees. Limit 50 (testnet). |
+| `nft-metadata` | **false** | **Built (2026-08-17), NOT YET DEPLOYED** | GET /nft/metadata/{tokenId}. ERC-721 metadata JSON (Ronin Market schema). Full engine pipeline: CareLogReplay -> Voxelizer -> StatDeriver -> TechniqueClassifier. Service role client. Caveats: OQ-3 sub-type/leaf-color placeholder, health average is Phase 1 proxy, see IMPL-NFT-METADATA-2026-08-17.md. |
+| `nft-image` | **false** | **Built (2026-08-17), NOT YET DEPLOYED** | GET /nft/image/{tokenId}. Always 302 -- never 404/500. HEAD-checks renders/{tokenId}.png in Supabase Storage; falls back to renders/placeholder.png. BLOCKER: upload placeholder.png to renders bucket before enabling. |
 
 ---
 
@@ -198,7 +239,7 @@ Supabase project: `xutjubkaskwchzyzwryk`. All functions deployed 2026-07-26.
 | Guest mode | ARCH-GUEST-MODE.md architecture complete; C-1 (WATER_AMOUNT) fixed; implementation not started |
 | PWA + Netlify deploy | Not started |
 | Tutorial system | Not started |
-| TechniqueClassifier | Engine gap -- classify() not yet implemented |
+| ~~TechniqueClassifier~~ | **BUILT** -- `packages/engine/src/TechniqueClassifier.ts` with `classify()` implemented. CareAction types (jin, landscape, twine, twine-remove, weight, weight-remove) in shared/src/index.ts. Open: care-action server whitelist, jin/landscape/twine/weight UI (#96), metadata pipeline wiring (#95). |
 | GuildRankDisplay.tsx | Component not yet built |
 
 ---
@@ -215,12 +256,19 @@ Supabase project: `xutjubkaskwchzyzwryk`. All functions deployed 2026-07-26.
 8. ~~WATER_AMOUNT C-1 fix~~ -- Complete (2026-07-26). WATER_AMOUNT=28 exported from @kijo/shared; CareLogReplay and care_bridge import it.
 9. ~~Kijonsai ERC-721 deploy~~ -- Complete (2026-07-26). Saigon testnet: 0x4447F631F5868bFA03A6e6ae2D2da9f22c787E44
 10. ~~Supabase Edge Functions~~ -- Complete (2026-07-26). seed-claim + wallet-auth deployed. E2E mint flow verified.
-11. ~~**W1-W6 wire gates**~~ -- Complete (2026-08-07). All 20/20 assertions pass. **Next (engine):** TechniqueClassifier classify() implementation.
+11. ~~**W1-W6 wire gates**~~ -- Complete (2026-08-07). All 20/20 assertions pass.
 12. **Next (product):** Guest mode implementation (ARCH-GUEST-MODE.md), PWA + Netlify deploy.
 13. **COMPLETE (2026-08-07):** Multi-mint + tokenId/treeId link pipeline done. Full pipeline: Architect→Critic→Implementer→Auditor→Linter. Both bugs resolved: BUG-1 (multi-mint N->1) and BUG-2 (tokenId/treeId unlinked). seed-claim v2 deployed. Four DB migrations applied (20260806000001–3, 20260807000001). DECISIONS.md updated. See docs/ARCH-MULTI-MINT-TOKENTREE-LINK.md.
 14. **COMPLETE (2026-08-07):** Tree picker + auth-lift pipeline done. Full pipeline: Architect→Critic v2→Implementer→Auditor→Linter. list-trees deployed. WalletTreeSelector built. Auth lifted to App.tsx. idx_trees_wallet_id migration applied. One hooks violation caught by auditor and patched. One unused import fixed in lint. See docs/pipeline/ARCH-TREE-PICKER-2026-08-07.md.
-15. ~~**Run WireEngine W1-W6 gates**~~ -- Complete (2026-08-07). **Next:** TechniqueClassifier classify() implementation (GAP-1 in IMPL-VS-DOCS-COMPARISON.md).
+15. ~~**Run WireEngine W1-W6 gates**~~ -- Complete (2026-08-07).
+21. **COMPLETE (prior session):** TechniqueClassifier classify() + new CareAction types. `packages/engine/src/TechniqueClassifier.ts` built. `shared/src/index.ts` extended with jin, landscape, twine, twine-remove, weight, weight-remove. **Open gaps:** care-action server whitelist does not accept these types yet; no UI for twine/weight/jin/landscape (#96); TechniqueClassifier not wired into NFT metadata pipeline (#95).
 16. **COMPLETE (2026-08-14):** Wire/Remove UI panel (Task #160). Full pipeline: Architect→Critic→Implementer. Wire button + controls panel in index3d.html; full wire UI in main3d.ts (854 lines). tsc --noEmit exits 0. W7-W19 verified (W11 manual-only). **Open blocker:** GAP-1 -- `'wire-remove'` absent from ALLOWED_ACTION_TYPES in care-action/index.ts, tracked as Task #161 (server fix).
+17. **COMPLETE (2026-08-17):** TwineWeightEngine Phase 2 + Caveat Fixes. All 7 methods implemented. TWE1-TWE9 gates pass (37/37). Security tests: 55/55. Linter: CLEAN (2026-08-17). Full pipeline: Architect→Critic→Corrective Arch→Implementer→Auditor→Corrective Impl→Auditor (55/55 security)→Linter (CLEAN). OQ-5 ARCH→STACK divergence documented in DECISIONS.md. See docs/pipeline/AUDIT-TWE-CAVEAT-FIXES-2026-08-14.md.
+18. **COMPLETE (2026-08-17):** CareLogReplay wire-remove fix. wire-remove now calls WireEngine.removeWire() instead of throwing CareLogReplayError. CLR-WIRE-1/2/3/4 gate tests (23 assertions) pass. Auditor: VERIFIED (2026-08-17, 23/23 deterministic). Linter: CLEAN (2026-08-17, 49/49 full suite, tsc clean, no voxelizer imports). Full pipeline complete. See docs/pipeline/AUDIT-CARELOGREPLAY-WIRE-REMOVE-2026-08-17.md.
+19. **COMPLETE (2026-08-17):** Web3 purchase security audit. CONDITIONALLY SECURE -- 0 critical, 6 advisory. Two mainnet blockers identified: (A3-1) wallet-auth uses raw personal_sign with no chain ID -- replace with signTypedData + domain separator before mainnet; (A5-1/A8-1) seeds are client-chosen -- move to server-side crypto.getRandomValues. Replay guard confirmed atomic. MINTER_ROLE gated. used_nonces deployed. See docs/pipeline/AUDIT-WEB3-PURCHASE-SECURITY-2026-08-17.md.
+20. **COMPLETE (2026-08-17):** Web3 security corrections. Full pipeline: Audit→Architect→Critic→Implementer→Auditor (VERIFIED WITH CAVEATS)→**Linter CLEAN**. Fixes: A3-1 (EIP-712 signTypedData — cross-chain replay protection), A5-1/A8-1 (server-side CSPRNG seed generation), A7-1 (JWT expiry 3600s documented), A7-2 (token refresh flow — silentRefresh + sessionStorage), A8-2 (care_log whitelist — tick OUT, rotate IN per Critic B1). 5 Carmack-Linus edge cases corrected before handoff (chainId empty-string, RONIN_CHAIN_ID NaN, SUPABASE_ANON_KEY undefined cast, module-level whitelist, stale comments). tsc EXIT:0. Engine: 23/23. npm test: 49/49. DECISIONS.md: 5/5 entries present. ALLOWED_GUEST_ACTION_TYPES: tick=absent rotate=present. CAVEAT: wallet-auth + seed-claim require `supabase functions deploy` before fixes are live. Pipeline DONE.
+
+22. **IMPLEMENTER COMPLETE (2026-08-17):** nft-metadata + nft-image Edge Functions. Full engine pipeline wired: CareLogReplay->Voxelizer->StatDeriver->TechniqueClassifier. esbuild bundle (kijo-engine.js, 64,831 bytes) committed and export-verified. nft-metadata (362 lines): ERC-721 Ronin Market schema, Flower Guild Rank, technique label, seed-deterministic placeholder traits (OQ-3). nft-image (94 lines): always-302, HEAD-checks Supabase Storage, falls back to placeholder. API deviations from arch doc corrected: StatDeriver takes 5 args (not 4), Voxelizer returns {voxels,zones}, two care log arrays (tick+landscape split). See docs/pipeline/IMPL-NFT-METADATA-2026-08-17.md. CAVEATS: OQ-3 sub-type/leaf-color placeholder (Jeremy sign-off needed), health average is Phase 1 proxy, placeholder.png must be uploaded to renders bucket before nft-image goes live. NEXT: Auditor stage, then supabase functions deploy, Netlify routing.
 
 ---
 

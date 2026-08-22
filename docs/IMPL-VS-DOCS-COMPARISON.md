@@ -30,46 +30,24 @@
 
 ## Critical Gaps — Implementation Missing vs Docs
 
-### GAP-1: TechniqueClassifier Does Not Exist (BLOCKER for Technique NFT trait)
+### ~~GAP-1: TechniqueClassifier Does Not Exist~~ — CLOSED (prior session)
 
-**Severity: CRITICAL**
+**Status: BUILT.** `packages/engine/src/TechniqueClassifier.ts` exists with `classify(careLog, treeAgeDays): TechniqueResult` fully implemented. Exported from engine package.
 
-grep for "technique" or "Technique" across ALL TypeScript source files: **zero results**.
-
-- Not in `packages/shared/src/index.ts`
-- Not in `packages/engine/src/index.ts`
-- Not exported anywhere
-- Not stubbed anywhere
-
-The KIJO-ENGINE-API.md C++ spec describes `TechniqueClassifier` with `classify(care_log) → TechniqueResult`. TypeScript has no equivalent.
-
-**Consequence:** Phase 1 NFTs cannot emit a `Technique` trait. The metadata schema in COMBAT-METADATA-REQUIREMENTS.md defines this trait, but there is no code to produce it.
-
-**Related:** This was flagged as OQ-4 in NFT-METADATA-IMAGE-ARCH.md, but the actual situation is worse than OQ-4 implies — OQ-4 asked "is it exported?" The answer is it doesn't exist at all, not just missing from the export list.
+**Remaining open work:**
+- `#95` Wire TechniqueClassifier into NFT metadata pipeline
+- `#96` Build twine/weight/jin/landscape HUD (no UI exists yet)
 
 ---
 
-### GAP-2: CareAction Missing jin, twine, weight, landscape (Blocks Technique Classification Input)
+### ~~GAP-2: CareAction Missing jin, twine, weight, landscape~~ — CLOSED (prior session)
 
-**Severity: CRITICAL**
+**Status: BUILT.** `shared/src/index.ts` CareAction union now includes all types:
+`twine`, `twine-remove`, `weight`, `weight-remove`, `jin`, `landscape`
 
-`shared/src/index.ts` CareAction union has only 5 types:
-```typescript
-type CareAction =
-  | { type: 'water' }
-  | { type: 'rotate' }
-  | { type: 'prune'; branchId: number }
-  | { type: 'fertilize' }
-  | { type: 'wire'; branchId: number; angleDelta: number; oldAngle: number; newAngle: number; wireCost: number }
-```
-
-jin, twine, weight, and landscape are defined in the C++ spec but absent from TypeScript. Even if TechniqueClassifier were built, the CareLog inputs it needs don't exist:
-
-- Clip-and-Grow requires `wireCount == 0 ever` — possible to derive from care log absence
-- Jin requires `jinCount >= 1` — **no jin CareAction exists to count**
-- Water-and-Land requires `landscapeCount >= 3` — **no landscape CareAction exists to count**
-
-To implement technique classification, BOTH TechniqueClassifier AND 4 new CareAction types must be added.
+**Remaining open work:**
+- care-action Edge Function whitelist does not yet accept these types (still: water, prune, wire, wire-remove, fertilize, rotate only)
+- No UI for these actions (#96)
 
 ---
 
@@ -147,8 +125,8 @@ Base values × proximity multiplier = terrain stat contribution per voxel.
 | Wisdom tiers | ✅ Implemented and correct |
 | Wire engine | ✅ Implemented (WireEngine.ts exported) |
 | Prune engine | ✅ Implemented (PruneEngine.ts exported) |
-| TechniqueClassifier | ❌ Does not exist in TypeScript |
-| jin/twine/weight/landscape CareActions | ❌ Not in TypeScript CareAction union |
+| TechniqueClassifier | ✅ Built -- `packages/engine/src/TechniqueClassifier.ts` with classify() |
+| jin/twine/weight/landscape CareActions | ✅ In TypeScript CareAction union -- server whitelist + UI still open |
 | `technique` field in TypeScript StatSheet | ❌ Absent (C++ spec has it; TypeScript does not) |
 
-**The stats foundation is solid. Technique classification is entirely unbuilt.**
+**The stats foundation is solid. Technique classification engine is built. Server whitelist + UI for new action types are the remaining gaps.**

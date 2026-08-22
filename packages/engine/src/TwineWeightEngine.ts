@@ -273,8 +273,9 @@ export class TwineWeightEngine {
     if (weightCount < 1 || weightCount > 4) return { ok: false, reason: 'weight-cap-exceeded' };
     // NOTE: No already-weighted guard — OQ-5 STACK semantics (Jeremy, 2026-08-14).
     // Calling applyWeight on an already-weighted branch accumulates weightAngleDelta.
-    // NOTE: BonsaiTree.applyWeight (line 227–236) validates !isFinite and !isInteger before
-    // calling here. These guards are present for direct-call safety.
+    // NOTE: BonsaiTree.applyWeight validates !isFinite and !isInteger before calling here.
+    // The engine assumes valid inputs; BonsaiTree is responsible for validation.
+    // Direct callers of TwineWeightEngine bypass BonsaiTree and must ensure valid inputs themselves.
 
     const newDelta = round4(weightCount * WEIGHT_DEGREES_PER_UNIT);
     const oldAngle = b.angle;

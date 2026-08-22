@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SeededRNG } from '@kijo/shared';
+import { SeededRNG, LEAF_COLORS, BARK_COLORS, RARE_COLOR_CHANCE } from '@kijo/shared';
 import type { Branch, SpeciesClass } from '@kijo/shared';
 import type { BonsaiTree } from '@kijo/engine';
 
@@ -127,23 +127,30 @@ export const mossMat = new THREE.MeshStandardMaterial({
 const scarMat = new THREE.MeshStandardMaterial({ color: 0x1a0f06, roughness: 0.6 });
 
 // ---------------------------------------------------------------------------
-// Species leaf color tints — multiplied on top of the leaf base texture.
+// Species leaf color tints — from @kijo/shared canonical palettes.
+// LEAF_COLORS are string names (§6.4); mapped to hex here for THREE.Color.
 // Deterministic per branch: SeededRNG(branch.id * 997), same salt the tech
-// spec uses for leaf placement. 3% rare gold roll preserved.
+// spec uses for leaf placement. ~3% rare roll uses RARE_COLOR_CHANCE from shared.
 // ---------------------------------------------------------------------------
-const LEAF_PALETTES: Record<SpeciesClass, number[]> = {
-  hardwood: [0x4e8a3c, 0xb03a2e],
-  evergreen: [0x3a7d44, 0x2e6e6a],
-  tropical: [0x57a639, 0x2f5d2a, 0xc2a05c],
+const LEAF_COLOR_HEX: Record<string, number> = {
+  'Red':        0xb03a2e,
+  'Green':      0x4e8a3c,
+  'Maroon':     0x800000,
+  'Blue':       0x2e6e6a,
+  'Cyan':       0x00bcd4,
+  'Dark Green': 0x2f5d2a,
+  'Tan':        0xc2a05c,
+  'Yellow':     0xd4af37,
 };
-const RARE_LEAF = 0xd4af37;
-const RARE_CHANCE = 0.03;
 
 function leafColor(species: SpeciesClass, branchId: number): THREE.Color {
   const rng = new SeededRNG(branchId * 997);
-  if (rng.next() < RARE_CHANCE) return new THREE.Color(RARE_LEAF);
-  const palette = LEAF_PALETTES[species];
-  return new THREE.Color(palette[Math.floor(rng.next() * palette.length) % palette.length]);
+  const palette = LEAF_COLORS[species];
+  const roll = rng.next();
+  const idx = roll < RARE_COLOR_CHANCE
+    ? palette.length - 1
+    : Math.floor(roll * (palette.length - 1)) % (palette.length - 1);
+  return new THREE.Color(LEAF_COLOR_HEX[palette[idx]] ?? 0x4e8a3c);
 }
 
 // ---------------------------------------------------------------------------
