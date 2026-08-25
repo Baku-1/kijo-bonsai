@@ -1,5 +1,4 @@
 // packages/engine/dist/tree.js
-var MAX_DEPTH = 6;
 function createTree(seed, species) {
   return {
     seed,
@@ -100,6 +99,7 @@ function spatialHash(seed, x, y, z) {
 function round4(x) {
   return Math.round(x * 1e4) / 1e4;
 }
+var WATER_AMOUNT = 28;
 var SPECIES_PARAMS = {
   hardwood: { extensionMultiplier: 1, forkSpreadMin: 0.5, forkSpreadMax: 1, secondaryForkChance: 0.45, trunkMaturationRate: 0.05 },
   evergreen: { extensionMultiplier: 0.8, forkSpreadMin: 0.3, forkSpreadMax: 0.7, secondaryForkChance: 0.35, trunkMaturationRate: 0.04 },
@@ -108,6 +108,51 @@ var SPECIES_PARAMS = {
   // GDD s3.3 "tighter clusters" grounds tropical here; species differentiated further
   // by forkChance (TR:0.16 highest, from engine/src/species.ts), secondaryForkChance (TR:0.25 lowest), extensionMultiplier (TR:1.3).
 };
+var LEAF_COLORS = {
+  hardwood: ["Red", "Green", "Maroon"],
+  // §6.4: Maroon (blood-red) rare
+  evergreen: ["Green", "Blue", "Cyan"],
+  // §6.4: Cyan rare
+  tropical: ["Green", "Dark Green", "Tan", "Yellow"]
+  // §6.4: Yellow rare
+};
+var BARK_COLORS = {
+  hardwood: [9136404, 4073251, 10395294],
+  // warm brown, dark umber, silver grey (rare)
+  evergreen: [7167310, 5131854, 12088115],
+  // grey-brown, ashen, copper (rare)
+  tropical: [12888194, 11050897, 15261648]
+  // tan, pale grey, white (rare)
+};
+var BARK_COLOR_NAMES = {
+  hardwood: ["Warm Brown", "Dark Umber", "Silver Grey"],
+  evergreen: ["Grey-Brown", "Ashen", "Copper"],
+  tropical: ["Tan", "Pale Grey", "Bleached"]
+};
+var SPECIES_SUBTYPES = {
+  hardwood: ["Straight Trunk", "Twisted Trunk", "Multi-Trunk"],
+  evergreen: ["Compact", "Layered", "Cascading"],
+  tropical: ["Aerial Roots", "Spreading", "Curved"]
+};
+var RARE_COLOR_CHANCE = 0.03;
+function deriveVisualTraits(seed, species) {
+  const rng = new SeededRNG(seed * 7919);
+  const subtypes = SPECIES_SUBTYPES[species];
+  const subtype = subtypes[Math.floor(rng.next() * subtypes.length)];
+  const leafPalette = LEAF_COLORS[species];
+  const leafRoll = rng.next();
+  const leafIdx = leafRoll < RARE_COLOR_CHANCE ? leafPalette.length - 1 : Math.floor(leafRoll * (leafPalette.length - 1)) % (leafPalette.length - 1);
+  const barkPalette = BARK_COLORS[species];
+  const barkNames = BARK_COLOR_NAMES[species];
+  const barkRoll = rng.next();
+  const barkIdx = barkRoll < RARE_COLOR_CHANCE ? barkPalette.length - 1 : Math.floor(barkRoll * (barkPalette.length - 1)) % (barkPalette.length - 1);
+  return {
+    subtype,
+    leafColor: leafPalette[leafIdx],
+    barkColor: barkPalette[barkIdx],
+    barkColorName: barkNames[barkIdx]
+  };
+}
 
 // packages/engine/dist/PruneEngine.js
 var PruneEngine = class {
@@ -1490,7 +1535,6 @@ var TechniqueClassifier = class _TechniqueClassifier {
 };
 
 // packages/voxelizer/dist/index.js
-var GRID_SIZE = 256;
 var Material = {
   HEARTWOOD: 1,
   BARK: 2,
@@ -1672,19 +1716,24 @@ var Voxelizer = class _Voxelizer {
   }
 };
 export {
+  BARK_COLORS,
+  BARK_COLOR_NAMES,
   BonsaiTree,
   CareLogReplay,
   CareLogReplayError,
   D_MAX,
-  GRID_SIZE,
   GrowthEngine,
   JinEngine,
-  MAX_DEPTH,
+  LEAF_COLORS,
   MAX_REPLAY_DAYS,
   Material,
   PruneEngine,
+  RARE_COLOR_CHANCE,
   SPECIES,
+  SPECIES_PARAMS,
+  SPECIES_SUBTYPES,
   STRESS_SET_THRESHOLD,
+  SeededRNG,
   SparseVoxelSet,
   StatDeriver,
   StatTerrain,
@@ -1694,9 +1743,13 @@ export {
   TwineWeightEngine,
   VoxelRole,
   Voxelizer,
+  WATER_AMOUNT,
   WEIGHT_DEGREES_PER_UNIT,
   WIRE_MAX_ANGLE_DELTA,
   WIRE_MAX_THICKNESS,
   WireEngine,
-  nextRand
+  deriveVisualTraits,
+  nextRand,
+  round4,
+  spatialHash
 };

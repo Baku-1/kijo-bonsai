@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     xz-utils \
+    unzip \
     libxi6 \
     libxxf86vm1 \
     libxfixes3 \
@@ -31,12 +32,37 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
   && apt-get install -y nodejs \
   && rm -rf /var/lib/apt/lists/*
 
-# Railway root directory = kijo/ (parent of kijo-bonsai/).
-# Build context is kijo/, so COPY . . gives us:
-#   /app/assets/        = kijo/assets/ (Bonsai-Raw.blend, Textures/, Bonsai-GLB/, etc.)
-#   /app/kijo-bonsai/   = kijo/kijo-bonsai/ (Node.js app, packages, etc.)
+# ---------------------------------------------------------------------------
+# Download Blender assets from GitHub Releases (cached Docker layer).
+# This layer is invalidated ONLY when ASSET_TAG changes, not on code changes.
+# Assets are uploaded via: bash scripts/upload-blender-assets.sh
+#
+# worker.ts expects:
+#   /app/assets/Bonsai-Raw.blend   (blend file for Blender --background)
+#   /app/assets/Textures/          (PBR textures for GLB builder)
+#   /app/assets/Bonsai-GLB/Bonsai_LowPoly.glb  (pot mesh for GLB merge)
+# ---------------------------------------------------------------------------
+ARG ASSET_TAG=blender-assets-v1
 WORKDIR /app
-COPY . .
+RUN mkdir -p /app/assets/Bonsai-GLB \
+  && wget -q --show-progress -O /app/assets/Bonsai-Raw.blend \
+     "https://github.com/Baku-1/kijo-bonsai/releases/download/${ASSET_TAG}/Bonsai-Raw.blend" \
+  && wget -q --show-progress -O /tmp/Textures.zip \
+     "https://github.com/Baku-1/kijo-bonsai/releases/download/${ASSET_TAG}/Textures.zip" \
+  && unzip -q /tmp/Textures.zip -d /app/assets/ \
+  && rm /tmp/Textures.zip
+
+# Pot mesh for GLB merge (non-fatal -- GLB build has try/catch in worker.ts)
+RUN wget -q -O /app/assets/Bonsai-GLB/Bonsai_LowPoly.glb \
+     "https://github.com/Baku-1/kijo-bonsai/releases/download/${ASSET_TAG}/Bonsai_LowPoly.glb" \
+     || echo "WARNING: Bonsai_LowPoly.glb not in release -- GLB builds will fail silently"
+
+# ---------------------------------------------------------------------------
+# Copy repo source (Railway root = kijo-bonsai/ repo root).
+# Build context is kijo-bonsai/, so COPY . . gives the repo contents.
+# Place into /app/kijo-bonsai/ to match worker.ts path expectations.
+# ---------------------------------------------------------------------------
+COPY . /app/kijo-bonsai/
 
 # Install render-worker workspace package and its @kijo/* dependencies
 WORKDIR /app/kijo-bonsai

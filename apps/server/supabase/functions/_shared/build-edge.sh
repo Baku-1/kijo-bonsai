@@ -34,6 +34,7 @@ echo "[build-edge] output:    $OUT"
 cat > "$ENTRY" << 'ENTRY_EOF'
 export * from '@kijo/engine';
 export * from '@kijo/voxelizer';
+export * from '@kijo/shared';
 ENTRY_EOF
 
 trap "rm -f '$ENTRY'" EXIT

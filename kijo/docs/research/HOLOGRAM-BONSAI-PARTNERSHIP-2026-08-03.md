@@ -1,7 +1,7 @@
 # Hologram Bonsai — Partnership Research
 **Date:** 2026-08-03  
 **Source:** https://www.kickstarter.com/projects/hologrambonsai/hologram-bonsai-japanese-bonsai-art-hologram-technology-0/description  
-**Status:** Candidate partner — outreach recommended
+**Status:** Candidate partner — outreach recommended. **Updated 2026-08-22:** Looking Glass display support now designed into render worker (see update section below).
 
 ---
 
@@ -118,6 +118,24 @@ Commission them to manufacture for Kijo, white-label the hardware.
 1. **Outreach:** Contact via Kickstarter creator page. University student in Tokyo — likely responds to direct, respectful DMs. Reference the shared philosophy.
 2. **Demo first:** Build the black-background 360° rotation export from Three.js (small task, ~1 day). Have something visual to show them.
 3. **Propose:** Content partnership — Kijo generates the video files, they supply the hardware path.
+
+---
+
+## Update: Looking Glass Display Integration (2026-08-22)
+
+Since this research was written, **Looking Glass holographic display support has been designed into the render worker pipeline** (see `docs/pipeline/ARCH-RENDER-WORKER-PATCH-2026-08-22.md`). Key developments:
+
+**What's now in the architecture:**
+- **GLB export pipeline:** The render worker produces a glTF binary (GLB) for each minted kijonsai tree, stored at `renders/{tokenId}.glb`. This is a standard 3D format consumable by any WebXR engine.
+- **`animation_url` viewer:** NFT metadata now includes an `animation_url` field pointing to a hosted Three.js viewer (`apps/web/src/viewer.ts`) that loads the tree's GLB and renders it with orbit controls, auto-rotation, and black-background mode.
+- **`@lookingglass/webxr` integration:** The `animation_url` viewer page integrates the official Looking Glass Factory SDK (`@lookingglass/webxr` v0.6.0, Apache-2.0). When Looking Glass Bridge (desktop app) is running and a Looking Glass Portrait/Go display is connected, the SDK polyfills the browser's WebXR API. The viewer adds an "Enter Looking Glass" button that initiates a light field session via `navigator.xr.requestSession('immersive-vr')`. Uses `renderer.setAnimationLoop()` for WebXR compatibility.
+- **WebXR export:** NFT owners can download their tree's GLB for use in any XR environment (Three.js, Babylon.js, Unity, Godot).
+
+**Impact on partnership approach:**
+- The "What We'd Need to Build" section below is now largely addressed — the 3D export pipeline and black-background render mode exist in the architecture.
+- The Looking Glass display path is native WebXR, not POV fan video — this is a higher-fidelity holographic experience than the POV fan approach researched below.
+- The POV fan partnership angle (video export to microSD) remains a separate, complementary opportunity — the GLB/WebXR path serves Looking Glass displays, while the video export path would serve POV fans.
+- **Video export for POV fans is still not built** — would need an ffmpeg pipeline to render the Three.js scene to MP4/AVI. This remains a future task if the POV fan partnership proceeds.
 
 ---
 

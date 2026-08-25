@@ -27,6 +27,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // @ts-ignore -- kijo-engine.js bundle re-exports @kijo/shared; deriveVisualTraits lives there
 import { deriveVisualTraits } from '../_shared/kijo-engine.js';
+// @ts-ignore -- kijo-engine.js bundle has no .d.ts; SpeciesClass is a string-union type guard
 import type { SpeciesClass } from '../_shared/kijo-engine.js';
 
 // ---------------------------------------------------------------------------

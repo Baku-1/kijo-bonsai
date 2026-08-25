@@ -12,16 +12,13 @@
 //
 // No DB query. No auth. Public endpoint.
 // Render pipeline: Blender worker uploads to renders/{tokenId}.png (OQ-1/OQ-2 future work).
-// Placeholder: renders/placeholder.png must be uploaded to the renders bucket before deploy.
-//
-// CAVEAT (OQ-7): placeholder.png is sourced from kijo/assets/images/.
-// Upload it to Supabase Storage (renders bucket) before enabling nft-image.
+// Placeholder: placeholder.png lives in Supabase Storage renders bucket.
+// Upload via: curl -X POST .../storage/v1/object/renders/placeholder.png
+// or use the Supabase Dashboard.
 
 const PROJECT_REF  = 'xutjubkaskwchzyzwryk';
 const STORAGE_BASE = `https://${PROJECT_REF}.supabase.co/storage/v1/object/public/renders`;
 
-// Placeholder: renders/placeholder.png in the same public bucket.
-// Upload kijo/assets/images/<chosen file>.png as "placeholder.png" before first deploy.
 const PLACEHOLDER_URL = `${STORAGE_BASE}/placeholder.png`;
 
 // ---------------------------------------------------------------------------
