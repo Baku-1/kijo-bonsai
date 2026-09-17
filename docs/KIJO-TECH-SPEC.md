@@ -218,38 +218,54 @@ Total tree at Day 440 with 36 living branches: ~2KB serialized.
 ```
 function grow_tick(tree, day, seed, conditions):
     rate = calculate_growth_rate(conditions)
-    rng = seeded_rng(seed + day * 37)
     
-    function grow_branch(branch):
+    function extend_and_fork(branch):
         if branch.pruned: return
         
         living_children = branch.children.filter(c => !c.pruned)
+        sp = SPECIES_PARAMS[tree.species]
+        depth_falloff = sp.depthFalloffBase ** branch.depth   // §4.4 exponential
+        rng = seeded_rng(seed + branch.id * 7919 + day * 37)  // per-branch RNG
+        
+        is_leader = is_leader_child(branch)
+        // Leader = longest living sibling; lowest array index wins ties.
+        // Trunk (depth 0) is always leader.
         
         if living_children.length == 0:
-            // TIP BRANCH — extend
-            extension = (1.2 + rng() * 2.8) * rate * depth_falloff(branch.depth)
+            // TIP BRANCH — extend at full or suppressed rate
+            tip_mult = is_leader ? 1.0 : (1.0 - sp.apicalDominance * 0.5)
+            extension = (1.2 + rng() * 2.8) * rate * depth_falloff * tip_mult
             branch.length += extension
             
-            // FORK CHECK
-            max_length = 16 + branch.depth * 7
-            fork_chance = max(0, (0.38 - branch.depth * 0.05)) * rate
+            // FORK CHECK (unchanged)
+            fork_thresh = 8 + branch.depth * 5
+            fork_chance = species.forkChance * (1.0 - branch.depth * 0.1) * rate
             
-            if branch.length > max_length AND branch.depth < MAX_DEPTH AND rng() < fork_chance:
+            if branch.length > fork_thresh AND branch.depth < MAX_DEPTH AND rng() < fork_chance:
                 spawn_children(branch, day, rng)
         
         else:
-            // INNER BRANCH — thicken based on living descendants
-            descendant_count = count_living_descendants(branch)
-            branch.thickness += 0.07 * rate * log2(descendant_count + 1)
+            // INNER BRANCH — continued extension at reduced rate
+            if branch.depth == 0:
+                inner_rate = sp.trunkContinuedRate          // e.g. 0.25 for hardwood
+            else if is_leader:
+                inner_rate = sp.parentExtensionRate          // e.g. 0.20 for hardwood
+            else:
+                inner_rate = sp.parentExtensionRate * (1.0 - sp.apicalDominance * 0.5)
             
-            for child in living_children:
-                grow_branch(child)
+            inner_ext = (0.8 + rng() * 0.4) * rate * depth_falloff * inner_rate
+            branch.length += inner_ext
+            // Inner branches do NOT fork — only tips fork (meristems at tips).
+        
+        // Pre-order recursion (children iterated after extension)
+        for child in branch.children:
+            extend_and_fork(child)
     
-    // Trunk always thickens
-    tree.thickness += 0.05 * rate
-    tree.length += 0.25 * rate
+    // Thickening pass (post-order, Leonardo's Rule) runs separately — unchanged.
+    // Trunk maturation: thickness += 0.05 * rate; branches: += 0.02 * rate.
     
-    grow_branch(tree)
+    extend_and_fork(tree)
+    thickening_pass(tree)
 ```
 
 ### 4.3 Fork/Branching Rules
@@ -286,32 +302,40 @@ function spawn_children(parent, day, rng):
         parent.children.push(child2)
 ```
 
-> **TODO — RESEARCH:** Species-specific growth curves.
-> - Hardwood: slow extension, thick, wide fork angles, high secondary fork chance
-> - Evergreen: steady extension, medium thickness, moderate angles
-> - Tropical: fast extension, thin, tight angles, low secondary fork chance but longer branches
-> - Need actual parameter tables per species (Oak vs Maple within Hardwood class)
-> - Do sub-species within a class differ in growth params or only visuals (bark/leaf color)?
+> **RESOLVED (2026-08-26):** Species-specific growth curves implemented via `SPECIES_PARAMS`.
+> Four new fields per species: `apicalDominance` (HW 0.65, EG 0.80, TR 0.45),
+> `depthFalloffBase` (HW 0.72, EG 0.68, TR 0.78), `parentExtensionRate` (HW 0.20, EG 0.15, TR 0.30),
+> `trunkContinuedRate` (HW 0.25, EG 0.20, TR 0.35). Combined with existing `extensionMultiplier`,
+> `forkSpreadMin/Max`, `secondaryForkChance`. Sub-species within a class differ only in visuals
+> (bark/leaf color) — growth params are per-class. Values flagged for playtest tuning.
 
 ### 4.4 Depth Falloff
 
 ```
-function depth_falloff(depth):
-    // Growth rate decreases with depth to prevent infinite bushiness
-    return max(0.1, 1.0 - depth * 0.15)
-    // depth 0 (trunk): 1.0
-    // depth 1: 0.85
-    // depth 2: 0.70
-    // depth 3: 0.55
-    // depth 4: 0.40
-    // depth 5: 0.25
-    // depth 6: 0.10
+function depth_falloff(depth, species):
+    // Exponential falloff — species-specific base.
+    // Replaces linear max(0.1, 1.0 - depth * 0.15).
+    return sp.depthFalloffBase ** depth
 ```
 
-> **TODO — RESEARCH:** Is linear falloff correct?
-> - Real trees have non-linear apical dominance — the leader branch suppresses lower branches
-> - Exponential falloff (0.7^depth) might produce more realistic shapes
-> - Test both with visual output and compare to real bonsai reference photos
+Species-specific values per depth:
+
+| Depth | Hardwood (0.72) | Evergreen (0.68) | Tropical (0.78) |
+|-------|-----------------|------------------|-----------------|
+| 0     | 1.0000          | 1.0000           | 1.0000          |
+| 1     | 0.7200          | 0.6800           | 0.7800          |
+| 2     | 0.5184          | 0.4624           | 0.6084          |
+| 3     | 0.3732          | 0.3144           | 0.4746          |
+| 4     | 0.2687          | 0.2138           | 0.3702          |
+| 5     | 0.1935          | 0.1454           | 0.2887          |
+| 6     | 0.1393          | 0.0989           | 0.2252          |
+
+> **R9 — RESOLVED (2026-08-26):** Exponential depth falloff implemented.
+> Species-specific base: Hardwood 0.72, Evergreen 0.68, Tropical 0.78.
+> Exponential produces more natural shapes than linear — deeper branches get
+> progressively weaker without the hard floor at 0.10. Combined with apical
+> dominance (§4.2), this gives species-distinct silhouettes: evergreen tapers
+> aggressively (excurrent), tropical stays bushier (decurrent).
 
 ### 4.5 Rotation Influence
 

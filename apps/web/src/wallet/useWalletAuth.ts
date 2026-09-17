@@ -2,10 +2,10 @@
 //
 // Flow:
 //   signIn():
-//     1. Generate nonce = Date.now().toString()
-//        Must be a millisecond timestamp — server validates within a 5-minute window.
-//        Do NOT use crypto.randomUUID(): server rejects non-integer nonces.
-//     2. useWallet().authenticate(nonce) → ECDSA signature via Ronin Wallet
+//     1. Fetch server-issued crypto nonce from wallet-auth-nonce endpoint.
+//        Nonce is a 128-bit hex string (32 chars), single-use, 5-minute expiry.
+//        Replaces old Date.now().toString() client-generated nonce.
+//     2. useWallet().authenticate(nonce) → EIP-712 typed-data signature via Ronin Wallet
 //     3. POST { address, signature, nonce } to wallet-auth edge function
 //     4. Store returned access_token in state; decode JWT payload to extract
 //        walletRowId (user_metadata.wallet_row_id). No sig verification — the
@@ -45,6 +45,46 @@ const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '') as stri
 const WALLET_AUTH_URL =
   "https://xutjubkaskwchzyzwryk.supabase.co/functions/v1/wallet-auth";
 
+// Server nonce endpoint — returns a 128-bit crypto nonce for EIP-712 signing.
+// The nonce is single-use and expires in 5 minutes server-side.
+const WALLET_AUTH_NONCE_URL =
+  "https://xutjubkaskwchzyzwryk.supabase.co/functions/v1/wallet-auth-nonce";
+
+// Fetch a server-issued crypto nonce for wallet authentication.
+// The server response includes { nonce, expires_at }. We intentionally discard
+// expires_at — the server is the sole authority on nonce expiry. If the nonce
+// expires before the user submits (e.g., slow connection or delayed signing),
+// wallet-auth will reject it and signIn() can be retried to get a fresh nonce.
+// This avoids client-side clock skew issues and simplifies the flow.
+// Future enhancement: pre-flight expiry check (Date.now() > expires_at - 30s)
+// to auto-fetch a fresh nonce before signing. (Critic F2)
+async function fetchNonce(address: string): Promise<string> {
+  const res = await fetch(WALLET_AUTH_NONCE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address: address.toLowerCase() }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 429) {
+      throw new Error(
+        "Too many authentication attempts. Please wait a minute and try again."
+      );
+    }
+    throw new Error(
+      (data as { error?: string }).error ?? "Failed to get authentication nonce"
+    );
+  }
+
+  const data: { nonce?: string; expires_at?: string } = await res.json();
+  if (!data.nonce) {
+    throw new Error("Invalid nonce response from server");
+  }
+
+  return data.nonce;
+}
+
 export function useWalletAuth() {
   const { address, isConnected, authenticate } = useWallet();
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -53,6 +93,7 @@ export function useWalletAuth() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   async function signIn(): Promise<void> {
+    if (isAuthenticating) return; // guard against concurrent invocations
     if (!isConnected || !address) {
       setAuthError("No wallet connected — connect your Ronin Wallet first");
       return;
@@ -62,14 +103,21 @@ export function useWalletAuth() {
     setAuthError(null);
 
     try {
-      // Nonce must be a timestamp — server validates within a 5-minute window.
-      const nonce = Date.now().toString();
+      // Step 1: Fetch server-issued crypto nonce (128-bit hex, single-use, 5-min expiry).
+      // Both store UI and header wallet connections use this same signIn() path —
+      // nonce fetch is encapsulated here, not in individual components.
+      const nonce = await fetchNonce(address);
+
+      // Step 2: EIP-712 typed-data signature. authenticate() in useWallet.ts signs
+      // { address, nonce } with the Kijo domain. Nonce type is 'string' in KijoAuth —
+      // hex nonce is compatible (unchanged from prior timestamp string).
       const signature = await authenticate(nonce);
 
+      // Step 3: Submit to wallet-auth (request body shape unchanged).
       const res = await fetch(WALLET_AUTH_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, signature, nonce }),
+        body: JSON.stringify({ address: address.toLowerCase(), signature, nonce }),
       });
 
       const data: {

@@ -1,5 +1,7 @@
 export type SpeciesClass = 'hardwood' | 'evergreen' | 'tropical';
 
+export * from './spiritMorale.js';
+
 export interface Branch {
   id: number;
   parent: number | null; // null = trunk
@@ -198,6 +200,14 @@ export interface TreeState {
   fertilizerDays: number;    // remaining boosted days
   fertilizerCooldown: number;
   rngState: number;          // deterministic PRNG state
+  /**
+   * v2 (2026-09-09, design 3.2a): trunk length in voxels at the moment of the trunk's last
+   * depth-1 fork. 0 means "the trunk has never forked". Only the trunk fork path in
+   * GrowthEngine reads and writes it; it is what spaces successive main branches up the
+   * trunk (deterministic internode spacing, design 3.2b). This is a tree-level scalar, not a
+   * per-branch field: the `Branch` type is unchanged (design A6).
+   */
+  lastMainForkLength: number;
   branches: Branch[];
 }
 
@@ -397,15 +407,53 @@ export interface SpeciesParams {
   forkSpreadMax: number;         // max angle spread for child fork (radians)
   secondaryForkChance: number;   // HW 0.45 / EG 0.35 / TR 0.25
   trunkMaturationRate: number;   // thickening rate for trunk per tick
+  apicalDominance: number;       // strength of leader-tip preference (0=equal, 1=leader-only); Palubicki 2009 / Borchert-Honda
+  depthFalloffBase: number;      // base of exponential depth falloff: depthFalloffBase^depth (resolves R9)
+  // ---- v2 floor/ceiling controller (design 3.2c / 3.4, step I5) ----------------------
+  // Living-branch controller for the R1 15-30 band. Counts EXCLUDE the trunk (same
+  // definition as BonsaiTree.countLivingBranches()). branchCap is a hard ceiling: a species
+  // cannot exceed cap + 1 no matter how long it is played (Q10). branchFloor is a
+  // deterministic catch-up floor that becomes active on floorDay. Read only by GrowthEngine.
+  branchFloor: number;           // below this the day's fork is deterministic, not probabilistic
+  branchCap: number;             // at or above this no fork happens at all (living <= cap + 1)
+  floorDay: number;              // day the catch-up floor becomes active
+
+  // ---- v2 taper (design 3.2e, step I7) ------------------------------------------------
+  // Child thickness at fork = round4(max(0.3, parent.thickness * childThicknessFactor)).
+  // This replaces the pre-v2 fixed half factor (0.5) with a per-species one, so hardwood's
+  // low branches stay deliberately thick (KIJO-TECH-SPEC.md:381-385) while tropical stays
+  // finer. NOT SPECIFIED BY THE DESIGN: design :188 asks only for "a per-species half
+  // factor", so these three numbers are an implementer choice averaging the old 0.5
+  // (0.55 / 0.50 / 0.45) and are flagged owner-tunable. Setting all three to 0.50 restores
+  // the pre-I7 fork-time thickness exactly. Read by GrowthEngine at fork time.
+  childThicknessFactor: number;
+
+  // ---- live species grammar moved out of engine/src/species.ts (design step I8) --------
+  // forkChance is the only field here that GrowthEngine reads. growthRate, thickenRate and
+  // moistureDecay are carried across VERBATIM from the retired table: a repo grep for those
+  // three names (step I8) returns no reader anywhere under packages/* other than their own
+  // definition, but removing values is a balance decision rather than a refactor, so they stay
+  // until the owner retires them explicitly.
+  forkChance: number;            // base fork probability per tip per day (live: GrowthEngine)
+  growthRate: number;            // base extension per tick (read by nothing -- carried over)
+  thickenRate: number;           // trunk/inner thickening per tick (read by nothing -- carried over)
+  moistureDecay: number;         // per day (read by nothing -- carried over)
+  internodeBase: number;         // extension between forks at depth 0-1, voxels (design 3.2b/3.4)
+  internodeDepthStep: number;    // extra internode distance per depth level, voxels
+  trunkInternode: number;        // trunk extension between successive mains, voxels (3.2a)
+
+  parentExtensionRate: number;   // inner branch extension multiplier relative to tip rate
+  trunkContinuedRate: number;    // trunk (depth 0) extension multiplier after first fork (tech spec §4.2 line 249)
 }
 
 export const SPECIES_PARAMS: Record<SpeciesClass, SpeciesParams> = {
-  hardwood:  { extensionMultiplier: 1.0, forkSpreadMin: 0.50, forkSpreadMax: 1.00, secondaryForkChance: 0.45, trunkMaturationRate: 0.05 },
-  evergreen: { extensionMultiplier: 0.8, forkSpreadMin: 0.30, forkSpreadMax: 0.70, secondaryForkChance: 0.35, trunkMaturationRate: 0.04 },
-  tropical:  { extensionMultiplier: 1.3, forkSpreadMin: 0.10, forkSpreadMax: 0.40, secondaryForkChance: 0.25, trunkMaturationRate: 0.06 },
+  hardwood:  { extensionMultiplier: 1.0, forkSpreadMin: 0.50, forkSpreadMax: 1.00, secondaryForkChance: 0.45, trunkMaturationRate: 0.05, apicalDominance: 0.65, depthFalloffBase: 0.72, parentExtensionRate: 0.20, branchFloor: 15, branchCap: 26, floorDay: 90, childThicknessFactor: 0.55, trunkContinuedRate: 0.25, forkChance: 0.10, growthRate: 0.6, thickenRate: 0.08, moistureDecay: 4, internodeBase: 9.5, internodeDepthStep: 14.0, trunkInternode: 19.0 },
+  evergreen: { extensionMultiplier: 0.8, forkSpreadMin: 0.30, forkSpreadMax: 0.70, secondaryForkChance: 0.35, trunkMaturationRate: 0.04, apicalDominance: 0.80, depthFalloffBase: 0.68, parentExtensionRate: 0.15, branchFloor: 15, branchCap: 28, floorDay: 120, childThicknessFactor: 0.50, trunkContinuedRate: 0.20, forkChance: 0.12, growthRate: 0.8, thickenRate: 0.05, moistureDecay: 5, internodeBase: 5.0, internodeDepthStep: 8.0, trunkInternode: 7.5 },
+  tropical:  { extensionMultiplier: 1.3, forkSpreadMin: 0.10, forkSpreadMax: 0.40, secondaryForkChance: 0.25, trunkMaturationRate: 0.06, apicalDominance: 0.45, depthFalloffBase: 0.78, parentExtensionRate: 0.30, branchFloor: 15, branchCap: 30, floorDay: 120, childThicknessFactor: 0.45, trunkContinuedRate: 0.35, forkChance: 0.16, growthRate: 1.2, thickenRate: 0.03, moistureDecay: 7, internodeBase: 15.0, internodeDepthStep: 27.0, trunkInternode: 25.0 },
   // NOTE: tropical forkSpreadMin/Max equals historical evergreen values intentionally.
   // GDD s3.3 "tighter clusters" grounds tropical here; species differentiated further
-  // by forkChance (TR:0.16 highest, from engine/src/species.ts), secondaryForkChance (TR:0.25 lowest), extensionMultiplier (TR:1.3).
+  // by forkChance (TR:0.16 highest -- in this same table since step I8 retired the engine-local
+  // species table), secondaryForkChance (TR:0.25 lowest) and extensionMultiplier (TR:1.3).
 };
 
 // ---------------------------------------------------------------------------

@@ -28,9 +28,9 @@ console.log('V1 - Voxelization determinism');
   const t2 = grow(464497, 200);
   const v1 = Voxelizer.voxelize(t1);
   const v2 = Voxelizer.voxelize(t2);
-  assert(v1.count() === v2.count(), 'identical voxel count', v1.count() + ' vs ' + v2.count());
-  const s1 = JSON.stringify(v1.serialize());
-  const s2 = JSON.stringify(v2.serialize());
+  assert(v1.voxels.count() === v2.voxels.count(), 'identical voxel count', v1.voxels.count() + ' vs ' + v2.voxels.count());
+  const s1 = JSON.stringify(v1.voxels.serialize());
+  const s2 = JSON.stringify(v2.voxels.serialize());
   assert(s1 === s2, 'identical material at every coordinate');
 }
 
@@ -39,15 +39,15 @@ console.log('V2 - Sane fill');
 {
   const tree = grow(464497, 200);
   const v = Voxelizer.voxelize(tree);
-  console.log('  Day-200 voxel count: ' + v.count());
-  assert(v.count() >= 100 && v.count() <= 500000, 'count in sane range [100, 500000]', 'got ' + v.count());
+  console.log('  Day-200 voxel count: ' + v.voxels.count());
+  assert(v.voxels.count() >= 100 && v.voxels.count() <= 500000, 'count in sane range [100, 500000]', 'got ' + v.voxels.count());
 }
 
 // V3 - Pruned excluded
 console.log('V3 - Pruned excluded');
 {
   const tree = grow(464497, 50);
-  const countBefore = Voxelizer.voxelize(tree).count();
+  const countBefore = Voxelizer.voxelize(tree).voxels.count();
 
   const branches = tree.getBranches();
   const target = branches.find(function(b) { return b.depth >= 1 && !b.pruned; });
@@ -56,8 +56,8 @@ console.log('V3 - Pruned excluded');
   const pruneResult = PruneEngine.prune(tree, target.id);
   assert(pruneResult === true, 'prune() returned true for a valid branch');
 
-  const vAfter = Voxelizer.voxelize(tree);
-  const countAfter = vAfter.count();
+  const vAfterResult = Voxelizer.voxelize(tree);
+  const countAfter = vAfterResult.voxels.count();
   const drop = countBefore - countAfter;
   console.log('  countBefore=' + countBefore + ' countAfter=' + countAfter + ' drop=' + drop + ' (pruned branch id=' + target.id + ' depth=' + target.depth + ')');
 
@@ -65,7 +65,7 @@ console.log('V3 - Pruned excluded');
   assert(drop > 0, 'voxel drop is strictly positive', 'drop=' + drop);
 
   let scarCount = 0;
-  vAfter.forEach(function(x, y, z, mat) { if (mat === Material.PRUNE_SCAR) scarCount++; });
+  vAfterResult.voxels.forEach(function(x, y, z, mat) { if (mat === Material.PRUNE_SCAR) scarCount++; });
   if (scarCount > 0) {
     console.log('  advisory: ' + scarCount + ' PRUNE_SCAR voxels at cut point');
   } else {
@@ -79,7 +79,7 @@ console.log('V4 - Bounds check');
   const tree = grow(464497, 200);
   const v = Voxelizer.voxelize(tree);
   let oob = 0;
-  v.forEach(function(x, y, z) {
+  v.voxels.forEach(function(x, y, z) {
     if (x < 0 || x > 255 || y < 0 || y > 255 || z < 0 || z > 255) oob++;
   });
   assert(oob === 0, 'all voxels within [0,255]^3', oob + ' out-of-bounds');
@@ -88,9 +88,9 @@ console.log('V4 - Bounds check');
 // V5 - Growth monotonicity
 console.log('V5 - Growth monotonicity');
 {
-  const c50  = Voxelizer.voxelize(grow(464497, 50)).count();
-  const c100 = Voxelizer.voxelize(grow(464497, 100)).count();
-  const c200 = Voxelizer.voxelize(grow(464497, 200)).count();
+  const c50  = Voxelizer.voxelize(grow(464497, 50)).voxels.count();
+  const c100 = Voxelizer.voxelize(grow(464497, 100)).voxels.count();
+  const c200 = Voxelizer.voxelize(grow(464497, 200)).voxels.count();
   console.log('  Day 50: ' + c50 + ' | Day 100: ' + c100 + ' | Day 200: ' + c200);
   assert(c200 > c100 && c100 > c50, 'Day200 > Day100 > Day50');
 }
@@ -103,16 +103,16 @@ console.log('V6 - Pipeline determinism');
     if (original.getMoisture() < 25) original.water(30);
     GrowthEngine.growTick(original);
   }
-  const origVoxels = Voxelizer.voxelize(original);
+  const origResult = Voxelizer.voxelize(original);
   const careLog = original.getCareLog();
 
   const rebuilt = CareLogReplay.reconstruct(464497, 'hardwood', careLog, 200);
-  const rebuildVoxels = Voxelizer.voxelize(rebuilt);
+  const rebuildResult = Voxelizer.voxelize(rebuilt);
 
-  console.log('  Original: ' + origVoxels.count() + ' voxels | Rebuilt: ' + rebuildVoxels.count() + ' voxels');
-  assert(origVoxels.count() === rebuildVoxels.count(), 'identical voxel count after reconstruction');
+  console.log('  Original: ' + origResult.voxels.count() + ' voxels | Rebuilt: ' + rebuildResult.voxels.count() + ' voxels');
+  assert(origResult.voxels.count() === rebuildResult.voxels.count(), 'identical voxel count after reconstruction');
   assert(
-    JSON.stringify(origVoxels.serialize()) === JSON.stringify(rebuildVoxels.serialize()),
+    JSON.stringify(origResult.voxels.serialize()) === JSON.stringify(rebuildResult.voxels.serialize()),
     'identical voxels at every coordinate after reconstruction'
   );
 }
@@ -125,7 +125,7 @@ console.log('V7 - Role coverage');
   const validRoles = new Set(['trunk', 'arm', 'leg', 'digit', 'canopy', 'root', 'scar']);
   let invalidCount = 0;
   const histogram = {};
-  v.forEach(function(x, y, z, mat, role) {
+  v.voxels.forEach(function(x, y, z, mat, role) {
     if (!validRoles.has(role)) { invalidCount++; }
     histogram[role] = (histogram[role] || 0) + 1;
   });
@@ -139,7 +139,7 @@ console.log('V8 - ARM/LEG split sane');
   const tree = grow(464497, 200);
   const v = Voxelizer.voxelize(tree);
   let armCount = 0, legCount = 0;
-  v.forEach(function(x, y, z, mat, role) {
+  v.voxels.forEach(function(x, y, z, mat, role) {
     if (role === 'arm') armCount++;
     else if (role === 'leg') legCount++;
   });
@@ -155,8 +155,8 @@ console.log('V9 - Role determinism');
   const t2 = grow(464497, 200);
   const v1 = Voxelizer.voxelize(t1);
   const v2 = Voxelizer.voxelize(t2);
-  const s1 = JSON.stringify(v1.serialize());
-  const s2 = JSON.stringify(v2.serialize());
+  const s1 = JSON.stringify(v1.voxels.serialize());
+  const s2 = JSON.stringify(v2.voxels.serialize());
   const pass = s1 === s2;
   console.log('  ' + (pass ? 'PASS' : 'FAIL') + ' -- role+material identical at every coordinate');
   assert(pass, 'identical role at every coordinate');

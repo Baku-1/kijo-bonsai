@@ -77,11 +77,14 @@ export class SparseVoxelSet {
 // ---------------------------------------------------------------------------
 
 export interface VoxelizeResult {
+  placements: Map<number, BranchPlacement>;
+  branchRoles: Map<number, VoxelRole>;
   voxels: SparseVoxelSet;
   zones:  Map<number, number>;  // branchId → zoneIndex (0-7)
 }
 
-type Vec3 = { x: number; y: number; z: number };
+export type Vec3 = { x: number; y: number; z: number };
+export interface BranchPlacement { start: Vec3; end: Vec3; dir: Vec3 }
 
 function rotateDirection(parent: Vec3, polar: number, azimuthal: number): Vec3 {
   const len = Math.sqrt(parent.x ** 2 + parent.y ** 2 + parent.z ** 2);
@@ -187,7 +190,7 @@ export class Voxelizer {
       }
     }
 
-    return { voxels, zones };
+    return { voxels, zones, placements: positions, branchRoles: branchRole };
   }
 
   /**
@@ -273,3 +276,5 @@ export class Voxelizer {
     }
   }
 }
+
+export { buildCombatSnapshot } from './CombatSnapshot.js';

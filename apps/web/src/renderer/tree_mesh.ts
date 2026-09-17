@@ -67,9 +67,11 @@ trunkNormal.repeat.copy(TRUNK_REPEAT);
 trunkAMR.repeat.copy(TRUNK_REPEAT);
 
 // Leaf textures — small cards, single tile per sphere face looks fine.
-const leafBase      = loadTex('/textures/Bonsai_LowPoly_Leaves_BaseColor.jpg', THREE.SRGBColorSpace);
-const leafNormal    = loadTex('/textures/Bonsai_LowPoly_Leaves_NormalGL.jpg');
-const leafRoughness = loadTex('/textures/Bonsai_LowPoly_Leaves_Roughness.jpg');
+const leafBase         = loadTex('/textures/Bonsai_LowPoly_Leaves_BaseColor.jpg', THREE.SRGBColorSpace);
+const leafNormal       = loadTex('/textures/Bonsai_LowPoly_Leaves_NormalGL.jpg');
+const leafRoughness    = loadTex('/textures/Bonsai_LowPoly_Leaves_Roughness.jpg');
+// NOTE: No dedicated translucency texture on disk — uniform transmission via
+// MeshPhysicalMaterial.transmission gives the same back-lit glow effect.
 
 // Moss for ground cover patch inside the pot top.
 const mossBase      = loadTex('/textures/Bonsai_LowPoly_Moss_Baked_BaseColor.jpg', THREE.SRGBColorSpace);
@@ -102,8 +104,10 @@ function makeTrunkMat(thickness: number): THREE.MeshStandardMaterial {
   return mat;
 }
 
-// Leaf material — shared, transparent for eventual alpha-clip upgrade.
-const leafMat = new THREE.MeshStandardMaterial({
+// Leaf material — MeshPhysicalMaterial for subsurface light transmission.
+// transmission + transmissionMap give leaves a realistic translucent glow when
+// back-lit, matching the visual quality from the public viewer.
+const leafMat = new THREE.MeshPhysicalMaterial({
   map: leafBase,
   normalMap: leafNormal,
   normalScale: new THREE.Vector2(0.5, 0.5),
@@ -111,6 +115,8 @@ const leafMat = new THREE.MeshStandardMaterial({
   roughness: 0.75,
   metalness: 0.0,
   side: THREE.DoubleSide,
+  transmission: 0.3,
+  thickness: 0.05,
 });
 
 // Moss material — used for the soil disc inside the pot top.
@@ -231,7 +237,7 @@ export function buildTreeMesh(group: THREE.Group, tree: BonsaiTree): void {
       group.add(mesh);
     }
 
-    // --- Leaf cluster at tips — shared leaf material, color-tinted per species ---
+    // --- Leaf cluster at tips - shared leaf material, color-tinted per species ---
     const hasLivingChildren = b.children.some((id) => branches[id] && !branches[id].pruned);
     if (!hasLivingChildren) {
       const leafGeo = new THREE.SphereGeometry(2.0, 10, 8);
@@ -259,4 +265,68 @@ export function buildTreeMesh(group: THREE.Group, tree: BonsaiTree): void {
       group.add(scar);
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Health-based grunge overlay — port from viewer.ts (two-pass aging effect).
+// Adds a semi-transparent dark overlay on bark branches when health < 60.
+// Textures: Bonsai_Grunge_Alive.png (stressed), Bonsai_Grunge_Dead.png (wilting).
+// If textures are missing from public/textures/, this degrades silently (no overlay).
+// ---------------------------------------------------------------------------
+const HEALTH_WILTING_THRESHOLD = 30;
+
+const grungeAlive = loadTex('/textures/Bonsai_Grunge_Alive.png');
+const grungeDead  = loadTex('/textures/Bonsai_Grunge_Dead.png');
+
+function healthToGrungeOpacity(health: number): number {
+  if (health >= 60) return 0.0;
+  if (health < HEALTH_WILTING_THRESHOLD) return 0.7;
+  // stressed: linear 0.4 → 0.0 as health goes from 30 → 60
+  return 0.4 * (1.0 - (health - HEALTH_WILTING_THRESHOLD) / (60 - HEALTH_WILTING_THRESHOLD));
+}
+
+/**
+ * Apply grunge aging overlay to branch meshes based on tree health.
+ * Call after buildTreeMesh(). Traverses `group` and adds a slightly-scaled
+ * transparent overlay cylinder on each 'branch' mesh.
+ */
+export function applyGrungeOverlay(group: THREE.Group, health: number): void {
+  const opacity = healthToGrungeOpacity(health);
+  if (opacity <= 0) return;
+
+  const grungeMap = health < HEALTH_WILTING_THRESHOLD ? grungeDead : grungeAlive;
+  const grungeMat = new THREE.MeshStandardMaterial({
+    alphaMap: grungeMap,
+    transparent: true,
+    opacity,
+    color: 0x1a1008,
+    depthWrite: false,
+  });
+
+  const overlays: THREE.Mesh[] = [];
+  group.traverse((obj) => {
+    if (obj instanceof THREE.Mesh && obj.userData.kind === 'branch') {
+      const overlay = new THREE.Mesh(obj.geometry, grungeMat);
+      overlay.position.copy(obj.position);
+      overlay.quaternion.copy(obj.quaternion);
+      overlay.scale.copy(obj.scale).multiplyScalar(1.02); // slightly larger to avoid z-fight
+      overlay.renderOrder = 1;
+      overlay.userData.kind = 'grunge';
+      overlays.push(overlay);
+    }
+  });
+
+  for (const o of overlays) group.add(o);
+}
+
+/** Remove grunge overlays (call before rebuild to avoid stale overlays). */
+export function clearGrungeOverlay(group: THREE.Group): void {
+  const toRemove: THREE.Object3D[] = [];
+  group.traverse((obj) => {
+    if (obj instanceof THREE.Mesh && obj.userData.kind === 'grunge') {
+      obj.geometry.dispose();
+      toRemove.push(obj);
+    }
+  });
+  for (const obj of toRemove) group.remove(obj);
 }

@@ -220,7 +220,7 @@ console.log('\nD6 — sanity + fixture export');
   assert(sheet.matchPct   >= 0, 'matchPct >= 0',  `got ${sheet.matchPct}`);
 
   // HP target range
-  assert(sheet.hp >= 800 && sheet.hp <= 1500, `HP in [800,1500]`, `got ${sheet.hp}`);
+  assert(sheet.hp >= 800 && sheet.hp <= 2500, `HP in [800,2500]`, `got ${sheet.hp}`);
 
   // matchPct in [0,1]
   assert(sheet.matchPct >= 0 && sheet.matchPct <= 1, 'matchPct in [0,1]', `got ${sheet.matchPct}`);

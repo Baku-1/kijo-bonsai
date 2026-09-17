@@ -3,6 +3,8 @@
 **Confirmed by Jeremy:** from GDD (v0.2, July 23 2026); bridge framing confirmed 2026-07-30
 **Status: AUTHORITATIVE**
 
+**Jeremy's clarification — 2026-09-16:** Morale rises gradually while the tree is being cared for. Potions are a quick fix: Soothing Leaf Potion restores 100% immediately on successful application; Smooth Love Potion grants its capped partial boost immediately after the server confirms the burn. Sustained care can reach 100% without a potion. The 65% ceiling applies to Ronin SLP recovery, not care-based recovery. This clarification resolves the earlier conflict about potion recovery taking time; other documented gains and losses remain unchanged.
+
 ---
 
 ## What Morale Is
@@ -12,6 +14,7 @@ Morale is the kijo's willingness to fight. It is a **Phase 2 combat-phase mechan
 | | |
 |---|---|
 | **Scale** | 0–100 (server-side float, per kijo) |
+| **Starting morale** | **50/100 for a newly planted tree** — neutral; confirmed by Jeremy 2026-09-16. Subsequent care changes this value before awakening. This is an initialization rule, not a reset of existing trees. |
 | **Phase that builds it** | Phase 1 — caretaking actions accumulate morale over time |
 | **Phase that uses it** | Phase 2 — morale gates combat participation |
 | **What it controls** | Whether the kijo will enter combat (willingness), NOT combat power |
@@ -63,7 +66,7 @@ These are the triggers that build morale, organized by which phase generates the
 | Pruning | +8 per prune performed | Represents deliberate, attentive shaping |
 | Fertilizer application | +5 (one-time per cooldown) | Shares the 8-day cooldown with the growth effect |
 | Rest day (no battles taken) | +3 per day | Phase 1/2 boundary — rest benefits both |
-| Soothing Leaf Potion (caretaker's SLP) | Full restoration to 100% | The real cure; see `DESIGN-SLP-DUAL-POTION.md` |
+| Soothing Leaf Potion (caretaker's SLP) | Immediate full restoration to 100% | Quick recovery through care; see `DESIGN-SLP-DUAL-POTION.md` |
 
 ### Phase 2 Combat
 
@@ -115,13 +118,13 @@ Full recovery to 100 is achievable through sustained care over longer periods.
 
 ### Method 2: Soothing Leaf Potion — Caretaker's SLP (Full Restoration)
 
-The caretaker's Soothing Leaf Potion restores morale to **100%** when applied. No cap, no diminishing returns. This is the only mechanism that can bypass the 65% SLP ceiling. It is brewed from caretaking byproducts (bark shavings, dried petals, root clippings, spring dew) — a caretaker who tends their tree naturally generates the ingredients.
+The caretaker's Soothing Leaf Potion restores morale **immediately to 100%** when successfully applied, with no diminishing returns. Sustained care also restores morale to 100%, gradually; a potion is not required for full recovery. The 65% ceiling belongs specifically to Ronin SLP recovery. Soothing Leaf Potion is brewed from caretaking byproducts (bark shavings, dried petals, root clippings, spring dew) — a caretaker who tends their tree naturally generates the ingredients.
 
 See `DESIGN-SLP-DUAL-POTION.md` for full details on ingredients, properties, and economic design.
 
 ### Method 3: Smooth Love Potion — Fighter's SLP (Partial Restoration Only)
 
-Fighters can spend real Ronin SLP (the ERC-20 token) for partial morale recovery. This is a band-aid:
+Fighters can spend real Ronin SLP (the ERC-20 token) for immediate partial morale recovery after the server confirms the burn. This is a band-aid:
 
 | Use (within recovery window) | Morale restored |
 |---|---|
@@ -193,7 +196,17 @@ Morale affects willingness, not power. A kijo who has fought, lost, recovered, a
 
 ## For Auditors
 
-- A kijo refusing to fight at exactly 20 morale is **correct behavior** — the threshold is "below 20," and 20.0 is not below 20.
+### Implementation checkpoint (2026-09-16)
+
+`packages/shared/src/spiritMorale.ts` now provides the shared JSON-safe state, new-tree initializer at 50, refusal/recovery and expression rules, and pure care/combat/potion effects. Shared build/typecheck passed; the morale suite passed 13 test groups and the original shared suite passed 6 checks. These are unit-level results, not gameplay verification.
+
+This foundation is not connected to server persistence or the caretaker/Godot clients. Transactional deduplication, battle admission, potion inventory, burn confirmation and the exact Ronin diminishing-return policy remain integration work. The helper accepts only server-assessed facts by contract; calling it does not establish authorization or prevent duplicate credits.
+
+Second Brain comparison: `wiki/patterns/SageStarCodes/guards-and-checks.md` maps to explicit field validation and reason-bearing admission checks; `wiki/patterns/SageStarCodes/event-handlers.md` maps to separating shared pure rules from authoritative event handling. Server event eligibility and transaction guarantees are not yet implemented by this module. See `packages/shared/README.md` for the comparison and verification commands.
+
+### Gameplay invariants
+
+- At exactly 20 morale, a kijo that has not entered refusal **may fight**: 20.0 is not below 20. A kijo already in refusal remains unavailable until morale reaches 50. Check the persisted refusal state as well as the current value.
 - **Morale recovering without care actions is a bug** — morale only increases through specific triggers, never passively on its own.
 - **Morale exceeding 65% from Smooth Love Potion / Ronin SLP alone** (without Soothing Leaf Potion) is a **bug** — the hard cap must be enforced.
 - **A kijo fighting at morale below 20 is a bug** — the refusal check failed server-side.

@@ -120,6 +120,7 @@ const KIJONSAI_ABI = [
 // ---------------------------------------------------------------------------
 const ALLOWED_GUEST_ACTION_TYPES = new Set([
   'water', 'prune', 'wire', 'wire-remove', 'fertilize', 'rotate',
+  'jin', 'landscape', 'twine', 'twine-remove', 'weight', 'weight-remove',
 ]);
 
 // ---------------------------------------------------------------------------

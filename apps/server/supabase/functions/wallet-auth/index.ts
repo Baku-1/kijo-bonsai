@@ -3,13 +3,14 @@
 // for the associated auth.users account.
 //
 // Request:  POST { address: string, signature: string, nonce: string }
-// Response: { access_token: string, user_id: string }
+// Response: { access_token: string, refresh_token: string, user_id: string }
 //           { error: string } + status on failure
 //
-// Nonce strategy: timestamp-based (Date.now().toString()), valid for 5 minutes.
-// Nonces are stored server-side in the used_nonces table (PRIMARY KEY on nonce text).
-// First use INSERTs the nonce; a duplicate INSERT (code 23505) means replay -- returns 409.
-// Expired nonces are cleaned up on each successful auth call (best-effort DELETE).
+// Nonce strategy: server-issued 128-bit crypto nonce from wallet-auth-nonce endpoint.
+// Nonces are stored in the auth_nonces table (single-use, 5-minute expiry).
+// CEI (Checks-Effects-Interactions): nonce is marked used BEFORE signature verification.
+// This prevents replay even if signature verification is slow or crashes mid-flight.
+// Expired nonces are cleaned up best-effort on each request.
 //
 // Session creation:
 //   admin.createSession() does NOT exist in @supabase/supabase-js@2.
@@ -30,6 +31,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { verifyTypedData } from 'npm:viem@2';
 
+// TODO: Tighten CORS for production — replace '*' with the actual frontend origin
+// (e.g., 'https://kijo.gg'). Wildcard is acceptable for testnet only. (Critic F4)
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -60,9 +63,6 @@ const KIJONSAI_CONTRACT_ADDRESS = (
   Deno.env.get('KIJONSAI_CONTRACT_ADDRESS') ??
   '0x4447F631F5868bFA03A6e6ae2D2da9f22c787E44'
 ) as `0x${string}`;
-
-// 5-minute nonce window. Replay possible within this period (testnet acceptable).
-const NONCE_WINDOW_MS = 5 * 60 * 1000;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -98,24 +98,63 @@ Deno.serve(async (req) => {
   }
 
   // -------------------------------------------------------------------------
-  // 2. Validate nonce — must be a millisecond timestamp (Date.now().toString())
-  //    UUID nonces are explicitly rejected; they cannot be timestamp-validated
-  //    without a stored-nonce table.
+  // 2. Service-role client for all privileged DB and admin-auth operations.
+  //    Created early because CEI requires DB access before signature verify.
   // -------------------------------------------------------------------------
-  const nonceMs = parseInt(nonce, 10);
-  if (isNaN(nonceMs) || nonceMs <= 0) {
-    return json(
-      { error: 'Invalid nonce: must be Date.now().toString() (millisecond timestamp)' },
-      400,
-    );
-  }
-  if (Date.now() - nonceMs > NONCE_WINDOW_MS) {
-    return json({ error: 'Nonce expired — request must be within 5 minutes' }, 400);
+  const serviceClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  // -------------------------------------------------------------------------
+  // 3. Cleanup expired nonces (best-effort — do not fail the request on error)
+  // -------------------------------------------------------------------------
+  const { error: cleanupErr } = await serviceClient
+    .from('auth_nonces')
+    .delete()
+    .lt('expires_at', new Date().toISOString());
+  if (cleanupErr) {
+    console.warn('auth_nonces cleanup failed (non-fatal):', cleanupErr.message);
   }
 
   // -------------------------------------------------------------------------
-  // 3. Reconstruct EIP-712 domain + message -- must match useWallet.ts authenticate() exactly.
-  //    Any divergence (chainId, types, primaryType, field names) will fail signature check.
+  // 4. CEI — Mark nonce as used BEFORE signature verification.
+  //    Atomic UPDATE ... WHERE used = false AND expires_at > now() ensures:
+  //      - Nonce exists and was issued by wallet-auth-nonce
+  //      - Nonce has not expired
+  //      - Nonce has not already been consumed (single-use)
+  //    If UPDATE matches 0 rows: nonce is invalid, expired, or already used.
+  //    This is the "Effects" step of CEI — state is changed before the
+  //    expensive "Interactions" step (signature verification). Even if
+  //    verifyTypedData crashes or times out, the nonce is already burned.
+  // -------------------------------------------------------------------------
+  const { data: nonceRows, error: nonceErr } = await serviceClient
+    .from('auth_nonces')
+    .update({ used: true })
+    .eq('nonce', nonce)
+    .eq('used', false)
+    .gt('expires_at', new Date().toISOString())
+    .select('wallet_address');
+
+  if (nonceErr) {
+    console.error('Nonce consumption failed:', nonceErr.message);
+    return json({ error: 'Nonce verification failed' }, 500);
+  }
+  if (!nonceRows || nonceRows.length === 0) {
+    return json({ error: 'Invalid, expired, or already used nonce' }, 401);
+  }
+
+  // Verify the nonce was issued for the requesting wallet address.
+  const nonceWallet = nonceRows[0].wallet_address;
+  if (nonceWallet !== (address as string).toLowerCase()) {
+    // Nonce was issued for a different wallet — reject.
+    return json({ error: 'Nonce was not issued for this wallet address' }, 401);
+  }
+
+  // -------------------------------------------------------------------------
+  // 5. Reconstruct EIP-712 domain + message — must match useWallet.ts exactly.
+  //    Any divergence (chainId, types, primaryType, field names) fails sig check.
   // -------------------------------------------------------------------------
   const domain = {
     name:              'Kijo',
@@ -129,7 +168,8 @@ Deno.serve(async (req) => {
   };
 
   // -------------------------------------------------------------------------
-  // 4. Verify ECDSA signature via viem — recovers signer from the message hash
+  // 6. Verify ECDSA signature via viem — recovers signer from the message hash.
+  //    This is the "Interactions" step of CEI — the nonce is already burned.
   // -------------------------------------------------------------------------
   let signatureValid: boolean;
   try {
@@ -142,52 +182,15 @@ Deno.serve(async (req) => {
       signature:   signature as `0x${string}`,
     });
   } catch (err) {
-    return json({ error: `Signature verification error: ${(err as Error).message}` }, 400);
+    console.error('Signature verification error:', (err as Error).message);
+    return json({ error: 'Signature verification failed' }, 400);
   }
   if (!signatureValid) {
-    return json({ error: 'Signature invalid' }, 401);
+    return json({ error: 'Signature verification failed' }, 401);
   }
 
   // -------------------------------------------------------------------------
-  // 5. Service-role client for all privileged DB and admin-auth operations
-  // -------------------------------------------------------------------------
-  const serviceClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-
-  // -------------------------------------------------------------------------
-  // 2b. Nonce one-time-use enforcement -- prevents replay within the 5-min window.
-  //     INSERT fails on PRIMARY KEY violation (code '23505') if nonce already used.
-  //     Cleanup of expired rows runs here to avoid unbounded table growth.
-  // -------------------------------------------------------------------------
-
-  // Cleanup expired nonces (best-effort: log but do not fail the request on error)
-  const { error: cleanupErr } = await serviceClient
-    .from('used_nonces')
-    .delete()
-    .lt('expires_at', new Date().toISOString());
-  if (cleanupErr) {
-    console.warn('used_nonces cleanup failed (non-fatal):', cleanupErr.message);
-  }
-
-  // Record nonce as used. If INSERT fails with 23505, the nonce was already consumed.
-  const { error: nonceInsertErr } = await serviceClient
-    .from('used_nonces')
-    .insert({
-      nonce,
-      expires_at: new Date(nonceMs + NONCE_WINDOW_MS).toISOString(),
-    });
-  if (nonceInsertErr) {
-    if (nonceInsertErr.code === '23505') {
-      return json({ error: 'Nonce already used -- generate a new authentication request' }, 409);
-    }
-    return json({ error: `Nonce storage failed: ${nonceInsertErr.message}` }, 500);
-  }
-
-  // -------------------------------------------------------------------------
-  // 6. Resolve user_id from wallet address via SECURITY DEFINER RPC
+  // 7. Resolve user_id from wallet address via SECURITY DEFINER RPC
   //    (wallets has no user_id column; join is through auth.users.raw_user_meta_data)
   // -------------------------------------------------------------------------
   const { data: userId, error: rpcErr } = await serviceClient.rpc(
@@ -197,14 +200,14 @@ Deno.serve(async (req) => {
 
   if (rpcErr) {
     console.error('wallet lookup RPC error:', rpcErr);
-    return json({ error: `Wallet lookup failed: ${rpcErr.message}` }, 500);
+    return json({ error: 'Wallet lookup failed' }, 500);
   }
   if (!userId) {
     return json({ error: 'Wallet not registered' }, 404);
   }
 
   // -------------------------------------------------------------------------
-  // 7. Fetch the auth user — need email for generateLink
+  // 8. Fetch the auth user — need email for generateLink
   // -------------------------------------------------------------------------
   const {
     data: { user },
@@ -224,7 +227,7 @@ Deno.serve(async (req) => {
   }
 
   // -------------------------------------------------------------------------
-  // 8. Generate a one-time magic-link token (does NOT send email — admin API)
+  // 9. Generate a one-time magic-link token (does NOT send email — admin API)
   // -------------------------------------------------------------------------
   const { data: linkData, error: linkErr } = await serviceClient.auth.admin.generateLink({
     type: 'magiclink',
@@ -233,13 +236,13 @@ Deno.serve(async (req) => {
   if (linkErr || !linkData?.properties?.hashed_token) {
     console.error('generateLink error:', linkErr);
     return json(
-      { error: `Failed to generate auth token: ${linkErr?.message ?? 'unknown'}` },
+      { error: 'Failed to generate auth token' },
       500,
     );
   }
 
   // -------------------------------------------------------------------------
-  // 9. Exchange hashed token for a Supabase session JWT
+  // 10. Exchange hashed token for a Supabase session JWT
   // -------------------------------------------------------------------------
   const { data: otpData, error: otpErr } = await serviceClient.auth.verifyOtp({
     token_hash: linkData.properties.hashed_token,
@@ -247,10 +250,7 @@ Deno.serve(async (req) => {
   });
   if (otpErr || !otpData?.session?.access_token) {
     console.error('verifyOtp error:', otpErr);
-    return json(
-      { error: `Failed to create session: ${otpErr?.message ?? 'unknown'}` },
-      500,
-    );
+    return json({ error: 'Failed to create session' }, 500);
   }
 
   return json({

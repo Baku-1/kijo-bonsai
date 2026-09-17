@@ -5,7 +5,7 @@
  *
  * WHY A BUNDLE:
  *   Supabase's Deno runtime cannot resolve the monorepo workspace paths
- *   (../../../../packages/*/dist/index.js) at deploy time -- the engine
+ *   (workspace package dist/index.js files) at deploy time -- the engine
  *   packages are not published to npm and have no publishConfig. See the
  *   header comment of get-tree/index.ts for the original failure. The fix is
  *   to bundle the engine into ONE self-contained ESM file that the function
@@ -34,7 +34,7 @@
  */
 
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, relative, isAbsolute } from 'node:path';
 import { readFileSync } from 'node:fs';
 
 let esbuild;
@@ -69,6 +69,26 @@ try {
     logLevel: 'info',
     legalComments: 'none',
     sourcemap: false,
+    // Resolve this closed, pure engine graph explicitly. On Windows a native
+    // esbuild child may not enumerate ancestor folders even when Node can read
+    // every authorized project file. No dependency requires ancestor discovery.
+    plugins: [{
+      name: 'kijo-engine-files',
+      setup(build) {
+        build.onResolve({ filter: /.*/ }, args => {
+          const workspace = { '@kijo/shared': 'shared', '@kijo/engine': 'engine', '@kijo/voxelizer': 'voxelizer' };
+          const path = workspace[args.path]
+            ? join(repoRoot, 'packages', workspace[args.path], 'dist', 'index.js')
+            : resolve(args.importer ? dirname(args.importer) : repoRoot, args.path);
+          const inside = relative(repoRoot, path);
+          if (inside.startsWith('..') || isAbsolute(inside)) throw new Error('Engine import outside project: ' + args.path);
+          return { path, namespace: 'kijo-engine' };
+        });
+        build.onLoad({ filter: /.*/, namespace: 'kijo-engine' }, args => ({
+          contents: readFileSync(args.path, 'utf8'), loader: 'js',
+        }));
+      },
+    }],
   });
 } catch (err) {
   console.error('[build-engine-bundle] esbuild failed.');

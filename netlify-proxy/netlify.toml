@@ -1,0 +1,14 @@
+# Redirect-only proxy: routes api.kijo.xyz/nft/* to Supabase Edge Functions.
+# No build step needed.
+
+[[redirects]]
+  from   = "/nft/metadata/:tokenId"
+  to     = "https://xutjubkaskwchzyzwryk.supabase.co/functions/v1/nft-metadata/:tokenId"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/nft/image/:tokenId"
+  to     = "https://xutjubkaskwchzyzwryk.supabase.co/functions/v1/nft-image/:tokenId"
+  status = 200
+  force  = true

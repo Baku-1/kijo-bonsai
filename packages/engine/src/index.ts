@@ -1,9 +1,12 @@
 export { MAX_DEPTH } from './tree.js';
-export { SPECIES } from './species.js';
 export { nextRand } from './rng.js';
-export type { SpeciesParams } from './species.js';
+// Species grammar retired into @kijo/shared in design step I8: SPECIES_PARAMS is the one live
+// table. SpeciesParams stays part of the engine's public surface as a type re-export so
+// consumers that imported it from here keep compiling.
+export type { SpeciesParams } from '@kijo/shared';
 export { BonsaiTree } from './BonsaiTree.js';
 export { GrowthEngine } from './GrowthEngine.js';
+export type { TaperReport, TaperNode, GrowthStatSnapshot } from './GrowthEngine.js';
 export { CareLogReplay, CareLogReplayError, MAX_REPLAY_DAYS } from './CareLogReplay.js';
 export { PruneEngine } from './PruneEngine.js';
 export { WireEngine, WIRE_MAX_THICKNESS, WIRE_MAX_ANGLE_DELTA } from './WireEngine.js';

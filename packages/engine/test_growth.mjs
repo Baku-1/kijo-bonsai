@@ -103,5 +103,68 @@ console.log('G6 — No explosion');
   assert(count >= 5 && count <= 200, 'branch count in sane range [5, 200]', `got ${count}`);
 }
 
+// ---------------------------------------------------------------------------
+// G7 - v2 structural band: 15-30 living branches (trunk excluded) at day 180 under
+//      REGIME_HEALTHY, for all three species (design 3.4 / step I4 / R1).
+// REGIME_HEALTHY and the seeds below use the SAME definition as scripts/band-check.mjs
+// (the calibration instrument): water daily to moisture 60, fertilize every 7 days, no
+// pruning, 180 days. The floor/ceiling controller (design 3.2c / step I5) is not part of
+// this build, so this count is the structural fix (3.2a trunk re-fork + 3.2b internodes)
+// alone -- if a species is under 15 the frontier is too thin, not the floor missing.
+// ---------------------------------------------------------------------------
+const BAND_MIN = 15;
+const BAND_MAX = 30;
+const REGIME_HEALTHY = { waterTarget: 60, fertilizeEvery: 7, days: 180 };
+const BAND_SEEDS = {
+  hardwood:  464497,           // engine canonical calibration seed
+  evergreen: 20260909,
+  tropical:  7472909771253292, // audited kijonsai 140ec05f (GOAL-GROWTH-ENGINE.md:18)
+};
+
+function runHealthy(seed, species, days = REGIME_HEALTHY.days) {
+  const tree = new BonsaiTree(seed, species);
+  for (let d = 0; d < days; d++) {
+    const deficit = REGIME_HEALTHY.waterTarget - tree.getMoisture();
+    if (deficit > 0) tree.water(deficit); // water() rejects amount <= 0
+    if (d % REGIME_HEALTHY.fertilizeEvery === 0) tree.fertilize();
+    GrowthEngine.growTick(tree);
+  }
+  return tree;
+}
+
+console.log('G7 - v2 structural band (REGIME_HEALTHY, 180 days)');
+{
+  for (const species of ['hardwood', 'evergreen', 'tropical']) {
+    const tree = runHealthy(BAND_SEEDS[species], species);
+    const count = tree.countLivingBranches(); // excludes trunk
+    const mains = tree.getBranches().filter(b => !b.pruned && b.depth === 1).length;
+    const inBand = count >= BAND_MIN && count <= BAND_MAX;
+    console.log(`  ${species}: day=${tree.getAge()} living=${count} depth1Mains=${mains} trunkLen=${tree.getRoot().length.toFixed(2)} health=${tree.getHealth().toFixed(1)} moisture=${tree.getMoisture().toFixed(1)} inBand=${inBand}`);
+    assert(count >= BAND_MIN && count <= BAND_MAX, `${species}: day-180 living branch count inside the 15-30 band`, `got ${count}`);
+    // Regression guard for the design 3.1 root cause: the trunk used to fork exactly once in
+    // a tree's entire lifetime, which is why the audited kijonsai was a bare spine.
+    assert(mains > 1, `${species}: trunk produced more than one depth-1 main over 180 days`, `got ${mains}`);
+    // A6 / R-4 invariant: branches are born at exactly length 1.0, so accumulated extension
+    // is round4(b.length - 1.0) and no Branch field is needed to store it.
+    const tooShort = tree.getBranches().filter(b => !b.pruned && b.length < 1.0).length;
+    assert(tooShort === 0, `${species}: newborn-length invariant (no living branch below 1.0)`, `${tooShort} violations`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// G8 - determinism under the named regime (two identical runs, identical trees)
+// ---------------------------------------------------------------------------
+console.log('G8 - determinism under REGIME_HEALTHY');
+{
+  const a = runHealthy(BAND_SEEDS.hardwood, 'hardwood');
+  const b = runHealthy(BAND_SEEDS.hardwood, 'hardwood');
+  assert(
+    JSON.stringify(a.getBranches()) === JSON.stringify(b.getBranches()),
+    'two REGIME_HEALTHY runs produce identical branch arrays'
+  );
+  assert(a.getTotalMass() === b.getTotalMass(), 'two REGIME_HEALTHY runs agree on totalMass');
+  assert(a.countLivingBranches() === b.countLivingBranches(), 'two REGIME_HEALTHY runs agree on living branch count');
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

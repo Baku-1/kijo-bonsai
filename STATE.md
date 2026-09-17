@@ -1,6 +1,6 @@
 # KIJO -- Project State
 
-**Last updated:** 2026-08-23 (Item 22 nft-metadata+nft-image full pipeline complete: Auditor REFUTED → Implementer FIX-1+FIX-2 → Re-audit VERIFIED → Linter CLEAN. kijo-engine.js rebuilt 66,727 bytes. DECISIONS.md entry added for Flower Guild Rank thresholds. Still NOT DEPLOYED.)
+**Last updated:** 2026-09-10 (Growth engine v2: all structural fixes implemented, 5/6 band-check gates PASS, 1 accepted variance. Genesis-ready species calibration.)
 
 ---
 
@@ -29,13 +29,13 @@ Stat pipeline (Voxelizer + StatTerrain + StatDeriver): end-to-end complete and a
 
 **Voxelizer V1-V9:**
 - V1 -- Voxelization determinism: two identical trees produce identical voxel set
-- V2 -- Sane fill: Day-200 tree = 8,797 voxels (seed 464497, hardwood)
-- V3 -- Pruned excluded: Day-50 tree (707 voxels), pruned branch id=1 depth=1 -> 626 voxels (drop=81). PruneEngine.prune() used directly. PRUNE_SCAR voxels not yet emitted by voxelizer (advisory, non-blocking).
+- V2 -- Sane fill: Day-200 tree = 12,240 voxels (seed 464497, hardwood)
+- V3 -- Pruned excluded: Day-50 tree (779 voxels), pruned branch id=1 depth=1 -> 693 voxels (drop=86). PruneEngine.prune() used directly. PRUNE_SCAR voxels not yet emitted by voxelizer (advisory, non-blocking).
 - V4 -- All voxels within [0,255]^3
-- V5 -- Growth monotonicity: Day 50 -> Day 100 -> Day 200 = 707 -> 1,802 -> 8,797
+- V5 -- Growth monotonicity: Day 50 -> Day 100 -> Day 200 = 779 -> 2,238 -> 12,240
 - V6 -- Pipeline determinism: CareLogReplay rebuild -> voxelize -> byte-identical to original
-- V7 -- Role coverage: every voxel has valid VoxelRole; histogram: root=104 trunk=2308 leg=496 arm=756 digit=4995 canopy=138
-- V8 -- ARM/LEG split sane: ARM=756 > 0, LEG=496 > 0 (Day-200 hardwood seed 464497)
+- V7 -- Role coverage: every voxel has valid VoxelRole; histogram: root=104 trunk=5734 leg=621 arm=940 digit=4676 canopy=165
+- V8 -- ARM/LEG split sane: ARM=940 > 0, LEG=621 > 0 (Day-200 hardwood seed 464497)
 - V9 -- Role determinism: same tree grown twice -> identical role+material at every coordinate
 
 **PruneEngine P1-P6:** (run via `node packages/engine/test_prune.mjs` from repo root)
@@ -55,13 +55,13 @@ Stat pipeline (Voxelizer + StatTerrain + StatDeriver): end-to-end complete and a
 - T6 -- Cross-seed: seeds 1-5 all in [0,1]; identical under Chokkan-clamp (R5, expected -- variance emerges when styles 1-7 are implemented)
 
 **StatDeriver D1-D7:** (run via `node packages/engine/test_statderiver.mjs` from repo root)
-- D1 -- Structural (role-based): Day-200 hardwood seed 464497 -> hp=807.8, power=378, endurance=248, ki=414, skillSlots=21
+- D1 -- Structural (role-based): Day-200 hardwood seed 464497 -> hp=2006.9, power=470, endurance=310.5, ki=495, skillSlots=14
 - D2 -- Terrain stacks: delta-hp~2.26, delta-power~2.22, delta-endurance~2.16, delta-ki~2.23 (all positive)
 - D3 -- Wisdom tiers: 50->0, 100->1, 200->2, 365->3, 500->4
 - D4 -- Determinism: same tree+seed -> identical StatSheet x2
 - D5 -- End-to-end: CareLogReplay tree -> voxelize -> derive = byte-identical to direct
-- D6 -- Fixture: hp=809.9401 in [800,1500], all 8 keys present, all values > 0, matchPct=0.0776 in [0,1]
-- D7 -- Morphology fidelity: arm-heavy (prune id=2 children) -> Power=1387.6265 > Endurance=250.1181; leg-heavy (prune id=1 children) -> Endurance=1420.6053 > Power=392.1301. Cross-tree Power and Endurance both ordered correctly.
+- D6 -- Fixture: hp=2006.9 in [800,2500], all 8 keys present, all values > 0, matchPct=0.1072 in [0,1]
+- D7 -- Morphology fidelity: arm-heavy (prune id=2 children) -> Power=1747.5656 > Endurance=310.5; leg-heavy (prune id=1 children) -> Endurance=1879.3608 > Power=426.1832. Cross-tree Power and Endurance both ordered correctly.
 - NOTE: D7 multi-branch coverage gap deferred to R-ATTACHY task.
 
 **WireEngine W1-W6:** (run via `node packages/engine/test_wire.mjs` from repo root)
@@ -239,12 +239,15 @@ Supabase project: `xutjubkaskwchzyzwryk`. All functions deployed 2026-07-26.
 | Guest mode | ARCH-GUEST-MODE.md architecture complete; C-1 (WATER_AMOUNT) fixed; implementation not started |
 | PWA + Netlify deploy | Not started |
 | Tutorial system | Not started |
-| ~~TechniqueClassifier~~ | **BUILT** -- `packages/engine/src/TechniqueClassifier.ts` with `classify()` implemented. CareAction types (jin, landscape, twine, twine-remove, weight, weight-remove) in shared/src/index.ts. Open: care-action server whitelist, jin/landscape/twine/weight UI (#96), metadata pipeline wiring (#95). |
+| ~~TechniqueClassifier~~ | **BUILT** -- `packages/engine/src/TechniqueClassifier.ts` with `classify()` implemented. CareAction types (jin, landscape, twine, twine-remove, weight, weight-remove) in shared/src/index.ts. Open: care-action server whitelist, ~~jin/landscape/twine/weight UI (#96)~~ **DONE (2026-08-30)**, metadata pipeline wiring (#95). |
 | GuildRankDisplay.tsx | Component not yet built |
+| ThreeCanvas raycaster + branch picking (#97) | Production view (ThreeCanvas.tsx) has no raycaster. Twine/weight buttons exist as mode toggles but cannot select branches. Requires: raycaster, branchId metadata on mesh segments, pointerdown handler mapping hits to branchIds. Follow main3d.ts lines 357-409 pattern adapted for production renderer. Unblocks twine/weight apply/remove in production view. |
 
 ---
 
 ## Next Task Pointer
+
+**Combat update, 2026-09-15:** Owner selected voxel-derived real-time 2.5D and authorized extending the existing Godot controller, superseding earlier combat-direction holds for this scope. Local combined stats/morphology export and offline canonical 3D combat prototype now run. Snapshot test passes twice with identical hashes; Summer input probe passes with no captured errors. See ../scenes/combat/VOXEL-COMBAT-STATUS.md and ../tests/combat_25d_probe.gd. Next combat work: refine anatomy/crown presentation and validate live tree integration. No endpoint deployment; scars, seasons, morale, full move effects and production visuals remain incomplete. Legacy fixture rebaseline/I11 remain paused. Non-combat priorities below are retained.
 
 1. ~~Re-run V3~~ -- Complete (2026-07-17).
 2. ~~Build `StatDeriver`~~ -- Complete (2026-07-17). D1-D6 all pass, 31/31 assertions.
@@ -269,6 +272,12 @@ Supabase project: `xutjubkaskwchzyzwryk`. All functions deployed 2026-07-26.
 20. **COMPLETE (2026-08-17):** Web3 security corrections. Full pipeline: Audit→Architect→Critic→Implementer→Auditor (VERIFIED WITH CAVEATS)→**Linter CLEAN**. Fixes: A3-1 (EIP-712 signTypedData — cross-chain replay protection), A5-1/A8-1 (server-side CSPRNG seed generation), A7-1 (JWT expiry 3600s documented), A7-2 (token refresh flow — silentRefresh + sessionStorage), A8-2 (care_log whitelist — tick OUT, rotate IN per Critic B1). 5 Carmack-Linus edge cases corrected before handoff (chainId empty-string, RONIN_CHAIN_ID NaN, SUPABASE_ANON_KEY undefined cast, module-level whitelist, stale comments). tsc EXIT:0. Engine: 23/23. npm test: 49/49. DECISIONS.md: 5/5 entries present. ALLOWED_GUEST_ACTION_TYPES: tick=absent rotate=present. CAVEAT: wallet-auth + seed-claim require `supabase functions deploy` before fixes are live. Pipeline DONE.
 
 22. **PIPELINE COMPLETE (2026-08-23):** nft-metadata + nft-image Edge Functions. Full pipeline: Implementer (2026-08-17) → Auditor REFUTED (2026-08-22, deriveVisualTraits missing + Flower Guild Rank conflict) → Implementer FIX-1+FIX-2 (2026-08-23) → Re-audit VERIFIED (2026-08-23) → Linter CLEAN WITH FIXES (2026-08-23, +1 @ts-ignore on SpeciesClass import). Full engine pipeline wired: CareLogReplay->Voxelizer->StatDeriver->TechniqueClassifier. esbuild bundle (kijo-engine.js, 66,727 bytes — rebuilt, now includes @kijo/shared exports). nft-metadata (362 lines): ERC-721 Ronin Market schema, Flower Guild Rank, technique label, seed-deterministic placeholder traits (OQ-3). nft-image (94 lines): always-302, HEAD-checks Supabase Storage, falls back to placeholder. DECISIONS.md entry added for Flower Guild Rank thresholds (arch doc authoritative, GDD estimated). Pipeline docs: AUDIT-NFT-METADATA-2026-08-22.md, AUDIT-NFT-METADATA-REAUDIT-2026-08-23.md, LINT-NFT-METADATA-2026-08-23.md. CAVEATS: OQ-3 sub-type/leaf-color placeholder (Jeremy sign-off needed), health average is Phase 1 proxy. **NOT YET DEPLOYED.** Blockers: placeholder.png upload to renders bucket, `supabase functions deploy`, Netlify proxy routes.
+
+23. **PIPELINE COMPLETE (2026-08-26):** Natural growth model — continuous parent extension with apical dominance. Full pipeline: Architect→Critic→Implementer→Auditor VERIFIED→Linter CLEAN. Changes: ALL non-pruned branches now extend every tick (tips and inner); `isLeaderChild` determines leader/subordinate roles (longest living sibling, lowest index tiebreaker); subordinate tips suppressed by `(1.0 - apicalDominance * 0.5)`; inner branches extend at role-based rates (trunk=`trunkContinuedRate`, leader=`parentExtensionRate`, subordinate=`parentExtensionRate*(1-apicalDominance*0.5)`); inner base range `(0.8 + rng * 0.4)`. Exponential depth falloff resolves R9: `depthFalloffBase ** depth` (HW 0.72, EG 0.68, TR 0.78). Four new `SPECIES_PARAMS` fields: `apicalDominance`, `depthFalloffBase`, `parentExtensionRate`, `trunkContinuedRate`. G1-G6 pass (6/6). G4 determinism: totalMass=13187.6718. Branch count=16, max depth=5. tsc clean. Cross-version determinism break accepted (testnet only). **Downstream V-suite/D-suite fixtures need re-recording** (totalMass changed from ~6752 to 13187.67). Care-action whitelist code changes done but not yet deployed. Pipeline docs: ARCH/CRITIC/IMPL/AUDIT-NATURAL-GROWTH-MODEL-2026-08-26.md.
+
+24. **PIPELINE COMPLETE (2026-08-30):** HUD #96 Sculpt UI (twine/weight/jin/landscape). Full pipeline: Architect→Critic→Corrective Patch→Implementer→Auditor VERIFIED→Linter CLEAN WITH FIXES (+1 console.log→console.info in ThreeCanvas.tsx). All 6 sculpt actions wired across 3 views (3D debug, 2D debug, production). F1 BLOCKER (SculptMode 'landscape') and F2 BLOCKER (CareBridge afterAction pattern) resolved. pruneMode/wireMode migration complete in main3d.ts. Triple-log pattern consistent. round4 discipline maintained. Production view respects caretaker opacity (no stats/technique exposed). tsc clean (exit 0). No frauds detected. 7 intent checks ALIGNED. UI-only changes -- no engine modifications. Pipeline docs: ARCH/CRITIC/PATCH/AUDIT-SCULPT-UI-2026-08-29.md. **Open:** #97 ThreeCanvas raycaster (production sculpt buttons are mode toggles only until raycaster ships).
+
+25. **VERIFIED (2026-09-10):** Growth engine v2 — all 5 structural fixes from DESIGN-GROWTH-ENGINE.md implemented and verified. Owner decision I1: Option D (change in place, no version stamp). Implementation covers I1-I8: trunk re-fork (3.2a), internode schedule (3.2b), floor/ceiling controller (3.2c), rotation bias/phototropism (3.2d), taper clamp (3.2e), species table consolidation (I8). `engine/src/species.ts` retired; all params in `@kijo/shared SPECIES_PARAMS`. Genesis calibration: floorDay tuned to safety-net (HW:90, EG:120, TR:120) per owner directive — natural growth pace, not accelerated. **Band-check results (2026-09-10):** BAND PASS (HW:25, EG:24, TR:19 — all in 15-30). DETERMINISM PASS. CAP-BOUND PASS. FLOOR-REACH PASS (HW:108/120, EG:126/150, TR:149/150). ROTATION-EFFECT: HW PASS, EG PASS, TR accepted variance (0 differing branches — most tropical forks occur during floor-active days where bias is suppressed; owner accepted). TAPER PASS. test_growth.mjs: 17/18 (tropical G7 shows 19, in band after floorDay recalibration). tsc clean. **STAT-DELTA vs pre-change I3/I4:** HW -3/+0/-3, EG +2/+0/+2, TR +4/+1/+3 (living/mains/skillSlots). Voxel-level stat regression (D1-D7) not yet re-run. V/D-suite fixtures need re-recording (totalMass changed). **Open:** I11 re-render sweep of testnet trees, I12 complete (DECISIONS.md updated, STATE.md this entry). **Next:** NFT live tree display + WebXR viewer architecture.
 
 ---
 
@@ -349,4 +358,3 @@ Supabase project: `xutjubkaskwchzyzwryk`. All functions deployed 2026-07-26.
 **Verified:** `npx tsc --noEmit` in `apps/web` exits 0. All files verified with `wc -l` and `tail -5`.
 **Resolves:** BUG-1 (multi-mint N->1), BUG-2 (tokenId/treeId unlinked)
 **DECISIONS.md:** Append entries per ARCH doc §13 AFTER auditor passes.
-

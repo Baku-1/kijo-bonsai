@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Bonsai Atelier",
+      "hasCanvas": false,
+      "bodyTextLen": 31,
+      "bodyTextHash": "90051d7304e8617de191edad554b3783bb9c61caadfb5586828324d8ecd6469d",
+      "bodyTextPrefix": "A QUIET PRACTICE Bonsai Atelier",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Bonsai Atelier",
+      "hasCanvas": false,
+      "bodyTextLen": 31,
+      "bodyTextHash": "90051d7304e8617de191edad554b3783bb9c61caadfb5586828324d8ecd6469d",
+      "bodyTextPrefix": "A QUIET PRACTICE Bonsai Atelier",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}

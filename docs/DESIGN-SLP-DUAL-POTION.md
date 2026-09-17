@@ -3,6 +3,8 @@
 **Confirmed by Jeremy:** from GDD (v0.2, July 23 2026)
 **Status: AUTHORITATIVE**
 
+**Jeremy's clarification — 2026-09-16:** Morale rises gradually while the tree is being cared for. Potions are a quick fix: their recovery is immediate on successful application (after server confirmation of the burn for Ronin SLP). Sustained care can reach 100% without a potion. The 65% ceiling applies to Ronin SLP recovery, not care-based recovery.
+
 ---
 
 ## Overview
@@ -16,7 +18,7 @@ Two potions share the name "SLP." They serve different users, live in different 
 | **Tradeable?** | No | Yes (DEX, marketplace) |
 | **On-chain?** | Never | Always |
 | **Cost** | Free (crafted from care byproducts) | Market price of Ronin SLP |
-| **Morale restoration** | Full (100%) | Partial (caps at 65%) |
+| **Morale restoration** | Immediate full restoration (100%) | Immediate partial restoration after confirmed burn (caps at 65%) |
 | **Diminishing returns?** | No | Yes |
 | **Burned on use?** | N/A (destroyed server-side, never on-chain) | Yes — permanently burned from Ronin supply |
 
@@ -47,9 +49,9 @@ All ingredients come from ordinary care activity. A caretaker who tends their tr
 
 ### Effect
 
-Soothing Leaf Potion provides **full morale restoration** over time. Applied to the tree (or rather, offered to the kijo through the tree), it calms the spirit through the care bond. The kijo soothed by her caretaker's potion returns to full fighting willingness.
+Soothing Leaf Potion provides **immediate full morale restoration to 100%** when successfully applied. Offered to the kijo through the tree, it calms the spirit through the care bond and returns her to full fighting willingness.
 
-This is the only mechanism that can raise morale above 65%. No other item, no amount of battle victories, no Smooth Love Potion can reach full morale. Only the caretaker's direct care restores a kijo completely.
+Sustained care also restores morale gradually to 100%; a potion is not required for full recovery. The potion is the quick fix. The 65% ceiling applies specifically to Smooth Love Potion recovery and must not cap care-based recovery. Existing combat-event gains remain defined in `DESIGN-SPIRIT-MORALE.md`.
 
 ---
 
@@ -74,7 +76,7 @@ Fighters spend real SLP to partially recover their kijo's morale — enough to c
   - First use: ~20–30% morale restored
   - Second use in same window: ~15%
   - Third use in same window: ~8%
-- **Morale cap: 65%.** No matter how many SLP are burned, morale cannot exceed 65% through this mechanism. Full morale (100%) requires the caretaker's Soothing Leaf Potion.
+- **Morale cap: 65%.** No matter how many SLP are burned, morale cannot exceed 65% through this mechanism. The partial boost is immediate after the server confirms the burn. Full morale (100%) can be restored gradually through sustained care or immediately through the caretaker's Soothing Leaf Potion.
 - The diminishing returns and cap are not bugs — they are explicit design to prevent SLP from fully replacing caretaker care.
 
 ### Acquisition Channels
@@ -96,7 +98,7 @@ Kijo does not mint SLP. It only burns it. Every battle loss that triggers morale
 
 - Demand scales directly with Kijo combat activity — more fights = more losses = more SLP burned
 - Diminishing returns prevent brute-force morale farming — eventually you MUST wait for your caretaker or rest the kijo
-- The caretaker remains economically essential: SLP caps at 65%, only the caretaker's Soothing Leaf Potion reaches 100%
+- The caretaker remains economically essential: Ronin SLP recovery caps at 65%; sustained care restores morale gradually, while Soothing Leaf Potion restores 100% immediately.
 - Sky Mavis benefits because Kijo adds real utility demand to SLP without minting new supply
 - Kijo benefits because SLP has existing liquidity, exchange listings, and recognition — no cold-start token problem
 
@@ -117,7 +119,7 @@ The structural difference:
 The 65% morale cap from SLP is not a monetization decision — it is a structural design pillar. It ensures:
 
 1. **Fighters cannot eliminate caretakers from the economy.** No amount of SLP spending fully replaces what a caretaker provides.
-2. **The delegation system has permanent value.** A fighter who delegates to a skilled caretaker gains access to full 100% morale restoration. A fighter who operates solo is permanently limited to 65%.
+2. **The delegation system has permanent value.** A fighter who delegates to a skilled caretaker gains sustained care and access to immediate 100% morale restoration through Soothing Leaf Potion. A fighter relying solely on Ronin SLP for recovery is limited to 65% through that mechanism; a solo player who also tends their own tree can recover fully through care.
 3. **The care loop has permanent stakes in combat outcomes.** A neglected tree costs the fighter SLP (from morale recovery) and still can't reach full fighting capacity.
 
 ---

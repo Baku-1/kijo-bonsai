@@ -73,6 +73,12 @@
       button { min-width: 76px; padding: 12px 12px; font-size: 15px; }
     }
   </style>
+  <!--
+    @lookingglass/webxr v0.6.0 — must load BEFORE the app module so the polyfill
+    patches navigator.xr before isSessionSupported is called.
+    UMD bundle registers window.LookingGlassWebXRPolyfill automatically.
+  -->
+  <script src="https://unpkg.com/@lookingglass/webxr@0.6.0/dist/bundle/lookingglass-webxr.min.js"></script>
 </head>
 <body>
   <div id="root"></div>

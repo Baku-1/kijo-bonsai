@@ -9,6 +9,13 @@ export interface HudCallbacks {
   onWater: () => void;
   onNextDay: () => void;
   onToggleAuto: () => boolean; // returns new auto state
+  // SCULPT-ADD 2026-08-29
+  onTwine?: () => void;    // toggles twine sculpt mode
+  onWeight?: () => void;   // toggles weight sculpt mode
+  // RAYCASTER-ADD 2026-08-30
+  onPrune?: () => void;    // toggles prune sculpt mode
+  onWire?: () => void;     // toggles wire sculpt mode
+  onJin?: () => void;      // toggles jin sculpt mode
 }
 
 const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'];
@@ -44,6 +51,23 @@ export class CareHud {
       this.autoBtn.textContent = running ? '⏸ Pause' : '▶ Auto';
       this.autoBtn.classList.toggle('active', running);
     });
+
+    // Sculpt mode buttons (SCULPT-ADD 2026-08-29) -- optional, guarded.
+    const twineBtn = document.getElementById('btn-twine-mode');
+    if (twineBtn && cb.onTwine) {
+      twineBtn.addEventListener('click', cb.onTwine);
+    }
+    const weightBtn = document.getElementById('btn-weight-mode');
+    if (weightBtn && cb.onWeight) {
+      weightBtn.addEventListener('click', cb.onWeight);
+    }
+    // RAYCASTER-ADD 2026-08-30
+    const pruneBtn = document.getElementById('btn-prune-mode');
+    if (pruneBtn && cb.onPrune) pruneBtn.addEventListener('click', cb.onPrune);
+    const wireBtn = document.getElementById('btn-wire-mode');
+    if (wireBtn && cb.onWire) wireBtn.addEventListener('click', cb.onWire);
+    const jinBtn = document.getElementById('btn-jin-mode');
+    if (jinBtn && cb.onJin) jinBtn.addEventListener('click', cb.onJin);
   }
 
   /** Sync the Auto button label/state from outside (boot reset, programmatic stops). */

@@ -338,7 +338,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const metadata = {
     name:        `Kijonsai #${tokenId}`,
     description: 'A living bonsai -- grown through care, shaped by the player.',
-    image:       `https://api.kijo.xyz/nft/image/${tokenId}`,
+    image:       `https://api-kijo.netlify.app/nft/image/${tokenId}`,
     attributes: [
       // Core identity
       { display_type: 'number', trait_type: 'Seed',             value: treeRow.seed },

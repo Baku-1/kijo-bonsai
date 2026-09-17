@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File \"C:\\Users\\jerem\\.gemini\\antigravity\\playground\\kijo\\kijo-bonsai\\scripts\\claude-hooks\\session-start.ps1\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File \"C:\\Users\\jerem\\.gemini\\antigravity\\playground\\kijo\\kijo-bonsai\\scripts\\claude-hooks\\session-end.ps1\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}

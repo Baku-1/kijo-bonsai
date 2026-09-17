@@ -58,6 +58,11 @@ Kijo-specific auditor checks (all mandatory):
 
 - **cited-logic-validator**: Goal-driven logic/test validation skill. Every claim about what code does must be grounded in cited spec or known-developer source, with +/-25 lines of surrounding context read before validating any logic. Works for tests AND implementation logic. No assertion without a citation. Scope: any engineering logic gate — not just test coverage.
 
+## Open Tasks
+
+- **#96 — Sculpt UI (twine/weight/jin/landscape):** COMPLETE (2026-08-30). Full pipeline: Architect→Critic→Corrective Patch→Implementer→Auditor VERIFIED→Linter CLEAN WITH FIXES. See LINT-SCULPT-UI-2026-08-29.md.
+- **#97 — ThreeCanvas raycaster + branch picking:** Production view has no raycaster. Twine/weight mode buttons are stubs until this ships. Follow main3d.ts raycaster pattern. Unblocks sculpt actions in production view.
+
 ## Pipeline Stage Completions (2026-08-14/17)
 
 - TwineWeightEngine Phase 2: COMPLETE. TWE1-TWE9 pass (37/37). Security tests 55/55. OQ-5 STACK semantics documented in DECISIONS.md.

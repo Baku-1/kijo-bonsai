@@ -280,11 +280,10 @@ export async function persistCareAction(
 // When current_day === 0 (no ticks yet) this is also used for day-0 actions
 // instead of reconstruct (which throws on totalDays <= 0).
 //
-// Scope: only the subset of CareActions available in the 2D/3D UI.  Other
-// types (wire, twine, weight, jin, landscape) are logged as warnings — they
-// cannot originate from these pages, but may appear if another client used
-// the same tree.  Skipping them is safe because the 2D/3D renderer does not
-// display the physics-only state they modify.
+// Scope: every CareAction in the union.  The care log is the only
+// authoritative state, so tail actions MUST be replayed faithfully — dropping
+// wire/twine/weight/jin here silently loses player work on reload (WEB3-FIX
+// 2026-09-08).  Mirror the CareLogReplay dispatch exactly.
 // ---------------------------------------------------------------------------
 export function applyCurrentDayEntries(
   tree: BonsaiTree,
@@ -299,11 +298,25 @@ export function applyCurrentDayEntries(
       tree.rotate();
     } else if (a.type === 'prune') {
       tree.prune(a.branchId);
+    } else if (a.type === 'wire') {
+      tree.wire(a.branchId, a.angleDelta);
+    } else if (a.type === 'wire-remove') {
+      tree.removeWire(a.branchId);
+    } else if (a.type === 'twine') {
+      tree.applyTwine(a.branchId, a.angleDelta, a.degradeDays);
+    } else if (a.type === 'twine-remove') {
+      tree.removeTwine(a.branchId);
+    } else if (a.type === 'weight') {
+      tree.applyWeight(a.branchId, a.weightCount);
+    } else if (a.type === 'weight-remove') {
+      tree.removeWeight(a.branchId);
+    } else if (a.type === 'jin') {
+      tree.applyJin(a.branchId, a.segmentIndex, a.jinCost);
+    } else if (a.type === 'landscape') {
+      // Landscape is display-only per GDD; no tree mutation to apply.
     } else {
-      // wire, wire-remove, twine, twine-remove, weight, weight-remove, jin, landscape
       console.warn(
-        `[kijo] applyCurrentDayEntries: skipping action '${(a as { type: string }).type}' ` +
-        `— not available in 2D/3D debug view`,
+        `[kijo] applyCurrentDayEntries: skipping unknown action '${(a as { type: string }).type}'`,
       );
     }
   }

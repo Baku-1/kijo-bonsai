@@ -83,6 +83,82 @@
             <button id="btn-wire-remove">Remove</button>
           </div>
         </div>
+        <!-- Twine controls (SCULPT-ADD 2026-08-29) -->
+        <div class="row" style="margin-top:6px">
+          <button id="btn-twine" class="grow">Twine...</button>
+        </div>
+        <div id="twine-controls" style="display:none; margin-top:6px; border-top:1px solid var(--edge); padding-top:6px">
+          <div id="twine-branch-info" style="font-size:11px; opacity:.7; margin-bottom:4px">&#8212;</div>
+          <div class="row">
+            <label for="twine-angle" style="font-size:11px; white-space:nowrap">Bend &#916;</label>
+            <input id="twine-angle" type="range" min="-28" max="28" value="0" class="grow" style="cursor:pointer" />
+            <span id="twine-angle-label" style="font-size:12px; min-width:38px; text-align:right">0&#176;</span>
+          </div>
+          <div class="row" style="margin-top:4px">
+            <button id="btn-twine-apply" class="grow">Apply</button>
+            <button id="btn-twine-remove">Remove</button>
+          </div>
+        </div>
+        <!-- Weight controls (SCULPT-ADD 2026-08-29) -->
+        <div class="row" style="margin-top:6px">
+          <button id="btn-weight" class="grow">Weight...</button>
+        </div>
+        <div id="weight-controls" style="display:none; margin-top:6px; border-top:1px solid var(--edge); padding-top:6px">
+          <div id="weight-branch-info" style="font-size:11px; opacity:.7; margin-bottom:4px">&#8212;</div>
+          <div class="row">
+            <label for="weight-count" style="font-size:11px; white-space:nowrap">Bags</label>
+            <select id="weight-count" style="width:60px">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+            <span id="weight-angle-preview" style="font-size:11px; opacity:.7">+7&#176; down</span>
+          </div>
+          <div class="row" style="margin-top:4px">
+            <button id="btn-weight-apply" class="grow">Apply</button>
+            <button id="btn-weight-remove">Remove</button>
+          </div>
+        </div>
+        <!-- Jin controls (SCULPT-ADD 2026-08-29) -->
+        <div class="row" style="margin-top:6px">
+          <button id="btn-jin" class="grow">Jin...</button>
+        </div>
+        <div id="jin-controls" style="display:none; margin-top:6px; border-top:1px solid var(--edge); padding-top:6px">
+          <div id="jin-branch-info" style="font-size:11px; opacity:.7; margin-bottom:4px">&#8212;</div>
+          <div class="row">
+            <label for="jin-segment" style="font-size:11px; white-space:nowrap">Segment</label>
+            <input id="jin-segment" type="number" min="0" value="0" style="width:60px" />
+            <span id="jin-cost-label" style="font-size:11px; color:#e0c060">Cost: 1 jin</span>
+          </div>
+          <div class="row" style="margin-top:4px">
+            <button id="btn-jin-apply" class="grow" style="background:#4a2020; border-color:#c06040">Apply (irreversible)</button>
+          </div>
+          <div id="jin-stub-warning" style="font-size:10px; color:#e07040; margin-top:2px">Phase 1: jin engine stub — will error until Phase 2</div>
+        </div>
+        <!-- Landscape controls (SCULPT-ADD 2026-08-29) — NOT branch-targeted -->
+        <div class="row" style="margin-top:6px">
+          <button id="btn-landscape" class="grow">Landscape...</button>
+        </div>
+        <div id="landscape-controls" style="display:none; margin-top:6px; border-top:1px solid var(--edge); padding-top:6px">
+          <div class="row">
+            <label for="landscape-type" style="font-size:11px">Element</label>
+            <select id="landscape-type">
+              <option value="rock">Rock</option>
+              <option value="moss">Moss</option>
+              <option value="pot">Pot</option>
+            </select>
+          </div>
+          <div class="row" style="margin-top:4px">
+            <label style="font-size:11px">Position</label>
+            <input id="landscape-x" type="number" min="0" max="255" value="128" style="width:50px" placeholder="x" />
+            <input id="landscape-y" type="number" min="0" max="255" value="38" style="width:50px" placeholder="y" />
+            <input id="landscape-z" type="number" min="0" max="255" value="128" style="width:50px" placeholder="z" />
+          </div>
+          <div class="row" style="margin-top:4px">
+            <button id="btn-landscape-apply" class="grow">Place element</button>
+          </div>
+        </div>
         <div class="row" style="margin-top:6px">
           <button id="btn-day" class="grow">Advance day &#9654;</button>
           <span>&#215;</span>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face {
+    font-family: "Cormorant Garamond";
+    font-style: normal;
+    font-weight: 500;
+    src: url("./cormorant-500.ttf") format("truetype");
+  }
+  @font-face {
+    font-family: "Cormorant Garamond";
+    font-style: normal;
+    font-weight: 600;
+    src: url("./cormorant-600.ttf") format("truetype");
+  }
+  html, body {
+    margin: 0;
+    width: 1200px;
+    height: 630px;
+    overflow: hidden;
+    background: #161310;
+  }
+  .bg {
+    position: absolute;
+    inset: 0;
+    background: url("./concept.jpg") center / cover no-repeat;
+  }
+  .vignette {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 62% at 50% 48%, rgba(22, 19, 16, 0.12) 0%, rgba(22, 19, 16, 0.52) 100%),
+      linear-gradient(to bottom, rgba(22, 19, 16, 0.18) 0%, rgba(22, 19, 16, 0) 22%, rgba(22, 19, 16, 0) 78%, rgba(22, 19, 16, 0.28) 100%);
+  }
+  .lockup {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 58%;
+    text-align: center;
+    color: #efe6d4;
+    text-shadow:
+      0 1px 0 rgba(26, 22, 18, 0.45),
+      0 8px 28px rgba(22, 19, 16, 0.85);
+  }
+  h1 {
+    margin: 0;
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 600;
+    font-size: 96px;
+    line-height: 0.9;
+    letter-spacing: 0.14em;
+    text-indent: 0.14em;
+  }
+  .tag {
+    margin-top: 22px;
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: 0.42em;
+    text-indent: 0.42em;
+    text-transform: lowercase;
+    color: #efe6d4;
+    opacity: 0.92;
+  }
+</style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="vignette"></div>
+  <div class="lockup">
+    <h1>BONSAI<br />ATELIER</h1>
+    <div class="tag">prune · water · rest</div>
+  </div>
+</body>
+</html>

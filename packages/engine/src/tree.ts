@@ -18,6 +18,8 @@ export function createTree(seed: number, species: SpeciesClass): TreeState {
     fertilizerDays: 0,
     fertilizerCooldown: 0,
     rngState: seed | 0,
+    // v2 (2026-09-09, design 3.2a): explicit 0 default == "the trunk has never forked".
+    lastMainForkLength: 0,
     branches: [
       {
         id: 0, parent: null, depth: 0, angle: 0, length: 8, thickness: 2, pruned: false, children: [], attachmentY: 0,

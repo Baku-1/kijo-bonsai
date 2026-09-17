@@ -5,5 +5,11 @@
 # a JWT.
 project_id = "xutjubkaskwchzyzwryk"
 
+# wallet-auth-nonce is a bootstrap endpoint like wallet-auth: the client calls it
+# to fetch a nonce BEFORE it has any JWT, so it must not require one.
+# Security comes from single-use 5-minute nonces + rate limiting, not JWT.
+[functions.wallet-auth-nonce]
+verify_jwt = false
+
 [functions.derive-stats]
 verify_jwt = false

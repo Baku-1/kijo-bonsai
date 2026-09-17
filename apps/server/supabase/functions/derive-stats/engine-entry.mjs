@@ -22,4 +22,4 @@ export {
   BonsaiTree,
 } from '../../../../../packages/engine/dist/index.js';
 
-export { Voxelizer } from '../../../../../packages/voxelizer/dist/index.js';
+export { Voxelizer, buildCombatSnapshot } from '../../../../../packages/voxelizer/dist/index.js';

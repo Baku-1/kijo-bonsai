@@ -1,6 +1,6 @@
 import { BonsaiTree, GrowthEngine, StatDeriver, CareLogReplay } from '@kijo/engine';
-import type { Branch, SpeciesClass } from '@kijo/shared';
-import { WATER_AMOUNT } from '@kijo/shared';
+import type { Branch, SpeciesClass, LandscapeElementType } from '@kijo/shared';
+import { WATER_AMOUNT, round4 } from '@kijo/shared';
 import { Voxelizer } from '@kijo/voxelizer';
 import {
   getSession,
@@ -20,6 +20,9 @@ let kijoSession: KijoSession | null = null;
 // ---------------------------------------------------------------------------
 let tree: BonsaiTree = newTree();
 let pruneMode = false;
+// Sculpt mode for 2D debug view (SCULPT-ADD 2026-08-29)
+type SculptMode2D = 'none' | 'prune' | 'twine' | 'weight' | 'jin';
+let sculptMode2D: SculptMode2D = 'none';
 let voxelCount = 0;
 
 function newTree(): BonsaiTree {
@@ -305,17 +308,127 @@ const pruneBtn = document.getElementById('btn-prune')!;
 pruneBtn.addEventListener('click', () => {
   pruneMode = !pruneMode;
   pruneBtn.classList.toggle('active', pruneMode);
+  if (pruneMode) {
+    sculptMode2D = 'none';
+    document.getElementById('btn-twine')!.classList.remove('active');
+    document.getElementById('btn-weight')!.classList.remove('active');
+    document.getElementById('btn-jin')!.classList.remove('active');
+  }
+});
+
+// Twine button (SCULPT-ADD 2026-08-29)
+document.getElementById('btn-twine')!.addEventListener('click', () => {
+  sculptMode2D = sculptMode2D === 'twine' ? 'none' : 'twine';
+  document.getElementById('btn-twine')!.classList.toggle('active', sculptMode2D === 'twine');
+  if (sculptMode2D === 'twine') {
+    pruneMode = false;
+    pruneBtn.classList.remove('active');
+    document.getElementById('btn-weight')!.classList.remove('active');
+    document.getElementById('btn-jin')!.classList.remove('active');
+  }
+});
+
+// Weight button (SCULPT-ADD 2026-08-29)
+document.getElementById('btn-weight')!.addEventListener('click', () => {
+  sculptMode2D = sculptMode2D === 'weight' ? 'none' : 'weight';
+  document.getElementById('btn-weight')!.classList.toggle('active', sculptMode2D === 'weight');
+  if (sculptMode2D === 'weight') {
+    pruneMode = false;
+    pruneBtn.classList.remove('active');
+    document.getElementById('btn-twine')!.classList.remove('active');
+    document.getElementById('btn-jin')!.classList.remove('active');
+  }
+});
+
+// Jin button (SCULPT-ADD 2026-08-29)
+document.getElementById('btn-jin')!.addEventListener('click', () => {
+  sculptMode2D = sculptMode2D === 'jin' ? 'none' : 'jin';
+  document.getElementById('btn-jin')!.classList.toggle('active', sculptMode2D === 'jin');
+  if (sculptMode2D === 'jin') {
+    pruneMode = false;
+    pruneBtn.classList.remove('active');
+    document.getElementById('btn-twine')!.classList.remove('active');
+    document.getElementById('btn-weight')!.classList.remove('active');
+  }
+});
+
+// Landscape button (SCULPT-ADD 2026-08-29) -- not branch-targeted, uses prompt()
+document.getElementById('btn-landscape')!.addEventListener('click', () => {
+  const elementType = prompt('Element type (rock/moss/pot):', 'rock') as LandscapeElementType | null;
+  if (!elementType || !['rock', 'moss', 'pot'].includes(elementType)) return;
+  const x = parseInt(prompt('X (0-255):', '128') ?? '', 10);
+  const y = parseInt(prompt('Y (0-255):', '38') ?? '', 10);
+  const z = parseInt(prompt('Z (0-255):', '128') ?? '', 10);
+  if ([x, y, z].some(v => !Number.isFinite(v))) return;
+
+  try {
+    tree.addLandscape(elementType as LandscapeElementType, { x, y, z });
+    refreshStats();
+    render();
+    persistAsync({ type: 'landscape', elementType: elementType as LandscapeElementType, position: { x, y, z } });
+  } catch (err: unknown) {
+    alert(`Landscape failed: ${err instanceof Error ? err.message : err}`);
+  }
 });
 
 canvas.addEventListener('click', (e) => {
-  if (!pruneMode) return;
   const rect = canvas.getBoundingClientRect();
   const id = pickBranch(e.clientX - rect.left, e.clientY - rect.top);
-  if (id !== null) {
+
+  if (pruneMode && id !== null) {
     tree.prune(id);
     refreshStats();
     render();
     persistAsync({ type: 'prune', branchId: id });
+    return;
+  }
+
+  if (sculptMode2D === 'twine' && id !== null) {
+    const branch = tree.getBranches()[id];
+    const deltaStr = prompt(`Twine branch #${id} (angle ${branch.angle.toFixed(1)}). Bend delta (+/-28):`, '10');
+    if (!deltaStr) return;
+    const delta = parseFloat(deltaStr);
+    if (!Number.isFinite(delta)) return;
+    const result = tree.applyTwine(id, delta);
+    if (!result.ok) { alert(`Twine failed: ${result.reason}`); return; }
+    refreshStats();
+    render();
+    persistAsync({
+      type: 'twine', branchId: id,
+      angleDelta: round4(result.newAngle! - result.oldAngle!),
+      oldAngle: result.oldAngle!, newAngle: result.newAngle!,
+      degradeDays: tree.getBranches()[id].twineDegradesDay - tree.getAge(),
+    });
+    return;
+  }
+
+  if (sculptMode2D === 'weight' && id !== null) {
+    const wcStr = prompt(`Weight branch #${id}. Bags (1-4):`, '1');
+    if (!wcStr) return;
+    const wc = parseInt(wcStr, 10);
+    if (wc < 1 || wc > 4) { alert('Weight count must be 1-4'); return; }
+    const result = tree.applyWeight(id, wc);
+    if (!result.ok) { alert(`Weight failed: ${result.reason}`); return; }
+    refreshStats();
+    render();
+    persistAsync({ type: 'weight', branchId: id, weightCount: wc, torqueContribution: result.torqueContribution! });
+    return;
+  }
+
+  if (sculptMode2D === 'jin' && id !== null) {
+    const segStr = prompt(`Jin branch #${id} (length ${tree.getBranches()[id].length.toFixed(1)}). Segment index:`, '0');
+    if (!segStr) return;
+    const seg = parseInt(segStr, 10);
+    if (!confirm('Jin is IRREVERSIBLE. Continue?')) return;
+    try {
+      tree.applyJin(id, seg, 1);
+      refreshStats();
+      render();
+      persistAsync({ type: 'jin', branchId: id, segmentIndex: seg, jinCost: 1 });
+    } catch (err: unknown) {
+      alert(`Jin error: ${err instanceof Error ? err.message : err}`);
+    }
+    return;
   }
 });
 

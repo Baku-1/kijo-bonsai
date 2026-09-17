@@ -26,7 +26,7 @@
  * WHY A BUNDLE (prior failure -- see the header comment in get-tree/index.ts):
  *   The previous server-side derivation attempt failed because Supabase's Deno
  *   runtime cannot resolve the monorepo workspace paths
- *   (../../../../packages/*/dist/index.js) at deploy time; the engine packages
+ *   (workspace package dist/index.js files) at deploy time; the engine packages
  *   are not published to npm and have no publishConfig. Reconstruction was
  *   therefore moved client-side.
  *   THE FIX: engine.bundle.mjs is a SINGLE self-contained ESM file produced by
@@ -53,6 +53,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createCombatPayload } from './combat-payload.mjs';
 import {
   CareLogReplay,
   CareLogReplayError,
@@ -213,7 +214,11 @@ Deno.serve(async (req) => {
 
     applyCurrentDayEntries(bonsai, currentEntries);
 
-    const { voxels, zones } = Voxelizer.voxelize(bonsai);
+    const voxelization = Voxelizer.voxelize(bonsai);
+    if (url.searchParams.get('include_morphology') === '1') {
+      return json({ ...(await createCombatPayload(bonsai, voxelization)), treeId: tree_id });
+    }
+    const { voxels, zones } = voxelization;
     const sheet = StatDeriver.derive(bonsai, voxels, tree.seed, bonsai.getAge(), zones);
 
     // -----------------------------------------------------------------------
