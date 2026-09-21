@@ -175,6 +175,37 @@ export interface Branch {
    */
   bendSet: boolean;
 
+  // -- Jin / Deadwood State (2026-09-18, JinEngine Phase 2) ---------------------
+
+  /**
+   * True when jin pliers have been applied to this branch (any segment).
+   * A jinned branch is DEAD -- it stops growing, stops forking, is skipped
+   * by GrowthEngine and physics. But it is NOT pruned -- it remains visible
+   * and its voxels are rendered as VoxelRole.SCAR.
+   *
+   * Set by JinEngine.applyJin (direct application) or by jin cascade
+   * (parent jin'd at a point before this branch's attachment).
+   * Default: false. Once true, never reverts (jin is irreversible).
+   */
+  jinned: boolean;
+
+  /**
+   * 0-based segment index from trunk junction where jin begins.
+   * Segments [jinSegmentStart, branch.length) are deadwood (SCAR voxels).
+   * Segments [0, jinSegmentStart) retain their original role.
+   *
+   * -1 when not jinned (sentinel: no jin applied).
+   * 0 when the entire branch is deadwood (cascade from parent, or jin at base).
+   *
+   * A second jin at a LOWER segmentIndex updates this field to the lower value
+   * (jin expands toward the base, never shrinks).
+   *
+   * The voxelizer uses this to split the branch tube: voxels with parameter
+   * t >= (jinSegmentStart / branch.length) get VoxelRole.SCAR; those below
+   * keep their original role.
+   */
+  jinSegmentStart: number;
+
   /**
    * Number of times metal wire has been successfully applied to this branch.
    * Drives the Cascade gate in WireEngine: branches with wireCount < 3 are capped
@@ -551,9 +582,9 @@ export interface WeightResult {
   torqueContribution?: number;
 }
 
-// Carmack C-5 fix (2026-08-02): 'already-jin' removed — no Branch.jinned field exists
-// and no code path produces this reason in Phase 1. Removed until Phase 2.
-export type JinRejectReason = 'not-found' | 'pruned' | 'segment-out-of-range';
+// Carmack C-5 fix (2026-08-02): 'already-jin' removed because no Branch.jinned field existed.
+// Phase 2 (2026-09-18) adds the field -- re-adding the reason.
+export type JinRejectReason = 'not-found' | 'pruned' | 'segment-out-of-range' | 'already-jin';
 export interface JinResult {
   ok: boolean;
   reason?: JinRejectReason;

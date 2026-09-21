@@ -23,7 +23,14 @@ import {
   TechniqueClassifier,
   Voxelizer,
 } from '../_shared/kijo-engine.js';
+// @ts-ignore -- Deno HTTPS import resolved at runtime by Supabase Edge Runtime
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+// Ambient Deno type declaration for IDE/TypeScript compilers outside the Deno runtime
+declare const Deno: {
+  serve: (handler: (req: Request) => Promise<Response> | Response) => void;
+  env: { get(key: string): string | undefined };
+};
 
 // @ts-ignore -- kijo-engine.js bundle re-exports @kijo/shared; deriveVisualTraits lives there
 import { deriveVisualTraits } from '../_shared/kijo-engine.js';

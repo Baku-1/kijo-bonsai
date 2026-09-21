@@ -1,5 +1,6 @@
 import type { CareLogEntry } from '@kijo/shared';
 import type { BonsaiTree } from './BonsaiTree.js';
+import { CareLogReplayError } from './errors.js';
 
 /**
  * PruneEngine — stateless prune logic.
@@ -27,6 +28,13 @@ export class PruneEngine {
    *   4. Returns true.
    */
   static prune(tree: BonsaiTree, branchId: number): boolean {
+    // Defense-in-depth: type guard before range check.
+    // NaN, fractional, non-number branchId must throw — corrupt data halts replay.
+    if (!Number.isFinite(branchId) || branchId < 0 || !Number.isInteger(branchId)) {
+      throw new CareLogReplayError(
+        `PruneEngine.prune: branchId must be a non-negative integer (got ${branchId}).`
+      );
+    }
     const branches = tree.getBranches();
 
     // Range guard

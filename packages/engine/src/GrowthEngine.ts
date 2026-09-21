@@ -211,7 +211,7 @@ export class GrowthEngine {
 
     const branches = tree.getBranches();
     for (const b of branches) {
-      if (b.pruned) continue;
+      if (b.pruned || b.jinned) continue;
       if (b.depth >= 6) continue;                            // depth-6 hard gate (unchanged)
       const hasLivingChild = b.children.some((id) => !branches[id].pruned);
       if (hasLivingChild && b.depth !== 0) continue;          // only tips fork, plus the trunk (3.2a)
@@ -311,7 +311,7 @@ export class GrowthEngine {
     livingCount0: number,
     floorTipId: number,
   ): void {
-    if (b.pruned) return;
+    if (b.pruned || b.jinned) return;
 
     const branches = tree.getBranches();
     const state    = tree._getState(); // v2: lastMainForkLength read/write (design 3.2a)
@@ -427,6 +427,9 @@ export class GrowthEngine {
               weightAngleDelta:  0,   // OQ-1 Option A (2026-08-14)
               twineDegradesDay:  0,
               bendSet:           false,  // CRITICAL-C fix 2026-08-02
+              // Jin / Deadwood State (2026-09-18, JinEngine Phase 2)
+              jinned:            false,
+              jinSegmentStart:   -1,
             } as unknown as Branch;
 
             tree._pushBranch(child);
@@ -476,7 +479,7 @@ export class GrowthEngine {
    * Returns the branch's resulting thickness (used by parent to accumulate child mass).
    */
   private static thickeningPass(b: Branch, tree: BonsaiTree, rate: number): number {
-    if (b.pruned) return 0;
+    if (b.pruned || b.jinned) return 0;
 
     const branches = tree.getBranches();
 

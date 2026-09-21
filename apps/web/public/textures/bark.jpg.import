@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dj3lqwc0k754j"
-path="res://.godot/imported/bark.jpg-29e407481a7ec2cfe6a92d60869ddb39.ctex"
+path="res://.godot/imported/bark.jpg-9de779ff77487e6785b29ab6e8a15032.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://kijo-bonsai/node_modules/@kijo/web/public/textures/bark.jpg"
-dest_files=["res://.godot/imported/bark.jpg-29e407481a7ec2cfe6a92d60869ddb39.ctex"]
+source_file="res://kijo-bonsai/apps/web/public/textures/bark.jpg"
+dest_files=["res://.godot/imported/bark.jpg-9de779ff77487e6785b29ab6e8a15032.ctex"]
 
 [params]
 

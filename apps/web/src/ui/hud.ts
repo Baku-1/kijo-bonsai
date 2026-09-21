@@ -1,4 +1,5 @@
 import type { BonsaiTree } from '@kijo/engine';
+import type { MoraleCareView } from '@kijo/shared';
 
 // ---------------------------------------------------------------------------
 // Care HUD (Layer 1, item 4) — DOM overlay, not Three.js. Crisp text,
@@ -33,6 +34,7 @@ export class CareHud {
   private seasonLabel: HTMLElement;
   private infoLine: HTMLElement;
   private warnLine: HTMLElement;
+  private spiritLine: HTMLElement;
   private autoBtn: HTMLButtonElement;
 
   constructor(cb: HudCallbacks) {
@@ -42,6 +44,7 @@ export class CareHud {
     this.seasonLabel = el('season-label');
     this.infoLine = el('info-line');
     this.warnLine = el('warning');
+    this.spiritLine = el('spirit-line');
     this.autoBtn = el<HTMLButtonElement>('btn-auto');
 
     el<HTMLButtonElement>('btn-water').addEventListener('click', cb.onWater);
@@ -68,6 +71,25 @@ export class CareHud {
     if (wireBtn && cb.onWire) wireBtn.addEventListener('click', cb.onWire);
     const jinBtn = document.getElementById('btn-jin-mode');
     if (jinBtn && cb.onJin) jinBtn.addEventListener('click', cb.onJin);
+  }
+
+  /** Show caretaker-facing spirit state without exposing the numeric score. */
+  updateMorale(morale: MoraleCareView | null): void {
+    if (!morale) {
+      this.spiritLine.textContent = 'Spirit: listening…';
+      this.spiritLine.className = 'spirit composed';
+      return;
+    }
+    const message = {
+      eager: 'Spirit: eager to stand beside you',
+      composed: 'Spirit: composed and trusting',
+      reluctant: 'Spirit: reluctant, but still listening',
+      withdrawn: 'Spirit: withdrawn and unwilling to fight',
+    }[morale.expression];
+    this.spiritLine.textContent = morale.willingness === 'recovering'
+      ? 'Spirit: recovering trust through steady care'
+      : message;
+    this.spiritLine.className = `spirit ${morale.expression}`;
   }
 
   /** Sync the Auto button label/state from outside (boot reset, programmatic stops). */

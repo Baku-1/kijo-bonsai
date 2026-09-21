@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://befkr7puhbhav"
-path="res://.godot/imported/plaster.jpg-7b05f126a3205d35824b46351925a968.ctex"
+path="res://.godot/imported/plaster.jpg-3c872da0f3c40b547b38e2cfee795d45.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://kijo-bonsai/apps/web/public/textures/plaster.jpg"
-dest_files=["res://.godot/imported/plaster.jpg-7b05f126a3205d35824b46351925a968.ctex"]
+source_file="res://kijo-bonsai/node_modules/@kijo/web/public/textures/plaster.jpg"
+dest_files=["res://.godot/imported/plaster.jpg-3c872da0f3c40b547b38e2cfee795d45.ctex"]
 
 [params]
 

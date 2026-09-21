@@ -181,11 +181,22 @@ export class Voxelizer {
         ? Material.HEARTWOOD
         : b.depth === 1 ? Material.BARK : Material.BRANCH_WOOD;
       const role: VoxelRole = branchRole.get(b.id) ?? VoxelRole.TRUNK;
-      Voxelizer.fillTube(pos.start, pos.end, b.thickness, mat, role, b.id, voxels);
+
+      // Jin SCAR split (2026-09-18, JinEngine Phase 2):
+      // If branch is jinned, segments from jinSegmentStart onward get VoxelRole.SCAR.
+      // jinThreshold = jinSegmentStart / branch.length; t >= jinThreshold -> SCAR.
+      // 1.0 = no jin (t never reaches 1.0 in the loop).
+      const jinThreshold = (b.jinned && b.jinSegmentStart >= 0)
+        ? b.jinSegmentStart / Math.max(b.length, 1)
+        : 1.0;
+
+      Voxelizer.fillTube(pos.start, pos.end, b.thickness, mat, role, b.id, voxels, jinThreshold);
+
+      // Jinned branches do NOT get canopy (dead wood has no leaves).
       const hasLivingChildren = b.children.some(
         (id: number) => branches[id] && !branches[id].pruned
       );
-      if (!hasLivingChildren) {
+      if (!hasLivingChildren && !b.jinned) {
         Voxelizer.fillSphere(pos.end, 2.0, Material.LEAF, VoxelRole.CANOPY, b.id, voxels);
       }
     }
@@ -242,7 +253,8 @@ export class Voxelizer {
   private static fillTube(
     start: Vec3, end: Vec3, thickness: number,
     mat: Material, role: VoxelRole, branchId: number,
-    voxels: SparseVoxelSet
+    voxels: SparseVoxelSet,
+    jinThreshold: number = 1.0,
   ): void {
     const dx = end.x - start.x, dy = end.y - start.y, dz = end.z - start.z;
     const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
@@ -251,9 +263,10 @@ export class Voxelizer {
     const radius = Math.max(0.5, thickness * 0.5);
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
+      const effectiveRole = (t >= jinThreshold) ? VoxelRole.SCAR : role;
       Voxelizer.fillSphere(
         { x: start.x + dx*t, y: start.y + dy*t, z: start.z + dz*t },
-        radius, mat, role, branchId, voxels
+        radius, mat, effectiveRole, branchId, voxels
       );
     }
   }

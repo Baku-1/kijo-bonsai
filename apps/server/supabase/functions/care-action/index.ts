@@ -26,6 +26,107 @@ const CONSUMABLE: Record<string, string | undefined> = {
 // catching up beyond this threshold on any single invocation.
 const MAX_LAZY_TICKS = 90;
 
+// ---------------------------------------------------------------------------
+// Field-level validation helpers (trust boundary — CEI ordering)
+// ---------------------------------------------------------------------------
+
+function requireFinite(val: unknown, name: string): number {
+  if (typeof val !== 'number' || !Number.isFinite(val)) {
+    throw new Error(`${name} must be a finite number (got ${val}).`);
+  }
+  return val;
+}
+
+function requireNonNegInt(val: unknown, name: string): number {
+  if (typeof val !== 'number' || !Number.isFinite(val) || val < 0 || !Number.isInteger(val)) {
+    throw new Error(`${name} must be a non-negative integer (got ${val}).`);
+  }
+  return val;
+}
+
+function requirePositiveFinite(val: unknown, name: string): number {
+  if (typeof val !== 'number' || !Number.isFinite(val) || val <= 0) {
+    throw new Error(`${name} must be a positive finite number (got ${val}).`);
+  }
+  return val;
+}
+
+function requirePositiveInt(val: unknown, name: string): number {
+  if (typeof val !== 'number' || !Number.isFinite(val) || val < 1 || !Number.isInteger(val)) {
+    throw new Error(`${name} must be a positive integer (got ${val}).`);
+  }
+  return val;
+}
+
+function requireIntRange(val: unknown, lo: number, hi: number, name: string): number {
+  if (typeof val !== 'number' || !Number.isFinite(val) || val < lo || val > hi || !Number.isInteger(val)) {
+    throw new Error(`${name} must be an integer in [${lo}, ${hi}] (got ${val}).`);
+  }
+  return val;
+}
+
+// Hard upper bound for branchId at server layer. No tree can have this many branches.
+const SERVER_MAX_BRANCH_ID = 10000;
+
+function requireBranchId(val: unknown): number {
+  if (typeof val !== 'number' || !Number.isFinite(val) || val < 0 || !Number.isInteger(val) || val > SERVER_MAX_BRANCH_ID) {
+    throw new Error(`branchId must be a non-negative integer <= ${SERVER_MAX_BRANCH_ID} (got ${val}).`);
+  }
+  return val;
+}
+
+// Per-type validation schemas: validate fields AND return a clean object
+// with ONLY allowed fields (A-2: strip unknown fields).
+// deno-lint-ignore no-explicit-any
+type ActionValidator = (data: Record<string, any>) => Record<string, unknown>;
+
+const SCHEMAS: Record<string, ActionValidator> = {
+  water: (d) => ({
+    amount: requirePositiveFinite(d.amount, 'amount'),
+  }),
+  prune: (d) => ({
+    branchId: requireBranchId(d.branchId),
+  }),
+  wire: (d) => ({
+    branchId: requireBranchId(d.branchId),
+    angleDelta: requireFinite(d.angleDelta, 'angleDelta'),
+  }),
+  'wire-remove': (d) => ({
+    branchId: requireBranchId(d.branchId),
+  }),
+  twine: (d) => {
+    const clean: Record<string, unknown> = {
+      branchId: requireBranchId(d.branchId),
+      angleDelta: requireFinite(d.angleDelta, 'angleDelta'),
+    };
+    if (d.degradeDays !== undefined) {
+      clean.degradeDays = requireIntRange(d.degradeDays, 0, 20, 'degradeDays');
+    }
+    return clean;
+  },
+  'twine-remove': (d) => ({
+    branchId: requireBranchId(d.branchId),
+  }),
+  weight: (d) => ({
+    branchId: requireBranchId(d.branchId),
+    weightCount: requireIntRange(d.weightCount, 1, 4, 'weightCount'),
+  }),
+  'weight-remove': (d) => ({
+    branchId: requireBranchId(d.branchId),
+  }),
+  jin: (d) => ({
+    branchId: requireBranchId(d.branchId),
+    segmentIndex: requireNonNegInt(d.segmentIndex, 'segmentIndex'),
+    jinCost: requirePositiveInt(d.jinCost, 'jinCost'),
+  }),
+  fertilize: (_) => ({}),
+  rotate: (_) => ({}),
+  landscape: (d) => ({
+    elementType: d.elementType,
+    position: d.position,
+  }),
+};
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -95,9 +196,30 @@ Deno.serve(async (req) => {
   // -------------------------------------------------------------------------
   // Prevents clients from injecting fake server-generated types (e.g. 'tick').
   const actionType = action.type as string;
-  const ALLOWED_ACTION_TYPES = new Set(['water', 'prune', 'wire', 'wire-remove', 'fertilize', 'rotate', 'jin', 'landscape', 'twine', 'twine-remove', 'weight', 'weight-remove']);
+  // jin and landscape gated until Phase 2 — stubs crash CareLogReplay.
+  // See: AUDIT-CARE-REPLAY-GAPS-2026-09-18.md
+  const ALLOWED_ACTION_TYPES = new Set(['water', 'prune', 'wire', 'wire-remove', 'fertilize', 'rotate', 'twine', 'twine-remove', 'weight', 'weight-remove']);
   if (!ALLOWED_ACTION_TYPES.has(actionType)) {
     return json({ error: 'Invalid action type' }, 400);
+  }
+
+  // -------------------------------------------------------------------------
+  // 1c. Field-level validation — FAIL-CLOSED (B-2: reject unlisted types)
+  // -------------------------------------------------------------------------
+  // Validates all numeric fields per action type AND strips unknown fields (A-2).
+  // Must run BEFORE any DB mutation (CEI ordering — truongnguyenptn pattern).
+  const validator = SCHEMAS[actionType];
+  if (!validator) {
+    return json({ error: `No validation schema for action type '${actionType}'` }, 400);
+  }
+
+  // Separate type from the rest of action fields
+  const { type: _actionType, ...rawActionData } = action;
+  let cleanActionData: Record<string, unknown>;
+  try {
+    cleanActionData = validator(rawActionData);
+  } catch (e) {
+    return json({ error: (e as Error).message }, 400);
   }
 
   // -------------------------------------------------------------------------
@@ -168,19 +290,17 @@ Deno.serve(async (req) => {
     consumableRow = c as { id: string; quantity: number };
   }
 
-  // Separate type from the rest of action fields (which become action_data)
-  const { type: _type, ...actionData } = action;
-
   // -------------------------------------------------------------------------
   // 5. Atomically insert care action with next sequence number.
   //    COALESCE(MAX(sequence), -1) + 1 runs inside a single SQL INSERT…SELECT —
   //    no separate read round-trip, no race window for duplicate sequences.
+  //    Uses cleanActionData (validated + stripped in step 1c), NOT raw action fields.
   // -------------------------------------------------------------------------
   const { error: insertErr } = await serviceClient.rpc('insert_care_log_entry', {
     p_tree_id:     tree_id,
     p_game_day:    currentDay,
     p_action_type: actionType,
-    p_action_data: actionData,
+    p_action_data: cleanActionData,
   });
   if (insertErr) return json({ error: insertErr.message }, 500);
 

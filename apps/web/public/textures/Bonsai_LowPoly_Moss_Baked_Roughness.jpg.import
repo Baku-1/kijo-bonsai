@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b3xfe07w6ddgg"
-path="res://.godot/imported/Bonsai_LowPoly_Moss_Baked_Roughness.jpg-8f55a899200821c4e000b0bc392359cd.ctex"
+path="res://.godot/imported/Bonsai_LowPoly_Moss_Baked_Roughness.jpg-cc376b838e9c717fa95a94d7eaf31dc9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://kijo-bonsai/node_modules/@kijo/web/public/textures/Bonsai_LowPoly_Moss_Baked_Roughness.jpg"
-dest_files=["res://.godot/imported/Bonsai_LowPoly_Moss_Baked_Roughness.jpg-8f55a899200821c4e000b0bc392359cd.ctex"]
+source_file="res://kijo-bonsai/apps/web/public/textures/Bonsai_LowPoly_Moss_Baked_Roughness.jpg"
+dest_files=["res://.godot/imported/Bonsai_LowPoly_Moss_Baked_Roughness.jpg-cc376b838e9c717fa95a94d7eaf31dc9.ctex"]
 
 [params]
 

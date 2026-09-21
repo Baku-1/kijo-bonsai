@@ -52,6 +52,11 @@
     button:active { background: #EFE7D6; }
     button.primary { background: #EAF2E0; border-color: var(--accent); }
     #info-line { font-size: 12px; opacity: 0.75; }
+    #spirit-line { font-size: 13px; font-weight: 600; transition: color 0.25s ease, opacity 0.25s ease; }
+    #spirit-line.eager { color: #3f7d35; }
+    #spirit-line.composed { color: #526a45; }
+    #spirit-line.reluctant { color: #8a642b; }
+    #spirit-line.withdrawn { color: #704c56; opacity: 0.8; }
     #page-links { position: fixed; right: 8px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 10; }
     #page-links a { font-size: 11px; color: var(--ink); background: var(--panel); border: 1px solid var(--edge); border-radius: 6px; padding: 4px 8px; text-decoration: none; }
     #page-links a:hover { border-color: var(--accent); }

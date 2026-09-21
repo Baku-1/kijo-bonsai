@@ -1,6 +1,6 @@
 # KIJO -- Project State
 
-**Last updated:** 2026-09-10 (Growth engine v2: all structural fixes implemented, 5/6 band-check gates PASS, 1 accepted variance. Genesis-ready species calibration.)
+**Last updated:** 2026-09-20 (Cost guard sweep: pipeline complete, 93/93 tests pass, two-layer validation on all numeric params, 44 new guard tests.)
 
 ---
 
@@ -15,8 +15,9 @@
 | `@kijo/engine` (StatTerrain) | Built | T1-T6 | All pass (7/7 assertions) |
 | `@kijo/engine` (StatDeriver) | ACCEPTED (auditor 2026-07-17) | D1-D7 35/35 | All pass (35/35 assertions) |
 | `@kijo/engine` (WireEngine) | Gate-verified (2026-08-07) | W1-W6 | All pass -- 20/20 assertions |
-| `@kijo/engine` (TwineWeightEngine) | Phase 2 complete + Linter CLEAN (2026-08-17) | TWE1-TWE9 | All pass -- 37/37 assertions, 55/55 security tests |
+| `@kijo/engine` (TwineWeightEngine) | Phase 2 complete + Linter CLEAN (2026-08-17), test fixtures updated (2026-09-20) | TWE1-TWE9 | All pass -- 37/37 assertions, 55/55 security tests. TWE1-1 updated to assert-throws (B-1 guard). TWE4-2/4-3/5-1/5-2 storedDegradeDays 999→20 (A-3 cap). |
 | `@kijo/engine` (TechniqueClassifier) | **Auditor VERIFIED (2026-08-17)** | TC1-TC19 + TC17b | All pass -- 48/48 assertions. See AUDIT-TECHNIQUE-TESTS-2026-08-17.md. |
+| `@kijo/engine` (JinEngine) | Gate-verified (2026-09-18) | JIN-1 through JIN-11 | All pass -- 46/46 assertions |
 
 Stat pipeline (Voxelizer + StatTerrain + StatDeriver): end-to-end complete and auditor-verified.
 
@@ -240,6 +241,9 @@ Supabase project: `xutjubkaskwchzyzwryk`. All functions deployed 2026-07-26.
 | PWA + Netlify deploy | Not started |
 | Tutorial system | Not started |
 | ~~TechniqueClassifier~~ | **BUILT** -- `packages/engine/src/TechniqueClassifier.ts` with `classify()` implemented. CareAction types (jin, landscape, twine, twine-remove, weight, weight-remove) in shared/src/index.ts. Open: care-action server whitelist, ~~jin/landscape/twine/weight UI (#96)~~ **DONE (2026-08-30)**, metadata pipeline wiring (#95). |
+| ~~JinEngine~~ | **PIPELINE COMPLETE (2026-09-18)** -- Engine fully functional, server-GATED (removed from ALLOWED_ACTION_TYPES). Will be re-added after landscape handler lands. |
+| Landscape handler | Jin requires landscape handler before server gate is lifted. Next pipeline. |
+| ~~Cost param guard sweep~~ | **PIPELINE COMPLETE (2026-09-20).** Full 5-stage pipeline. 44 new guard tests + 5 pre-existing test fixes. 93/93 pass. Engine-side guards (_guardBranchId, storedDegradeDays cap ≤20, NaN/Infinity/non-integer rejection). Server-side field validators + fail-closed + field stripping. See ARCH/CRITIC/AUDIT/LINT-COST-GUARDS-2026-09-19.md. |
 | GuildRankDisplay.tsx | Component not yet built |
 | ThreeCanvas raycaster + branch picking (#97) | Production view (ThreeCanvas.tsx) has no raycaster. Twine/weight buttons exist as mode toggles but cannot select branches. Requires: raycaster, branchId metadata on mesh segments, pointerdown handler mapping hits to branchIds. Follow main3d.ts lines 357-409 pattern adapted for production renderer. Unblocks twine/weight apply/remove in production view. |
 
@@ -277,7 +281,11 @@ Supabase project: `xutjubkaskwchzyzwryk`. All functions deployed 2026-07-26.
 
 24. **PIPELINE COMPLETE (2026-08-30):** HUD #96 Sculpt UI (twine/weight/jin/landscape). Full pipeline: Architect→Critic→Corrective Patch→Implementer→Auditor VERIFIED→Linter CLEAN WITH FIXES (+1 console.log→console.info in ThreeCanvas.tsx). All 6 sculpt actions wired across 3 views (3D debug, 2D debug, production). F1 BLOCKER (SculptMode 'landscape') and F2 BLOCKER (CareBridge afterAction pattern) resolved. pruneMode/wireMode migration complete in main3d.ts. Triple-log pattern consistent. round4 discipline maintained. Production view respects caretaker opacity (no stats/technique exposed). tsc clean (exit 0). No frauds detected. 7 intent checks ALIGNED. UI-only changes -- no engine modifications. Pipeline docs: ARCH/CRITIC/PATCH/AUDIT-SCULPT-UI-2026-08-29.md. **Open:** #97 ThreeCanvas raycaster (production sculpt buttons are mode toggles only until raycaster ships).
 
+27. **PIPELINE COMPLETE (2026-09-20):** Cost & consumable parameter validation guard sweep. Full pipeline: Architect→Critic (3 blockers: B-1 branchId upper bound, B-2 fail-closed, B-3 water CareLogReplayError)→Implementer→Auditor CONDITIONAL PASS→Linter SHIP IT (0 blockers, 3 warnings). Two-layer validation: engine-side (`_guardBranchId` with upper bound, storedDegradeDays ≤20, NaN/Infinity/non-integer rejection on all numeric params) + server-side (per-type SCHEMAS validators, fail-closed pattern, unknown field stripping). 44 new test cases (cost-guards.test.js): GUARD-1..24 engine guards, A-4/A-5 boundary, GUARD-EXT-1..3 range, GUARD-S1..S13 server validators. 5 pre-existing TwineWeightEngine tests updated (TWE1-1 assert-throws, TWE4-2/4-3/5-1/5-2 storedDegradeDays 999→20). 93/93 all pass. Files changed: BonsaiTree.ts, WireEngine.ts, PruneEngine.ts, care-action/index.ts, cost-guards.test.js (new), TwineWeightEngine.test.js. Pipeline docs: ARCH/CRITIC/AUDIT/LINT-COST-GUARDS-2026-09-19.md. **Next:** Landscape handler pipeline, then re-add jin/landscape to server whitelist.
+
 25. **VERIFIED (2026-09-10):** Growth engine v2 — all 5 structural fixes from DESIGN-GROWTH-ENGINE.md implemented and verified. Owner decision I1: Option D (change in place, no version stamp). Implementation covers I1-I8: trunk re-fork (3.2a), internode schedule (3.2b), floor/ceiling controller (3.2c), rotation bias/phototropism (3.2d), taper clamp (3.2e), species table consolidation (I8). `engine/src/species.ts` retired; all params in `@kijo/shared SPECIES_PARAMS`. Genesis calibration: floorDay tuned to safety-net (HW:90, EG:120, TR:120) per owner directive — natural growth pace, not accelerated. **Band-check results (2026-09-10):** BAND PASS (HW:25, EG:24, TR:19 — all in 15-30). DETERMINISM PASS. CAP-BOUND PASS. FLOOR-REACH PASS (HW:108/120, EG:126/150, TR:149/150). ROTATION-EFFECT: HW PASS, EG PASS, TR accepted variance (0 differing branches — most tropical forks occur during floor-active days where bias is suppressed; owner accepted). TAPER PASS. test_growth.mjs: 17/18 (tropical G7 shows 19, in band after floorDay recalibration). tsc clean. **STAT-DELTA vs pre-change I3/I4:** HW -3/+0/-3, EG +2/+0/+2, TR +4/+1/+3 (living/mains/skillSlots). Voxel-level stat regression (D1-D7) not yet re-run. V/D-suite fixtures need re-recording (totalMass changed). **Open:** I11 re-render sweep of testnet trees, I12 complete (DECISIONS.md updated, STATE.md this entry). **Next:** NFT live tree display + WebXR viewer architecture.
+
+26. **PIPELINE COMPLETE (2026-09-18):** JinEngine Phase 2. Full pipeline: Architect→Critic (2 blockers patched: B-1 extendAndFork return/continue, B-2 selectFloorTipId jinned skip)→Implementer→Auditor VERIFIED WITH CAVEATS→Linter CLEAN WITH FIXES. Comparison PASS (14 wiki patterns from 5 trusted dev collections). 46/46 test gates pass (JIN-1 through JIN-11). Files changed: shared/index.ts (Branch fields), JinEngine.ts (full rewrite), GrowthEngine.ts (3 skip checks + fork defaults), BonsaiTree.ts (physics skip), tree.ts (trunk defaults), voxelizer/index.ts (jinThreshold + SCAR + canopy gate). Linter fix: JIN-11 assert(true) padding replaced with real invariant check. **Comparison gaps:** GAP-1 jinCost no validation guard (Jeremy says ALL cost params need guards — sweep needed), GAP-2 iterative-cascade pattern not cataloged in wiki. **Server status:** Jin fully functional in engine but GATED (removed from ALLOWED_ACTION_TYPES). Will be re-added after landscape handler lands. Pipeline docs: ARCH-JINENGINE-PHASE2-2026-09-18.md, CRITIC-JINENGINE-PHASE2-2026-09-18.md, AUDIT-JINENGINE-PHASE2-2026-09-18.md, LINT-JINENGINE-PHASE2-2026-09-18.md, COMPARE-JINENGINE-PHASE2-2026-09-18.md. **Next:** Landscape handler pipeline, cost param guard sweep.
 
 ---
 

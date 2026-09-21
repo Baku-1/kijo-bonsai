@@ -26,6 +26,24 @@ export class BonsaiTree {
   }
 
   // -------------------------------------------------------------------------
+  // Canonical branchId guard (B-1: includes upper bound check)
+  // -------------------------------------------------------------------------
+  /** Throws CareLogReplayError if branchId is not a valid non-negative integer
+   *  within the current branches array bounds. */
+  private _guardBranchId(method: string, branchId: number): void {
+    if (
+      !Number.isFinite(branchId) ||
+      branchId < 0 ||
+      !Number.isInteger(branchId) ||
+      branchId >= this.state.branches.length
+    ) {
+      throw new CareLogReplayError(
+        `${method}: branchId must be a non-negative integer < ${this.state.branches.length} (got ${branchId}).`
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // State mutation
   // -------------------------------------------------------------------------
 
@@ -54,7 +72,7 @@ export class BonsaiTree {
     // Specification: ARCHITECT-BRANCH-PHYSICS-2026-08-01.md Part F (steps 4a–4e).
     // Runs after day increment so (currentDay − appliedDay) counts this tick.
     for (const b of this.state.branches) {
-      if (b.pruned) continue;
+      if (b.pruned || b.jinned) continue;
 
       // 4a: Recalculate currentStress fresh each tick (additive torque model).
       // currentStress = (τ_twine + τ_weight) / D³.
@@ -144,14 +162,10 @@ export class BonsaiTree {
   water(amount: number): void {
     // GAP-3 / GAP-4: Reject bad amounts before they corrupt the moisture pipeline.
     // NaN propagates through round4/Math.min silently; negative amounts dehydrate.
-    if (!Number.isFinite(amount)) {
-      throw new Error(
-        `water amount must be a finite number (got ${amount}). NaN or Infinity would corrupt the moisture pipeline.`
-      );
-    }
-    if (amount <= 0) {
-      throw new Error(
-        `water amount must be positive (got ${amount}). Zero or negative amounts are not valid care actions.`
+    // B-3 fix: throw CareLogReplayError (not plain Error) for consistency with all other guards.
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new CareLogReplayError(
+        `water: amount must be a positive finite number (got ${amount}).`
       );
     }
     this.state.moisture = Math.min(100, round4(this.state.moisture + amount));
@@ -171,6 +185,12 @@ export class BonsaiTree {
    * angleDelta is caregiver-chosen, clamped to +/-45 per action.
    */
   wire(branchId: number, angleDelta: number) {
+    this._guardBranchId('wire', branchId);
+    if (!Number.isFinite(angleDelta)) {
+      throw new CareLogReplayError(
+        `wire: angleDelta must be a finite number (got ${angleDelta}).`
+      );
+    }
     return WireEngine.wire(this, branchId, angleDelta);
   }
 
@@ -191,6 +211,7 @@ export class BonsaiTree {
    * No-op if branchId is out of range, pruned, or !branch.wired.
    */
   removeWire(branchId: number): void {
+    this._guardBranchId('removeWire', branchId);
     return WireEngine.removeWire(this, branchId);
   }
 
@@ -201,10 +222,19 @@ export class BonsaiTree {
    * Phase 1 stub: delegates to TwineWeightEngine.applyTwine (throws "not implemented").
    */
   applyTwine(branchId: number, angleDelta: number, storedDegradeDays?: number): TwineResult {
+    this._guardBranchId('applyTwine', branchId);
     if (!Number.isFinite(angleDelta)) {
       throw new CareLogReplayError(
         `applyTwine: angleDelta must be finite (got ${angleDelta}).`
       );
+    }
+    // A-3: storedDegradeDays upper bound of 20 (live path draws from [10, 15]).
+    if (storedDegradeDays !== undefined) {
+      if (!Number.isFinite(storedDegradeDays) || storedDegradeDays < 0 || !Number.isInteger(storedDegradeDays) || storedDegradeDays > 20) {
+        throw new CareLogReplayError(
+          `applyTwine: storedDegradeDays must be a non-negative integer <= 20 (got ${storedDegradeDays}).`
+        );
+      }
     }
     return TwineWeightEngine.applyTwine(this, branchId, angleDelta, storedDegradeDays);
   }
@@ -215,6 +245,7 @@ export class BonsaiTree {
    * Phase 1 stub.
    */
   removeTwine(branchId: number): void {
+    this._guardBranchId('removeTwine', branchId);
     return TwineWeightEngine.removeTwine(this, branchId);
   }
 
@@ -224,6 +255,7 @@ export class BonsaiTree {
    * Phase 1 stub: delegates to TwineWeightEngine.applyWeight.
    */
   applyWeight(branchId: number, weightCount: number): WeightResult {
+    this._guardBranchId('applyWeight', branchId);
     if (!Number.isFinite(weightCount)) {
       throw new CareLogReplayError(
         `applyWeight: weightCount must be finite (got ${weightCount}). NaN or Infinity are not valid.`
@@ -243,6 +275,7 @@ export class BonsaiTree {
    * Phase 1 stub.
    */
   removeWeight(branchId: number): void {
+    this._guardBranchId('removeWeight', branchId);
     return TwineWeightEngine.removeWeight(this, branchId);
   }
 
@@ -252,6 +285,7 @@ export class BonsaiTree {
    * Phase 1 stub: delegates to JinEngine.applyJin.
    */
   applyJin(branchId: number, segmentIndex: number, jinCost: number): JinResult {
+    this._guardBranchId('applyJin', branchId);
     if (!Number.isFinite(segmentIndex) || segmentIndex < 0 || !Number.isInteger(segmentIndex)) {
       throw new CareLogReplayError(
         `applyJin: segmentIndex must be a non-negative integer (got ${segmentIndex}).`
@@ -290,6 +324,7 @@ export class BonsaiTree {
   static readonly TWINE_FORCE_PER_DAY = TWINE_FORCE_PER_DAY;
 
   prune(branchId: number): boolean {
+    this._guardBranchId('prune', branchId);
     return PruneEngine.prune(this, branchId);
   }
 

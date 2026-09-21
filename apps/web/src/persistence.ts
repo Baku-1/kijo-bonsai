@@ -23,7 +23,7 @@
 // Project ref: xutjubkaskwchzyzwryk
 // ---------------------------------------------------------------------------
 
-import type { CareAction, CareLogEntry } from '@kijo/shared';
+import type { CareAction, CareLogEntry, MoraleCareView } from '@kijo/shared';
 export type { CareLogEntry } from '@kijo/shared';
 import { BonsaiTree } from '@kijo/engine';
 
@@ -97,7 +97,19 @@ export interface GetTreeResponse {
   current_day: number;
   has_spirit: boolean;
   born_at: string;
+  morale: MoraleTransport;
   care_log: GetTreeRow[];
+}
+
+export interface MoraleTransport extends MoraleCareView {
+  value: number;
+  refusing: boolean;
+}
+
+export interface CareActionResponse {
+  current_day: number;
+  elapsed_days: number;
+  morale: MoraleTransport;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,7 +228,8 @@ export async function loadCareLog(treeId: string): Promise<{
 export async function persistCareAction(
   session: KijoSession,
   action: CareAction,
-): Promise<{ current_day: number; elapsed_days: number }> {
+  requestId: string = crypto.randomUUID(),
+): Promise<CareActionResponse> {
   if (!session.access_token || !session.wallet_row_id) {
     throw new Error(
       'persistCareAction: no access_token or wallet_row_id — session is read-only',
@@ -236,6 +249,7 @@ export async function persistCareAction(
         tree_id: session.tree_id,
         wallet_row_id: session.wallet_row_id,
         action,
+        request_id: requestId,
       }),
       signal: controller.signal,
     });
@@ -244,6 +258,7 @@ export async function persistCareAction(
       ok?: boolean;
       current_day?: number;
       elapsed_days?: number;
+      morale?: MoraleTransport;
       error?: string;
     };
 
@@ -251,16 +266,17 @@ export async function persistCareAction(
       throw new Error(data.error ?? `care-action failed: ${res.status}`);
     }
 
+    if (!data.morale) {
+      throw new Error('care-action returned no authoritative morale state');
+    }
     return {
       current_day: data.current_day ?? 0,
       elapsed_days: data.elapsed_days ?? 0,
+      morale: data.morale,
     };
   } catch (err) {
-    // Timeout: fire-and-forget callers should not see this as an error.
-    // The action was not persisted; local tree state is still consistent.
     if (err instanceof DOMException && err.name === 'AbortError') {
-      console.warn('[kijo] persistCareAction: timed out after 5s — action not persisted');
-      return { current_day: 0, elapsed_days: 0 };
+      throw new Error('care-action timed out; save status is unknown');
     }
     throw err;
   } finally {

@@ -142,6 +142,7 @@ export function ThreeCanvas() {
     // cache them in sessionStorage and survive full-page navigation.
     let localCareLog: CareLogEntry[] = [];
     let cacheReady = false;
+    let liveMorale: import('../persistence.js').MoraleTransport | null = null;
 
     function cacheTree(): void {
       if (!cacheReady) return;
@@ -167,6 +168,7 @@ export function ThreeCanvas() {
         tree.clearDirty();
       }
       hud.update(tree, livingBranchCount());
+      hud.updateMorale(liveMorale);
       cacheTree();
     }
 
@@ -179,12 +181,12 @@ export function ThreeCanvas() {
     ): void {
       if (!session || !session.access_token || !session.wallet_row_id) return;
       const s = session; // snapshot — avoids stale closure if session is cleared
-      persistCareAction(s, action).catch((err: unknown) => {
-        console.warn(
-          '[kijo-care] persistCareAction failed:',
-          err instanceof Error ? err.message : err,
-        );
-      });
+      persistCareAction(s, action)
+        .then((result) => {
+          liveMorale = result.morale;
+          hud.updateMorale(liveMorale);
+        })
+        .catch(showPersistError);
     }
 
     // WEB3-FIX 2026-09-08: persistence rejection must be visible, not silent.
@@ -478,7 +480,9 @@ export function ThreeCanvas() {
         const wireAction = { type: 'wire', branchId: bid, angleDelta,
                              wireCost: 1 } as const;
         persistCareAction(sWire, wireAction as Parameters<typeof persistCareAction>[1])
-          .then(() => {
+          .then((serverResult) => {
+            liveMorale = serverResult.morale;
+            hud.updateMorale(liveMorale);
             const result = tree.wire(bid, angleDelta);
             if (!result.ok) return;
             const appliedDelta = round4(result.newAngle! - result.oldAngle!);
@@ -593,7 +597,9 @@ export function ThreeCanvas() {
           }
           const s = session;
           persistCareAction(s, { type: 'prune', branchId: hitBranchId })
-            .then(() => {
+            .then((serverResult) => {
+              liveMorale = serverResult.morale;
+              hud.updateMorale(liveMorale);
               const pruned = tree.prune(hitBranchId);
               if (!pruned) return;
               localCareLog.push({ day: tree.getAge(), action: { type: 'prune', branchId: hitBranchId } });
@@ -672,6 +678,7 @@ export function ThreeCanvas() {
     buildTreeMesh(careScene.treeRoot, tree);
     applyGrungeOverlay(careScene.treeRoot, tree.getHealth());
     hud.update(tree, livingBranchCount());
+    hud.updateMorale(null);
     console.info(`[kijo-care] boot seed=${seed} species=${species}`);
 
     // Guards the async DB swap: if the component unmounts before the fetch
@@ -846,11 +853,13 @@ export function ThreeCanvas() {
         tree = dbTree;
         bridge.setTree(tree);
         localCareLog = careLog;
+        liveMorale = treeData.morale;
         cacheReady = true;
         cacheTree();
         buildTreeMesh(careScene.treeRoot, tree);
         applyGrungeOverlay(careScene.treeRoot, tree.getHealth());
         hud.update(tree, livingBranchCount());
+        hud.updateMorale(liveMorale);
 
         const activeInfoEl = document.getElementById('active-tree-info');
         if (activeInfoEl) {
@@ -930,6 +939,7 @@ export function ThreeCanvas() {
           <button id="btn-jin-mode">🪵 Jin</button>
         </div>
         <div id="info-line">Seed #— · — branches · —</div>
+        <div id="spirit-line" className="spirit composed">Spirit: listening…</div>
         <div id="active-tree-info" style={{ fontSize: '12px', color: 'var(--muted, #888)', padding: '4px 8px' }} />
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button id="btn-xr" style={{ display: 'none' }}>🥽 View in XR</button>

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d1b70wpewoia6"
-path="res://.godot/imported/Bonsai_LowPoly_Moss_Baked_BaseColor.jpg-f1a1b4d1b619d1ae794bf022c18e81ec.ctex"
+path="res://.godot/imported/Bonsai_LowPoly_Moss_Baked_BaseColor.jpg-a2a7d05c34c2b2ceaef6d68670e4a1d6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://kijo-bonsai/node_modules/@kijo/web/public/textures/Bonsai_LowPoly_Moss_Baked_BaseColor.jpg"
-dest_files=["res://.godot/imported/Bonsai_LowPoly_Moss_Baked_BaseColor.jpg-f1a1b4d1b619d1ae794bf022c18e81ec.ctex"]
+source_file="res://kijo-bonsai/apps/web/public/textures/Bonsai_LowPoly_Moss_Baked_BaseColor.jpg"
+dest_files=["res://.godot/imported/Bonsai_LowPoly_Moss_Baked_BaseColor.jpg-a2a7d05c34c2b2ceaef6d68670e4a1d6.ctex"]
 
 [params]
 

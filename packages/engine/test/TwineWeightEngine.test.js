@@ -70,11 +70,14 @@ function treePruneable() {
 // TWE1 — applyTwine validation
 // ---------------------------------------------------------------------------
 
-test('TWE1-1: applyTwine returns not-found for out-of-range branchId', () => {
+test('TWE1-1: applyTwine throws CareLogReplayError for out-of-range branchId', () => {
+  // Cost guard (B-1) now catches out-of-range branchId before engine can return { ok: false }.
+  // See also: GUARD-9 in cost-guards.test.js.
   const tree = freshTrunkTree();
-  const r = tree.applyTwine(99999, 10);
-  assert.equal(r.ok, false);
-  assert.equal(r.reason, 'not-found');
+  assert.throws(
+    () => tree.applyTwine(99999, 10),
+    { name: 'CareLogReplayError' }
+  );
 });
 
 test('TWE1-2: applyTwine returns pruned for a pruned branch (non-trunk)', () => {
@@ -240,35 +243,37 @@ test('TWE4-1: removeTwine same-day (daysApplied=0) fully springs back', () => {
   assert.equal(b.twined, false);
 });
 
-test('TWE4-2: removeTwine at setDays/2 gives ~50% spring-back', () => {
+test('TWE4-2: removeTwine before natural degrade gives partial spring-back', () => {
   const tree = freshTrunkTree();
   const oldAngle = tree.getBranches()[0].angle;  // 80°
-  // storedDegradeDays=999 so natural degrade doesn't fire during the wait period.
-  tree.applyTwine(0, 20, 999);
+  // storedDegradeDays=20 (max valid per A-3 cap). Remove before day 20 to avoid degrade interference.
+  tree.applyTwine(0, 20, 20);
   const postApplyAngle = tree.getBranches()[0].angle;  // 100°
   const appliedDelta = round4(postApplyAngle - oldAngle);
-  // Use setDays from apply-time diameter to compute halfTicks.
+  // Grow up to min(setDays/2, 19) ticks — stay under storedDegradeDays to prevent degrade firing.
   const sdAtApply = computeSetDays(tree.getBranches()[0].diameter);
-  const halfTicks = Math.floor(sdAtApply / 2);
-  for (let i = 0; i < halfTicks; i++) GrowthEngine.growTick(tree);
+  const tickCount = Math.min(Math.floor(sdAtApply / 2), 19);
+  for (let i = 0; i < tickCount; i++) GrowthEngine.growTick(tree);
   // Diameter has grown — recompute setDays at removal time (matches removeTwine internal logic).
   const sdAtRemoval = computeSetDays(tree.getBranches()[0].diameter);
   tree.removeTwine(0);
   const b = tree.getBranches()[0];
   // fraction and expected spring-back must use the POST-GROWTH diameter (same as removeTwine).
-  const fraction = Math.max(0, Math.min(1, 1 - halfTicks / sdAtRemoval));
+  const fraction = Math.max(0, Math.min(1, 1 - tickCount / sdAtRemoval));
   const expectedSpringBack = round4(appliedDelta * fraction);
   const expectedAngle = round4(postApplyAngle - expectedSpringBack);
   assert.ok(
     Math.abs(b.angle - expectedAngle) < 0.01,
-    `midpoint removal: angle=${b.angle} should be ≈${expectedAngle} (appliedDelta=${appliedDelta}, fraction=${round4(fraction)}, sdAtRemoval=${round4(sdAtRemoval)})`
+    `partial removal: angle=${b.angle} should be ≈${expectedAngle} (appliedDelta=${appliedDelta}, fraction=${round4(fraction)}, sdAtRemoval=${round4(sdAtRemoval)})`
   );
 });
 
 test('TWE4-3: removeTwine after setDays sets bendSet=true', () => {
   const tree = freshTrunkTree();
-  // storedDegradeDays=999 so natural degrade doesn't fire.
-  tree.applyTwine(0, 20, 999);
+  // A-3 caps BonsaiTree.applyTwine storedDegradeDays at 20, but this test needs degrade to NOT
+  // fire during 70 ticks. Call engine directly — this is an engine-level test validating
+  // removeTwine spring-back mechanics, not the BonsaiTree guard.
+  TwineWeightEngine.applyTwine(tree, 0, 20, 999);
   // The trunk thickens as it grows, so setDays grows too. Max possible setDays=56 (at D_MAX=6).
   // Tick 70 times to guarantee we exceed the CURRENT setDays even after all growth-induced increases.
   for (let i = 0; i < 70; i++) GrowthEngine.growTick(tree);
@@ -305,13 +310,14 @@ test('TWE4-5: removeTwine appends twine-remove care log entry', () => {
 test('TWE5-1: CareLogReplay reconstructs branch angle after twine + removeTwine', () => {
   // NOTE: No trunk angle pre-mutation — direct branch mutations are not logged and
   // therefore cannot be replayed. The trunk starts at its natural angle (0°) and twine
-  // bends it to 15° (above POLAR_MIN_DEG). storedDegradeDays=999 for determinism.
+  // bends it to 15° (above POLAR_MIN_DEG). storedDegradeDays=20 for determinism
+  // (degrade at day 20 — well after removeTwine at day 5).
   const seed = 42;
   const species = 'hardwood';
 
   // Apply twine on day 0, grow 5 ticks, remove on day 5, grow to day 30.
   const tree = new BonsaiTree(seed, species);
-  tree.applyTwine(0, 15, 999);  // trunk: 0 → 15°; storedDegradeDays=999
+  tree.applyTwine(0, 15, 20);  // trunk: 0 → 15°; storedDegradeDays=20
   for (let i = 0; i < 5; i++) GrowthEngine.growTick(tree);
   tree.removeTwine(0);
   for (let i = 5; i < 30; i++) GrowthEngine.growTick(tree);
@@ -329,7 +335,7 @@ test('TWE5-1: CareLogReplay reconstructs branch angle after twine + removeTwine'
 test('TWE5-2: reconstructed care log contains twine and twine-remove entries', () => {
   const seed = 42;
   const tree = new BonsaiTree(seed, 'hardwood');
-  tree.applyTwine(0, 15, 999);  // no pre-mutation; trunk starts at 0°
+  tree.applyTwine(0, 15, 20);  // no pre-mutation; trunk starts at 0°; degrade at day 20 (after removal at day 5)
   for (let i = 0; i < 5; i++) GrowthEngine.growTick(tree);
   tree.removeTwine(0);
   for (let i = 5; i < 20; i++) GrowthEngine.growTick(tree);

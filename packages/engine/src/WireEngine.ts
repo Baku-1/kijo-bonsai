@@ -2,6 +2,7 @@ import { round4 } from '@kijo/shared';
 import type { CareLogEntry } from '@kijo/shared';
 import type { BonsaiTree } from './BonsaiTree.js';
 import { computeSetDays } from './TwineWeightEngine.js';
+import { CareLogReplayError } from './errors.js';
 
 /**
  * WireEngine — stateless wire-bend logic ("Gu Ahao's Tied and Cut Toolkit").
@@ -64,6 +65,18 @@ export class WireEngine {
    * applies round4, pushes the care-log entry, marks the tree dirty.
    */
   static wire(tree: BonsaiTree, branchId: number, angleDelta: number): WireResult {
+    // Defense-in-depth: guard inputs before any array access or state mutation.
+    // A-1: NaN/non-finite angleDelta must THROW (not return ok:false) — corrupt log data must halt replay.
+    if (!Number.isFinite(branchId) || branchId < 0 || !Number.isInteger(branchId)) {
+      throw new CareLogReplayError(
+        `WireEngine.wire: branchId must be a non-negative integer (got ${branchId}).`
+      );
+    }
+    if (!Number.isFinite(angleDelta)) {
+      throw new CareLogReplayError(
+        `WireEngine.wire: angleDelta must be a finite number (got ${angleDelta}).`
+      );
+    }
     const branches = tree.getBranches();
     const b = branches[branchId];
     if (!b) return { ok: false, reason: 'not-found' };
@@ -126,6 +139,12 @@ export class WireEngine {
    * Uses tree._logCare() (established pattern from PruneEngine).
    */
   static removeWire(tree: BonsaiTree, branchId: number): void {
+    // Defense-in-depth: guard branchId before array access.
+    if (!Number.isFinite(branchId) || branchId < 0 || !Number.isInteger(branchId)) {
+      throw new CareLogReplayError(
+        `WireEngine.removeWire: branchId must be a non-negative integer (got ${branchId}).`
+      );
+    }
     const branches = tree.getBranches();
     const b = branches[branchId];
     if (!b) return;

@@ -13,3 +13,12 @@ verify_jwt = false
 
 [functions.derive-stats]
 verify_jwt = false
+
+[functions.nft-image]
+verify_jwt = false
+
+[functions.nft-metadata]
+verify_jwt = false
+
+[functions.get-tree-public]
+verify_jwt = false

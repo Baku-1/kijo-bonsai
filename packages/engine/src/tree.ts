@@ -43,6 +43,9 @@ export function createTree(seed: number, species: SpeciesClass): TreeState {
         weightAngleDelta: 0,   // OQ-1 Option A (2026-08-14)
         twineDegradesDay: 0,
         bendSet:          false,  // CRITICAL-C fix 2026-08-02
+        // Jin / Deadwood State (2026-09-18, JinEngine Phase 2)
+        jinned:           false,
+        jinSegmentStart:  -1,
       }
     ]
   };
