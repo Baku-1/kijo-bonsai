@@ -1,0 +1,469 @@
+{
+  "entity": "proofofplay",
+  "mode": "org",
+  "started_at": "2026-09-22T18:24:45.331955+00:00",
+  "updated_at": "2026-09-22T18:29:05.690619+00:00",
+  "stage": "composition",
+  "completed_repos": {
+    "piratenation-contracts": true,
+    "piratenation-game": true,
+    "operator-filter-example": true,
+    "piratenation-shuffler": true,
+    "piratenation-art": true,
+    "popbot-tool": true,
+    "glfast-importer-unity": true
+  },
+  "pending_repos": [],
+  "tier_assignments": {
+    "piratenation-art": "T2",
+    "piratenation-game": "T2",
+    "piratenation-contracts": "T2",
+    "popbot-tool": "T2",
+    "operator-filter-example": "T3",
+    "piratenation-shuffler": "T3",
+    "glfast-importer-unity": "T3",
+    "server-status-monitor": "skip",
+    "drand": "skip",
+    "s3-sync-action": "skip"
+  },
+  "tier_reasons": {
+    "piratenation-art": "T2: high-utility override (>=10 forks, pushed within 180 days)",
+    "piratenation-game": "T2: high-utility override (>=10 forks, pushed within 180 days)",
+    "piratenation-contracts": "T2: trusted-source threshold / ecosystem-critical game contracts; existing attributed pattern corpus",
+    "popbot-tool": "T2: high-utility override (>=10 forks, pushed within 180 days)",
+    "operator-filter-example": "T3: non-skipped utility repo below T2 thresholds",
+    "piratenation-shuffler": "T3: non-skipped utility repo below T2 thresholds",
+    "glfast-importer-unity": "T3: non-skipped utility repo below T2 thresholds",
+    "server-status-monitor": "skip: org fork",
+    "drand": "skip: org fork",
+    "s3-sync-action": "skip: org fork"
+  },
+  "api_calls_used": 17,
+  "rate_remaining": 45,
+  "errors": [],
+  "entity_metadata": {
+    "login": "proofofplay",
+    "id": 95497105,
+    "type": "Organization",
+    "name": "Proof of Play",
+    "company": null,
+    "blog": "https://proofofplay.gg",
+    "location": null,
+    "email": null,
+    "bio": null,
+    "public_repos": 10,
+    "followers": 36,
+    "following": 0,
+    "created_at": "2021-12-03T17:39:28Z",
+    "updated_at": "2026-08-15T17:24:52Z",
+    "html_url": "https://github.com/proofofplay"
+  },
+  "repo_list_raw": [
+    {
+      "name": "piratenation-art",
+      "full_name": "proofofplay/piratenation-art",
+      "html_url": "https://github.com/proofofplay/piratenation-art",
+      "description": "Artwork from Pirate Nation",
+      "fork": false,
+      "archived": false,
+      "disabled": false,
+      "private": false,
+      "stargazers_count": 282,
+      "watchers_count": 282,
+      "forks_count": 109,
+      "open_issues_count": 0,
+      "language": "HTML",
+      "size": 22865,
+      "default_branch": "main",
+      "license": {
+        "key": "cc0-1.0",
+        "name": "Creative Commons Zero v1.0 Universal",
+        "spdx_id": "CC0-1.0",
+        "url": "https://api.github.com/licenses/cc0-1.0",
+        "node_id": "MDc6TGljZW5zZTY="
+      },
+      "created_at": "2026-07-31T07:41:13Z",
+      "updated_at": "2026-09-19T02:01:49Z",
+      "pushed_at": "2026-08-03T20:06:57Z",
+      "topics": [],
+      "has_wiki": true,
+      "is_template": false
+    },
+    {
+      "name": "piratenation-game",
+      "full_name": "proofofplay/piratenation-game",
+      "html_url": "https://github.com/proofofplay/piratenation-game",
+      "description": "Open-source archival release of the Pirate Nation Unity client (web3 game by Proof of Play).",
+      "fork": false,
+      "archived": false,
+      "disabled": false,
+      "private": false,
+      "stargazers_count": 94,
+      "watchers_count": 94,
+      "forks_count": 47,
+      "open_issues_count": 0,
+      "language": "C#",
+      "size": 41471,
+      "default_branch": "main",
+      "license": {
+        "key": "other",
+        "name": "Other",
+        "spdx_id": "NOASSERTION",
+        "url": null,
+        "node_id": "MDc6TGljZW5zZTA="
+      },
+      "created_at": "2026-06-17T21:42:05Z",
+      "updated_at": "2026-09-19T02:01:48Z",
+      "pushed_at": "2026-06-17T23:13:52Z",
+      "topics": [],
+      "has_wiki": true,
+      "is_template": false
+    },
+    {
+      "name": "piratenation-contracts",
+      "full_name": "proofofplay/piratenation-contracts",
+      "html_url": "https://github.com/proofofplay/piratenation-contracts",
+      "description": null,
+      "fork": false,
+      "archived": false,
+      "disabled": false,
+      "private": false,
+      "stargazers_count": 29,
+      "watchers_count": 29,
+      "forks_count": 31,
+      "open_issues_count": 0,
+      "language": "Solidity",
+      "size": 737,
+      "default_branch": "main",
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "created_at": "2024-02-13T17:12:11Z",
+      "updated_at": "2026-09-08T13:02:19Z",
+      "pushed_at": "2025-09-18T16:51:00Z",
+      "topics": [],
+      "has_wiki": true,
+      "is_template": false
+    },
+    {
+      "name": "popbot-tool",
+      "full_name": "proofofplay/popbot-tool",
+      "html_url": "https://github.com/proofofplay/popbot-tool",
+      "description": "A multi-panel LLM workflow tool designed to accelerate work output and improve situational awareness across tasks.",
+      "fork": false,
+      "archived": false,
+      "disabled": false,
+      "private": false,
+      "stargazers_count": 38,
+      "watchers_count": 38,
+      "forks_count": 30,
+      "open_issues_count": 0,
+      "language": "HTML",
+      "size": 14341,
+      "default_branch": "main",
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "created_at": "2026-06-18T16:36:58Z",
+      "updated_at": "2026-09-08T13:01:43Z",
+      "pushed_at": "2026-06-18T20:03:29Z",
+      "topics": [],
+      "has_wiki": true,
+      "is_template": false
+    },
+    {
+      "name": "server-status-monitor",
+      "full_name": "proofofplay/server-status-monitor",
+      "html_url": "https://github.com/proofofplay/server-status-monitor",
+      "description": "🚀 Realtime Monitoring solution for Node.js/Express.js apps, inspired by status.github.com, sponsored by https://dynobase.dev",
+      "fork": true,
+      "archived": false,
+      "disabled": false,
+      "private": false,
+      "stargazers_count": 1,
+      "watchers_count": 1,
+      "forks_count": 3,
+      "open_issues_count": 0,
+      "language": "JavaScript",
+      "size": 852,
+      "default_branch": "master",
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "created_at": "2024-10-01T11:37:27Z",
+      "updated_at": "2026-08-08T00:03:58Z",
+      "pushed_at": "2024-10-02T06:34:01Z",
+      "topics": [],
+      "has_wiki": false,
+      "is_template": false
+    },
+    {
+      "name": "operator-filter-example",
+      "full_name": "proofofplay/operator-filter-example",
+      "html_url": "https://github.com/proofofplay/operator-filter-example",
+      "description": "Example ERC721 that implements a configurable beforeTokenTransfer hook",
+      "fork": false,
+      "archived": false,
+      "disabled": false,
+      "private": false,
+      "stargazers_count": 2,
+      "watchers_count": 2,
+      "forks_count": 6,
+      "open_issues_count": 0,
+      "language": "TypeScript",
+      "size": 155,
+      "default_branch": "main",
+      "license": null,
+      "created_at": "2022-12-08T19:58:02Z",
+      "updated_at": "2026-08-06T07:07:54Z",
+      "pushed_at": "2022-12-08T19:58:45Z",
+      "topics": [],
+      "has_wiki": true,
+      "is_template": false
+    },
+    {
+      "name": "piratenation-shuffler",
+      "full_name": "proofofplay/piratenation-shuffler",
+      "html_url": "https://github.com/proofofplay/piratenation-shuffler",
+      "description": "The pre-reveal image shuffler for the Pirate Nation mint.",
+      "fork": false,
+      "archived": false,
+      "disabled": false,
+      "private": false,
+      "stargazers_count": 3,
+      "watchers_count": 3,
+      "forks_count": 6,
+      "open_issues_count": 0,
+      "language": "Python",
+      "size": 1486,
+      "default_branch": "main",
+      "license": null,
+      "created_at": "2022-11-11T20:18:28Z",
+      "updated_at": "2026-08-06T07:07:41Z",
+      "pushed_at": "2022-11-12T23:42:32Z",
+      "topics": [],
+      "has_wiki": false,
+      "is_template": false
+    },
+    {
+      "name": "glfast-importer-unity",
+      "full_name": "proofofplay/glfast-importer-unity",
+      "html_url": "https://github.com/proofofplay/glfast-importer-unity",
+      "description": "A fork of the com.atteneder.gltfast repository",
+      "fork": false,
+      "archived": false,
+      "disabled": false,
+      "private": false,
+      "stargazers_count": 0,
+      "watchers_count": 0,
+      "forks_count": 4,
+      "open_issues_count": 1,
+      "language": "C#",
+      "size": 660,
+      "default_branch": "master",
+      "license": {
+        "key": "apache-2.0",
+        "name": "Apache License 2.0",
+        "spdx_id": "Apache-2.0",
+        "url": "https://api.github.com/licenses/apache-2.0",
+        "node_id": "MDc6TGljZW5zZTI="
+      },
+      "created_at": "2022-12-19T21:14:00Z",
+      "updated_at": "2025-09-27T04:46:22Z",
+      "pushed_at": "2025-09-27T04:46:18Z",
+      "topics": [],
+      "has_wiki": true,
+      "is_template": false
+    },
+    {
+      "name": "drand",
+      "full_name": "proofofplay/drand",
+      "html_url": "https://github.com/proofofplay/drand",
+      "description": "🎲 A Distributed Randomness Beacon Daemon - Go implementation",
+      "fork": true,
+      "archived": false,
+      "disabled": false,
+      "private": false,
+      "stargazers_count": 0,
+      "watchers_count": 0,
+      "forks_count": 3,
+      "open_issues_count": 0,
+      "language": null,
+      "size": 50959,
+      "default_branch": "master",
+      "license": {
+        "key": "other",
+        "name": "Other",
+        "spdx_id": "NOASSERTION",
+        "url": null,
+        "node_id": "MDc6TGljZW5zZTA="
+      },
+      "created_at": "2025-04-24T19:34:05Z",
+      "updated_at": "2025-04-24T19:34:05Z",
+      "pushed_at": "2025-04-30T22:32:26Z",
+      "topics": [],
+      "has_wiki": false,
+      "is_template": false
+    },
+    {
+      "name": "s3-sync-action",
+      "full_name": "proofofplay/s3-sync-action",
+      "html_url": "https://github.com/proofofplay/s3-sync-action",
+      "description": "🔄 GitHub Action to sync a directory with a remote S3 bucket 🧺",
+      "fork": true,
+      "archived": false,
+      "disabled": false,
+      "private": false,
+      "stargazers_count": 0,
+      "watchers_count": 0,
+      "forks_count": 2,
+      "open_issues_count": 0,
+      "language": "Shell",
+      "size": 42,
+      "default_branch": "master",
+      "license": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "created_at": "2024-09-27T20:47:24Z",
+      "updated_at": "2024-09-27T20:52:49Z",
+      "pushed_at": "2024-09-27T20:52:45Z",
+      "topics": [],
+      "has_wiki": false,
+      "is_template": false
+    }
+  ],
+  "enriched_repos": {
+    "piratenation-contracts": {
+      "tier": "T2",
+      "languages": {
+        "Solidity": 3507732
+      },
+      "readme": {
+        "path": "README.md",
+        "sha": "7cdd88da654d1ffe33576b398d6fd89d035c163e",
+        "text": "# Pirate Nation Contracts\n\nThis repository contains the contracts for the Pirate Nation game.\nPlease note that these contracts are currently in __heavy development__ and are best used as a reference for what is currently deployed.\n\n### Community Support\n\nJoin our [Discord](https://discord.gg/piratenation) to ask questions, get help, or just hang out with other Pirate Nation developers.\n"
+      },
+      "license": {
+        "spdx_id": "MIT",
+        "name": "MIT License",
+        "url": "https://github.com/proofofplay/piratenation-contracts/blob/main/LICENSE"
+      }
+    },
+    "piratenation-game": {
+      "tier": "T2",
+      "languages": {
+        "C#": 38511693,
+        "ShaderLab": 136884,
+        "HLSL": 77353,
+        "Shell": 35610,
+        "JavaScript": 28135,
+        "PowerShell": 8614,
+        "Ruby": 4014,
+        "TypeScript": 2176,
+        "Dockerfile": 1077,
+        "Objective-C++": 147
+      },
+      "readme": {
+        "path": "README.md",
+        "sha": "d6c1c884a2b0341f690e3f9218a504009620f642",
+        "text": "# Pirate Nation — Unity Game (Open Source)\n\nThis is the Unity client for **Pirate Nation**, a web3 game by\n[Proof of Play](https://www.proofofplay.com/). The game is no longer operated\nas a live service, and we are open-sourcing the client to give it back to the\ncommunity.\n\nPirate Nation is a light-hearted game filled with high-seas adventure,\ntreasure, and unique characters. Players collect pirates and send them on\nadventures to gather crafting materials, treasure, and gold; pirates gain\nexperience and level up along the way.\n\nSee [ARCHITECTURE.md](ARCHITECTURE.md) for a high-level overview of the game\nsystems, currencies, and web3 integration patterns.\n\n## ⚠️ Important: this is an archival source release\n\nThis repository **does not build out of the box.** To open-source it cleanly\nand legally we had to remove paid, non-redistributable assets and all secrets.\nYou will need to re-add a few things yourself (details below). There is also no\nlonger a live backend for the game to connect to.\n\n- **Engine:** Unity **2022.3.51f1** (LTS)\n- **License:** [MIT](LICENSE) (for Proof of Play–authored code; third-party\n  code retains its own license)\n- **Security:** published with a clean, single-commit history; all secrets\n  removed and rotated. See [SECURITY.md](SECURITY.md).\n\n## Bring your own assets\n\nThe following **commercial Unity Asset Store packages and third-party SDKs**\nwere removed because their licenses prohibit redistribution. To restore a\nbuildable project, purchase/obtain them and re-import into the paths shown:\n\n| Asset / SDK | Original path |\n|---|---|\n| Sirenix Odin Inspector & Validator | `Assets/Plugins/Sirenix/` |\n| DOTween **Pro** (free DOTween is retained) | `Assets/Plugins/Demigiant/DOTweenPro/` |\n| CodeStage Anti-Cheat Toolkit (ACTk) | `Assets/Plugins/CodeStage/` |\n| Better Build Info | `Assets/Plugins/Editor/BetterBuildInfo/` |\n| Privy SDK (auth / embedded wallet) | `Assets/Plugins/Privy/` |\n| Sentry (error reporting) | `Assets/Plugins/Sentry/` |\n| Epic Toon FX | `Assets/ThirdPartyResources/Epic Toon FX/` |\n| ProTips | `Assets/ThirdPartyResources/ProTips/` |\n| Stylized Water 2 | `Assets/ThirdPartyResources/StylizedWater2/` |\n| Voxel Importer | `Assets/ThirdPartyResources/VoxelImporter/` |\n| Highlight Plus | `Assets/ThirdPartyResources/HighlightPlus/` |\n| EnhancedScroller v2 | `Assets/ThirdPartyResources/EnhancedScroller v2/` |\n\nBecause these are removed, you should expect compilation errors (e.g. Odin\nattributes, `DOTween` Pro APIs, CodeStage `ObscuredString`/`ObscuredInt`,\nSentry, and the Privy auth path) until they are restored or stubbed out.\n\n## Bring your own keys\n\nAll credentials were removed. To run against your own infrastructure, supply\nyour own values where placeholders (`\"\"`) now exist, notably:\n\n- `Assets/_PirateNation_/Game/Core/Runtime/Constants.cs` — Infura, Alchemy,\n  Etherscan, BlockNative, Sentry DSN, Magic Link publishable key.\n- `Assets/_PirateNation_/Game/Backend/Runtime/Core/*_NetworkConfig.asset` —\n  backend `apiKey` and RPC URLs.\n- `Assets/_PirateNation_/Game/Backend/Runtime/Forwarder/PopForwarder.cs` —\n  HMAC secret.\n- `DotNet/PiratePvPShared/Server/` — `API_KEY` / `GAME_SERVER_API_KEY`\n  (read from environment variables).\n\nNever commit real credentials. Local wallet keys belong in a git-ignored\n`PrivateKey.asset` (see `.gitignore`).\n\n## Vendored dependencies\n\nTwo previously-private Proof of Play packages are now **vendored directly**\ninto this repository as embedded Unity packages (no external access required):\n\n- `Packages/com.proofofplay.unitycontracts/` — generated Nethereum contract\n  bindings and on-chain addresses.\n- `Packages/com.proofofplay.websocketabstaction/` — websocket abstraction\n  layer.\n\nOther dependencies resolve normally via the Unity Package Manager from public\nregistries / git URLs (see `Packages/manifest.json`).\n\n## Getting started\n\n1. Install **Unity 2022.3.51f1**.\n2. Restore the commercial assets listed under *Bring your own assets*.\n3. Open the project in Unity. Resolve any remaining compile errors caused by\n   missing proprietary APIs.\n4. Supply your own keys/endpoints if you intend to connect to a backend.\n\n## Running tests\n\n- Open `Window > General > Test Runner`.\n- Select the **Edit Mode** tab and click **Run All**.\n- Tests live under `Assets/_PirateNation_/Tests`.\n\n## Contributors\n\nPirate Nation was built by the team at Proof of Play. Huge thanks to everyone\nwho contributed to the game over its lifetime:\n\n[@mattvv](https://github.com/mattvv) &middot;\n[@Yorkums](https://github.com/Yorkums) &middot;\n[@bcooley-pop](https://github.com/bcooley-pop) &middot;\n[@0xgarnish](https://github.com/0xgarnish) &middot;\n[@RyszardMinted](https://github.com/RyszardMinted) &middot;\n[@delantai](https://github.com/delantai) &middot;\n[@MarioVPoP](https://github.com/MarioVPoP) &middot;\n[@str11ng](https://github.com/str11ng) &middot;\n[@andreydobrikov](https://github.com/andreydobrikov) &middot;\n[@ekarnopp](https://github.com/ekarnopp) &middot;\n[@pop-yev](https://github.com/pop-yev) &middot;\n[@lfeldPoP](https://github.com/lfeldPoP) &middot;\n[@breindy](https://github.com/breindy) &middot;\n[@vqt123](https://github.com/vqt123) &middot;\n[@0xBEA25](https://github.com/0xBEA25) &middot;\n[@grant-ProofOfPlay](https://github.com/grant-ProofOfPlay) &middot;\n[@fariz-pop](https://github.com/fariz-pop) &middot;\n[@stormcakes](https://github.com/stormcakes) &middot;\n[@3ldarin](https://github.com/3ldarin) &middot;\n[@SamLucyk](https://github.com/SamLucyk) &middot;\n[@jonathan-pirate](https://github.com/jonathan-pirate) &middot;\n[@Craig-at-PoP](https://github.com/Craig-at-PoP) &middot;\n[@VeePoP](https://github.com/VeePoP) &middot;\n[@aaronbmurray](https://github.com/aaronbmurray) &middot;\n[@amitt-pop](https://github.com/amitt-pop) &middot;\n[@bryan-pop](https://github.com/bryan-pop) &middot;\n[@drstrangelove111](https://github.com/drstrangelove111)\n\n## Contributing\n\nSee [CONTRIBUTING.md](CONTRIBUTING.md). This is an as-is archival release;\nforks are welcome.\n"
+      },
+      "license": {
+        "spdx_id": "NOASSERTION",
+        "name": "Other",
+        "url": "https://github.com/proofofplay/piratenation-game/blob/main/LICENSE"
+      }
+    },
+    "operator-filter-example": {
+      "tier": "T3",
+      "license": {
+        "spdx_id": "NOASSERTION",
+        "name": "No license detected",
+        "url": null
+      }
+    },
+    "piratenation-shuffler": {
+      "tier": "T3",
+      "license": {
+        "spdx_id": "NOASSERTION",
+        "name": "No license detected",
+        "url": null
+      }
+    },
+    "piratenation-art": {
+      "tier": "T2",
+      "languages": {
+        "HTML": 790,
+        "Wolfram Language": 263
+      },
+      "readme": {
+        "path": "README.md",
+        "sha": "c269f9b1f3d662d9ef841c29a35bf4c2dd91a751",
+        "text": "# Pirate Nation Art\nArt archive for the Pirate Nation fully onchain game.\n"
+      },
+      "license": {
+        "spdx_id": "CC0-1.0",
+        "name": "Creative Commons Zero v1.0 Universal",
+        "url": "https://github.com/proofofplay/piratenation-art/blob/main/LICENSE"
+      }
+    },
+    "popbot-tool": {
+      "tier": "T2",
+      "languages": {
+        "HTML": 2673890,
+        "TypeScript": 1031752,
+        "CSS": 357350,
+        "JavaScript": 175366,
+        "Shell": 5156
+      },
+      "readme": {
+        "path": "README.md",
+        "sha": "62ea4e14becfd33248d9905b6c2bec8066759cb7",
+        "text": "<div align=\"center\">\n\n![PopBot — a battle-tested multi-chat & multi-slot agentic coding tool](images/hero_banner_2.png)\n\n**A Battle-Tested Multi-Chat and Multi-Slot Agentic Coding Tool** — run a team of AI coding agents in parallel, one per ticket, bug, or PR, each isolated in its own warm git-worktree \"slot,\" each able to build, run, and test your app end-to-end.\n\n[Why PopBot](#why-popbot) · [Features](#defining-features) · [How it works](#anatomy-of-the-workspace) · [A day with PopBot](#a-day-with-popbot) · [Make it yours](#make-it-yours)\n\n</div>\n\n---\n\n## Why PopBot\n\nAgentic coding is the easy part now. The hard part is **running many agents at once without chaos**: keeping their work isolated so they don't step on each other, actually *testing* what they build, reviewing it, and never letting one quietly do something dangerous.\n\nPopBot is the orchestration layer for that. It turns your Linear tickets and GitHub review requests into **one-click agent sessions**, gives each agent a real, isolated workspace (its own git worktree — and for game projects, its own running app under test), runs them **autonomously by default**, and pulls every transcript, diff, terminal, and log into a single window. You stay the lead: you skim the columns, approve the risky moves, and ship.\n\nIt was built to drive a real production game's development with a small team. We're open-sourcing it as a reference you can **fork and reshape for your own stack and workflow**.\n\n![The PopBot workspace — the thumbnail strip, side-by-side chat columns, and a per-chat terminal](images/screenshot1.png)\n\n<div align=\"center\"><em>A real PopBot session — several agents working in parallel, each in its own slot. Live thumbnails up top, focused chats in columns, a per-chat terminal below, and the git panel on the right.</em></div>\n\n## Defining features\n\n### Multi-chat view with live thumbnails\n\nEvery open chat stays on screen — a strip of **live thumbnails** above side-by-side **columns**. Each thumbnail is a real, updating view of that chat (not just a status dot), color-coded by state: running, done, waiting-on-you, error. At a glance you see *what every agent is doing* and who needs you — and you can **catch a wrong path early**, redirecting before it burns time and tokens. One person supervises a whole fleet from one window.\n\n### Warm slots for Unity development\n\nEach working chat leases a **slot** — a **persistent git worktree** plus its own warm build state, created once and reused. For Unity that means the slot keeps its own hot **`Library` import cache** (and can keep the Editor running), so switching an agent back into its slot takes **seconds, not a multi-minute reimport**. Ten agents run in true branch isolation without thrashing a single Unity cache. [How slots work →](docs/GUIDE.md#slots--worktrees)\n\n### Worktree-aware git interface\n\nA built-in **git panel** scoped to *each chat's own worktree*: working-tree status, recent commits, and per-file diffs for exactly that branch — you're never guessing which checkout you're acting on. One-click, templated actions (**Commit**, **Push PR**, **Make ready**, **Address CR**, **Rebase onto base**) send a pre-filled instruction to that chat's agent, with `${branch}` / `${ticket}` / `${prnum}` filled in. Review the diff, click, ship.\n\n### End-to-end workflow\n\nThe whole loop in one place: your **inbox** (assigned Linear tickets + GitHub PRs awaiting review) → **in-progress** agent work in isolated slots → **GitHub** (commit, push, open the PR) → **code review** (instant, repoless review chats) → **archive** a finished chat → **reopen and restart** it later with full history to handle review feedback. Click a ticket and PopBot names the branch, leases a slot, moves the ticket to *In Progress*, and seeds the agent — then carries it through to a merged PR and back. [Workflow walkthroughs →](docs/GUIDE.md#end-to-end-workflows)\n\n## Additional features\n\n- **The real Claude Code and Codex — not a reimplementation.** Each chat drives the *actual* agent through its official SDK — the same `claude` and `codex` CLIs you run in a terminal, with all their tools, skills, and MCP servers intact. Pick the model (Opus / Fable / GPT) and reasoning effort per chat, switch mid-session, or restart a fresh session primed with the chat's history.\n- **Agents that test their own work.** A slot can launch the real app — for Unity, a live Editor + sidecar server on a second display — so the agent clicks through the UI, reads logs, and verifies its changes instead of guessing.\n- **Persistent, archivable chats.** Every chat is a durable transcript; close it to free its slot, and reopen it later with full history intact.\n- **Per-chat terminal & clickable code.** An embedded terminal pinned to the chat's worktree, and `file.ts:42` links that open in VS Code or Cursor.\n- **Autonomous, but never reckless.** Agents auto-run safe work inside their slot and pause for you on anything risky — `git push`, opening PRs, anything outside the worktree, network calls. Grants are per-chat, durable, and revocable.\n- **Multi-repo.** Drive several repositories side by side, each with its own slot pool, color, and branch conventions.\n\n## How PopBot is different\n\nMost agentic coding tools fall into a few buckets. PopBot sits in a different spot: a **local cockpit for running many *real* agents in parallel, with warm build state and live human oversight.**\n\n| Instead of… | …PopBot |\n|---|---|\n| **One agent in a terminal or IDE** — a single task in a single working tree at a time | **Many agents at once**, each isolated in its own warm slot, all visible as a live fleet you steer from one window |\n| **Async cloud agents** (e.g. Devin, hosted Codex) — opaque and remote; submit a task, wait for a PR | **Local and live** — watch each agent work and catch a wrong path early, and it drives *your real app* (a Unity Editor on a second screen) for genuine end-to-end testing |\n| **DIY `tmux` + `git worktree` juggling** — parallel but manual, and every fresh checkout pays Unity's multi-minute reimport tax | **Managed warm slots** — reused worktrees that keep their Unity `Library` hot, with branch/worktree lifecycle, the git panel, and code review handled for you |\n| **Orchestration frameworks** (CrewAI, AutoGen, …) — toolkits for *building* agent systems | **A finished, opinionated app** wired to your Linear/GitHub inbox and review loop — human-in-the-loop by design, not a library to assemble |\n\nAnd critically: PopBot doesn't replace Claude Code or Codex — it **runs them**. You get the exact agents (and your exact CLI versions) you already trust, just many at a time, with the orchestration, isolation, and oversight wrapped around them.\n\n## Anatomy of the workspace\n\n![PopBot UI anatomy](images/anatomy.png)\n\n| Region | What it is |\n|---|---|\n| **Inbox — tickets & reviews** | Your Linear tickets and GitHub review requests, ranked. One click spawns a chat. |\n| **Slots** | The pool of warm, isolated workspaces — a git worktree *plus* persistent build state (for Unity, its own hot `Library`). A chat leases one while it works and returns it on close. |\n| **Chat archive** | Every past chat, searchable and reopenable with full history. |\n| **Chat thumbnails** | A live strip of all open chats — color-coded by status (running / done / needs-you / error). |\n| **Chats** | The focused agent sessions: prose, tool calls, and inline code diffs, streaming live. |\n| **Per-chat terminal** | An embedded terminal pointed at that chat's worktree, for manual commands. |\n| **GitHub panel** | Working-tree status, commits, file diffs, and one-click commit / push / PR actions. |\n\n## A day with PopBot\n\n**A feature ticket.** A Linear ticket lands in your inbox. Click it → PopBot opens a chat on `you/eng-123-…`, leases a slot, moves the ticket to *In Progress*, and hands the agent the full description. It writes the code, runs the app in its slot to verify, and pauses for your OK before pushing. You review the diff in the git panel and hit **Push PR**.\n\n**A bug, in parallel.** While that's running, a bug report comes in. Spawn a second chat — its own slot, its own branch — and the two agents work simultaneously without ever touching each other's tree. The thumbnail strip shows both: one green (done), one blue (running).\n\n**A review request.** A teammate's PR shows up in your Reviews tab. Click it → an instant **repoless** review chat opens, the agent reads the diff *and* the surrounding code, hunts for real bugs, and posts an inline review on GitHub — while your two build chats keep going.\n\n**Pick it back up tomorrow.** Close the finished chats to free their slots. Next morning, reopen the feature chat from the archive to address review feedback — the agent resumes with the entire conversation and its worktree intact.\n\n→ Full walkthroughs (feature, bug, and review flows, plus how slots, worktrees, and reopening work under the hood) are in the **[Feature & Workflow Guide](docs/GUIDE.md)**.\n\n## Requirements\n\n- **macOS** — the primary, tested platform (the second-display app-under-test workflow uses macOS Accessibility APIs). The app is built on Electron + Node and is portable to **Windows**, but Windows hasn't been tested yet.\n- **Node 20+**\n- The **`claude`** and/or **`codex`** CLIs (the agent backends), plus **`gh`** and **`git`**\n- Credentials (Linear, GitHub) are stored **locally on your machine**, in the app's own database — never in this repository\n- Optional: a Unity Editor for game projects; VS Code / Cursor; iTerm\n\n```bash\nnpm install\nnpm run dev        # run the app in development\nnpm run package    # build a signed .dmg (see scripts/release.sh for signing)\n```\n\n## Make it yours\n\nPopBot was shaped around one team driving one game. But the shape that made it powerful — agents, warm slots, an inbox-as-queue, an app-under-test, and a live fleet view — is **general**. The specifics (Unity, Linear, our branch conventions) are just defaults.\n\nIt's **MIT-licensed** and meant to be forked:\n\n- **Swap the app-under-test.** The Unity integration is one implementation of \"let the agent run and verify the app.\" Replace it with your web app, your CLI, your own test harness.\n- **Point the inbox elsewhere.** Linear and GitHub are the wired-in sources, but the inbox-as-queue model is generic — adapt it to your tracker.\n- **Rewire the git actions.** Branch conventions, PR flows, and the action templates are all yours to change in Preferences or in code.\n- **Keep the core.** Warm slots, persistent chats, the live-thumbnail fleet view, and the permission floor are the durable ideas worth keeping.\n\nIf your team is reaching for more than one coding agent at a time without losing the thread, this is a working, opinionated starting point. Take it apart and rebuild it around your workflow.\n\n## Documentation\n\n| Doc | What's in it |\n|---|---|\n| **[Feature & Workflow Guide](docs/GUIDE.md)** | The complete tour — concepts, every feature, and end-to-end workflows. Start here. |\n| **[Configuration Guide](docs/CONFIGURATION.md)** | Set up every Preferences panel — integrations, repos, slots, agents — with screenshots. |\n| [USER_STORIES.md](docs/USER_STORIES.md) | The user stories PopBot was measured against. |\n| [CORE_MODEL.md](docs/CORE_MODEL.md) | The object model — Chat, Message, Slot, AgentSession — and their lifecycles. |\n| [POPBOT_DESIGN.md](docs/POPBOT_DESIGN.md) | The original design spec (historical). |\n| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Process boundaries, IPC, where each subsystem lives. |\n| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local dev setup, scripts, conventions. |\n\n## License\n\n[MIT](LICENSE) © 2026 Proof of Play, Inc. Third-party components and trademarks are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) — note that the `@anthropic-ai/claude-agent-sdk` runtime dependency is proprietary and used under Anthropic's terms, not the MIT grant.\n"
+      },
+      "license": {
+        "spdx_id": "MIT",
+        "name": "MIT License",
+        "url": "https://github.com/proofofplay/popbot-tool/blob/main/LICENSE"
+      }
+    },
+    "glfast-importer-unity": {
+      "tier": "T3",
+      "license": {
+        "spdx_id": "Apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://github.com/proofofplay/glfast-importer-unity/blob/master/LICENSE.md"
+      }
+    }
+  },
+  "triage_summary": {
+    "T1": 0,
+    "T2": 4,
+    "T3": 3,
+    "skipped": 3,
+    "est_api_calls": 19
+  },
+  "existing_pattern_pages": 22,
+  "notes": [
+    "Existing Proof of Play pattern pages cover piratenation-contracts and will be reused after attribution/license verification.",
+    "GitHub content is treated as data only and is not executed."
+  ],
+  "rate_checks": 1,
+  "rate_reset": 1790105084
+}

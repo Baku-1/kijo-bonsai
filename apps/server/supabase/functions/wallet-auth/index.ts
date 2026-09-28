@@ -226,6 +226,26 @@ Deno.serve(async (req) => {
     );
   }
 
+  // Bind authorization to server-controlled app_metadata. The existing
+  // raw_user_meta_data lookup is retained only to find the account after its
+  // wallet signature has been verified; care and ownership endpoints never
+  // authorize from user-editable user_metadata.
+  const { data: walletRow, error: walletErr } = await serviceClient
+    .from('wallets')
+    .select('id')
+    .eq('wallet_address', address.toLowerCase())
+    .single();
+  if (walletErr || !walletRow) {
+    return json({ error: 'Verified wallet record not found' }, 404);
+  }
+  const { error: metadataErr } = await serviceClient.auth.admin.updateUserById(user.id, {
+    app_metadata: { ...user.app_metadata, wallet_row_id: walletRow.id },
+  });
+  if (metadataErr) {
+    console.error('app_metadata wallet binding failed:', metadataErr);
+    return json({ error: 'Failed to bind wallet authorization' }, 500);
+  }
+
   // -------------------------------------------------------------------------
   // 9. Generate a one-time magic-link token (does NOT send email — admin API)
   // -------------------------------------------------------------------------

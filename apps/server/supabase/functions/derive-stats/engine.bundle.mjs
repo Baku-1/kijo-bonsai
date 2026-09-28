@@ -45,11 +45,107 @@ function createTree(seed, species) {
         weightAngleDelta: 0,
         // OQ-1 Option A (2026-08-14)
         twineDegradesDay: 0,
-        bendSet: false
+        bendSet: false,
         // CRITICAL-C fix 2026-08-02
+        // Jin / Deadwood State (2026-09-18, JinEngine Phase 2)
+        jinned: false,
+        jinSegmentStart: -1
       }
     ]
   };
+}
+
+// kijo-engine:C:\Users\jerem\.gemini\antigravity\playground\kijo\kijo-bonsai\packages\shared\dist\spiritMorale.js
+function percentage(value, name) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100) {
+    throw new RangeError(`${name} must be a finite number from 0 to 100`);
+  }
+  return value;
+}
+function booleanFact(value, name) {
+  if (typeof value !== "boolean")
+    throw new TypeError(`${name} must be boolean`);
+  return value;
+}
+function readMoraleState(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new TypeError("morale state must be an object");
+  }
+  const record = input;
+  const value = percentage(record.value, "morale value");
+  const refusing = booleanFact(record.refusing, "morale refusing");
+  return { value, refusing: value < 20 || refusing && value < 50 };
+}
+function createNewTreeMorale() {
+  return { value: 50, refusing: false };
+}
+function getMoraleAdmission(input) {
+  const state = readMoraleState(input);
+  if (state.value < 20)
+    return { allowed: false, reason: "below-refusal-threshold" };
+  if (state.refusing)
+    return { allowed: false, reason: "recovering" };
+  return { allowed: true };
+}
+function getMoraleExpression(input) {
+  const { value } = readMoraleState(input);
+  if (value < 20)
+    return "withdrawn";
+  if (value < 40)
+    return "reluctant";
+  if (value <= 70)
+    return "composed";
+  return "eager";
+}
+function getMoraleCareView(input) {
+  const admission = getMoraleAdmission(input);
+  return {
+    expression: getMoraleExpression(input),
+    willingness: admission.allowed ? "willing" : admission.reason === "recovering" ? "recovering" : "withdrawn"
+  };
+}
+function applyMoraleEvent(input, event) {
+  const state = readMoraleState(input);
+  if (event === null || typeof event !== "object") {
+    throw new TypeError("morale event must be an object");
+  }
+  let change;
+  switch (event.type) {
+    case "care-day-completed": {
+      const moisture = percentage(event.moisture, "moisture");
+      const stable = booleanFact(event.healthStable, "healthStable");
+      const rest = booleanFact(event.restDay, "restDay");
+      change = (moisture >= 30 && moisture <= 65 && stable ? 2 : 0) + (rest ? 3 : 0) - (moisture < 20 || moisture > 80 ? 3 : 0);
+      break;
+    }
+    case "prune-committed":
+      change = 8;
+      break;
+    case "fertilizer-applied":
+      change = 5;
+      break;
+    case "victory-recorded":
+      change = 10;
+      break;
+    case "consecutive-loss-recorded":
+      change = -15;
+      break;
+    case "battle-fought":
+      change = percentage(event.treeHealth, "treeHealth") < 40 ? -5 : 0;
+      break;
+    case "soothing-potion-consumed":
+      change = 100 - state.value;
+      break;
+    case "ronin-burn-confirmed": {
+      const restoration = percentage(event.restoration, "Ronin restoration");
+      change = Math.min(restoration, Math.max(0, 65 - state.value));
+      break;
+    }
+    default:
+      throw new TypeError("unknown morale event type");
+  }
+  const value = Math.max(0, Math.min(100, state.value + change));
+  return readMoraleState({ value, refusing: state.refusing });
 }
 
 // kijo-engine:C:\Users\jerem\.gemini\antigravity\playground\kijo\kijo-bonsai\packages\shared\dist\index.js
@@ -141,6 +237,14 @@ function deriveVisualTraits(seed, species) {
   };
 }
 
+// kijo-engine:C:\Users\jerem\.gemini\antigravity\playground\kijo\kijo-bonsai\packages\engine\dist\errors.js
+var CareLogReplayError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "CareLogReplayError";
+  }
+};
+
 // kijo-engine:C:\Users\jerem\.gemini\antigravity\playground\kijo\kijo-bonsai\packages\engine\dist\PruneEngine.js
 var PruneEngine = class {
   /**
@@ -158,6 +262,9 @@ var PruneEngine = class {
    *   4. Returns true.
    */
   static prune(tree, branchId) {
+    if (!Number.isFinite(branchId) || branchId < 0 || !Number.isInteger(branchId)) {
+      throw new CareLogReplayError(`PruneEngine.prune: branchId must be a non-negative integer (got ${branchId}).`);
+    }
     const branches = tree.getBranches();
     if (branchId < 0 || branchId >= branches.length)
       return false;
@@ -475,6 +582,12 @@ var WireEngine = class _WireEngine {
    * applies round4, pushes the care-log entry, marks the tree dirty.
    */
   static wire(tree, branchId, angleDelta) {
+    if (!Number.isFinite(branchId) || branchId < 0 || !Number.isInteger(branchId)) {
+      throw new CareLogReplayError(`WireEngine.wire: branchId must be a non-negative integer (got ${branchId}).`);
+    }
+    if (!Number.isFinite(angleDelta)) {
+      throw new CareLogReplayError(`WireEngine.wire: angleDelta must be a finite number (got ${angleDelta}).`);
+    }
     const branches = tree.getBranches();
     const b = branches[branchId];
     if (!b)
@@ -527,6 +640,9 @@ var WireEngine = class _WireEngine {
    * Uses tree._logCare() (established pattern from PruneEngine).
    */
   static removeWire(tree, branchId) {
+    if (!Number.isFinite(branchId) || branchId < 0 || !Number.isInteger(branchId)) {
+      throw new CareLogReplayError(`WireEngine.removeWire: branchId must be a non-negative integer (got ${branchId}).`);
+    }
     const branches = tree.getBranches();
     const b = branches[branchId];
     if (!b)
@@ -557,29 +673,25 @@ var WireEngine = class _WireEngine {
   }
 };
 
-// kijo-engine:C:\Users\jerem\.gemini\antigravity\playground\kijo\kijo-bonsai\packages\engine\dist\errors.js
-var CareLogReplayError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "CareLogReplayError";
-  }
-};
-
 // kijo-engine:C:\Users\jerem\.gemini\antigravity\playground\kijo\kijo-bonsai\packages\engine\dist\JinEngine.js
 var JinEngine = class {
   /**
-   * Strip bark from a branch section using jin pliers → SCAR voxels.
-   * Phase 1 stub — input validation only; voxelization in Phase 2.
+   * Strip bark from a branch section using jin pliers -> SCAR voxels.
    *
-   * Returns { ok: false, reason } when:
-   *   - branchId out of range → 'not-found'
-   *   - branch.pruned === true → 'pruned'
-   *   - segmentIndex out of [0, branch.length) → 'segment-out-of-range'
+   * Steps:
+   *   1. Validate branchId, pruned, segmentIndex (existing Phase 1 logic)
+   *   2. Check already-jin: if jinned && segmentIndex >= jinSegmentStart
+   *   3. Mark branch jinned, set jinSegmentStart
+   *   4. Cascade: mark all child branches fully jinned
+   *   5. Freeze is implicit (GrowthEngine/physics skip b.jinned)
+   *   6. Log care entry via tree._logCare
+   *   7. tree.markDirty()
+   *   8. Return { ok: true }
    *
    * @param tree         The BonsaiTree instance.
    * @param branchId     Index into TreeState.branches.
-   * @param segmentIndex 0-based voxel segment position from trunk junction.
-   * @param jinCost      Number of jin-pliers consumables spent (≥1).
+   * @param segmentIndex 0-based position from trunk junction.
+   * @param jinCost      jin-pliers consumables spent (>= 1). Logged only.
    */
   static applyJin(tree, branchId, segmentIndex, jinCost) {
     const branches = tree.getBranches();
@@ -591,7 +703,33 @@ var JinEngine = class {
     if (segmentIndex < 0 || segmentIndex >= b.length) {
       return { ok: false, reason: "segment-out-of-range" };
     }
-    throw new CareLogReplayError("JinEngine.applyJin: Phase 1 stub \u2014 voxelization in Phase 2.");
+    if (b.jinned && segmentIndex >= b.jinSegmentStart) {
+      return { ok: false, reason: "already-jin" };
+    }
+    if (b.jinned) {
+      b.jinSegmentStart = segmentIndex;
+    } else {
+      b.jinned = true;
+      b.jinSegmentStart = segmentIndex;
+    }
+    const stack = [...b.children];
+    while (stack.length > 0) {
+      const childId = stack.pop();
+      const child = branches[childId];
+      if (!child || child.pruned)
+        continue;
+      if (child.jinned && child.jinSegmentStart === 0)
+        continue;
+      child.jinned = true;
+      child.jinSegmentStart = 0;
+      stack.push(...child.children);
+    }
+    tree._logCare({
+      day: tree.getAge(),
+      action: { type: "jin", branchId, segmentIndex, jinCost }
+    });
+    tree.markDirty();
+    return { ok: true };
   }
 };
 
@@ -606,6 +744,16 @@ var BonsaiTree = class {
     this.state.moisture = 55;
     this.state.health = 85;
     this.nextId = 1;
+  }
+  // -------------------------------------------------------------------------
+  // Canonical branchId guard (B-1: includes upper bound check)
+  // -------------------------------------------------------------------------
+  /** Throws CareLogReplayError if branchId is not a valid non-negative integer
+   *  within the current branches array bounds. */
+  _guardBranchId(method, branchId) {
+    if (!Number.isFinite(branchId) || branchId < 0 || !Number.isInteger(branchId) || branchId >= this.state.branches.length) {
+      throw new CareLogReplayError(`${method}: branchId must be a non-negative integer < ${this.state.branches.length} (got ${branchId}).`);
+    }
   }
   // -------------------------------------------------------------------------
   // State mutation
@@ -629,7 +777,7 @@ var BonsaiTree = class {
     }
     this.state.day += 1;
     for (const b of this.state.branches) {
-      if (b.pruned)
+      if (b.pruned || b.jinned)
         continue;
       if ((b.twined || b.weighted) && !b.bendSet) {
         const tauTwine = b.twined ? b.twineForcePerDay * (this.state.day - b.twineAppliedDay) * b.length * Math.sin(toRad(b.twineAngle)) : 0;
@@ -658,11 +806,8 @@ var BonsaiTree = class {
     }
   }
   water(amount) {
-    if (!Number.isFinite(amount)) {
-      throw new Error(`water amount must be a finite number (got ${amount}). NaN or Infinity would corrupt the moisture pipeline.`);
-    }
-    if (amount <= 0) {
-      throw new Error(`water amount must be positive (got ${amount}). Zero or negative amounts are not valid care actions.`);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new CareLogReplayError(`water: amount must be a positive finite number (got ${amount}).`);
     }
     this.state.moisture = Math.min(100, round4(this.state.moisture + amount));
     this.careLog.push({ day: this.state.day, action: { type: "water", amount } });
@@ -680,6 +825,10 @@ var BonsaiTree = class {
    * angleDelta is caregiver-chosen, clamped to +/-45 per action.
    */
   wire(branchId, angleDelta) {
+    this._guardBranchId("wire", branchId);
+    if (!Number.isFinite(angleDelta)) {
+      throw new CareLogReplayError(`wire: angleDelta must be a finite number (got ${angleDelta}).`);
+    }
     return WireEngine.wire(this, branchId, angleDelta);
   }
   rotate() {
@@ -697,6 +846,7 @@ var BonsaiTree = class {
    * No-op if branchId is out of range, pruned, or !branch.wired.
    */
   removeWire(branchId) {
+    this._guardBranchId("removeWire", branchId);
     return WireEngine.removeWire(this, branchId);
   }
   /**
@@ -706,8 +856,14 @@ var BonsaiTree = class {
    * Phase 1 stub: delegates to TwineWeightEngine.applyTwine (throws "not implemented").
    */
   applyTwine(branchId, angleDelta, storedDegradeDays) {
+    this._guardBranchId("applyTwine", branchId);
     if (!Number.isFinite(angleDelta)) {
       throw new CareLogReplayError(`applyTwine: angleDelta must be finite (got ${angleDelta}).`);
+    }
+    if (storedDegradeDays !== void 0) {
+      if (!Number.isFinite(storedDegradeDays) || storedDegradeDays < 0 || !Number.isInteger(storedDegradeDays) || storedDegradeDays > 20) {
+        throw new CareLogReplayError(`applyTwine: storedDegradeDays must be a non-negative integer <= 20 (got ${storedDegradeDays}).`);
+      }
     }
     return TwineWeightEngine.applyTwine(this, branchId, angleDelta, storedDegradeDays);
   }
@@ -717,6 +873,7 @@ var BonsaiTree = class {
    * Phase 1 stub.
    */
   removeTwine(branchId) {
+    this._guardBranchId("removeTwine", branchId);
     return TwineWeightEngine.removeTwine(this, branchId);
   }
   /**
@@ -725,6 +882,7 @@ var BonsaiTree = class {
    * Phase 1 stub: delegates to TwineWeightEngine.applyWeight.
    */
   applyWeight(branchId, weightCount) {
+    this._guardBranchId("applyWeight", branchId);
     if (!Number.isFinite(weightCount)) {
       throw new CareLogReplayError(`applyWeight: weightCount must be finite (got ${weightCount}). NaN or Infinity are not valid.`);
     }
@@ -739,6 +897,7 @@ var BonsaiTree = class {
    * Phase 1 stub.
    */
   removeWeight(branchId) {
+    this._guardBranchId("removeWeight", branchId);
     return TwineWeightEngine.removeWeight(this, branchId);
   }
   /**
@@ -747,6 +906,7 @@ var BonsaiTree = class {
    * Phase 1 stub: delegates to JinEngine.applyJin.
    */
   applyJin(branchId, segmentIndex, jinCost) {
+    this._guardBranchId("applyJin", branchId);
     if (!Number.isFinite(segmentIndex) || segmentIndex < 0 || !Number.isInteger(segmentIndex)) {
       throw new CareLogReplayError(`applyJin: segmentIndex must be a non-negative integer (got ${segmentIndex}).`);
     }
@@ -772,6 +932,7 @@ var BonsaiTree = class {
   // Expose TWINE_FORCE_PER_DAY for test/verification without engine internals.
   static TWINE_FORCE_PER_DAY = TWINE_FORCE_PER_DAY;
   prune(branchId) {
+    this._guardBranchId("prune", branchId);
     return PruneEngine.prune(this, branchId);
   }
   // -------------------------------------------------------------------------
@@ -998,7 +1159,7 @@ var GrowthEngine = class _GrowthEngine {
       return -1;
     const branches = tree.getBranches();
     for (const b of branches) {
-      if (b.pruned)
+      if (b.pruned || b.jinned)
         continue;
       if (b.depth >= 6)
         continue;
@@ -1081,7 +1242,7 @@ var GrowthEngine = class _GrowthEngine {
    * Neither is recomputed here, so the walk cannot depend on its own progress.
    */
   static extendAndFork(b, tree, rate, livingCount0, floorTipId) {
-    if (b.pruned)
+    if (b.pruned || b.jinned)
       return;
     const branches = tree.getBranches();
     const state = tree._getState();
@@ -1153,8 +1314,11 @@ var GrowthEngine = class _GrowthEngine {
               weightAngleDelta: 0,
               // OQ-1 Option A (2026-08-14)
               twineDegradesDay: 0,
-              bendSet: false
+              bendSet: false,
               // CRITICAL-C fix 2026-08-02
+              // Jin / Deadwood State (2026-09-18, JinEngine Phase 2)
+              jinned: false,
+              jinSegmentStart: -1
             };
             tree._pushBranch(child);
             b.children.push(childId);
@@ -1184,7 +1348,7 @@ var GrowthEngine = class _GrowthEngine {
    * Returns the branch's resulting thickness (used by parent to accumulate child mass).
    */
   static thickeningPass(b, tree, rate) {
-    if (b.pruned)
+    if (b.pruned || b.jinned)
       return 0;
     const branches = tree.getBranches();
     let childMassSum = 0;
@@ -1397,7 +1561,7 @@ var CareLogReplay = class {
           } else if (a.type === "jin") {
             tree.applyJin(a.branchId, a.segmentIndex, a.jinCost);
           } else if (a.type === "landscape") {
-            throw new CareLogReplayError(`'landscape' is not yet implemented and cannot be replayed (Phase 2).`);
+            tree.addLandscape(a.elementType, a.position);
           } else {
             const _exhaustive = a;
             throw new CareLogReplayError(`Unknown CareAction type: '${_exhaustive.type}'. This action cannot be replayed.`);
@@ -1922,9 +2086,10 @@ var Voxelizer = class _Voxelizer {
         continue;
       const mat = b.depth === 0 ? Material.HEARTWOOD : b.depth === 1 ? Material.BARK : Material.BRANCH_WOOD;
       const role = branchRole.get(b.id) ?? VoxelRole.TRUNK;
-      _Voxelizer.fillTube(pos.start, pos.end, b.thickness, mat, role, b.id, voxels);
+      const jinThreshold = b.jinned && b.jinSegmentStart >= 0 ? b.jinSegmentStart / Math.max(b.length, 1) : 1;
+      _Voxelizer.fillTube(pos.start, pos.end, b.thickness, mat, role, b.id, voxels, jinThreshold);
       const hasLivingChildren = b.children.some((id) => branches[id] && !branches[id].pruned);
-      if (!hasLivingChildren) {
+      if (!hasLivingChildren && !b.jinned) {
         _Voxelizer.fillSphere(pos.end, 2, Material.LEAF, VoxelRole.CANOPY, b.id, voxels);
       }
     }
@@ -1965,7 +2130,7 @@ var Voxelizer = class _Voxelizer {
       _Voxelizer.computePositions(childId, start, dir, branches, out);
     }
   }
-  static fillTube(start, end, thickness, mat, role, branchId, voxels) {
+  static fillTube(start, end, thickness, mat, role, branchId, voxels, jinThreshold = 1) {
     const dx = end.x - start.x, dy = end.y - start.y, dz = end.z - start.z;
     const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
     if (len < 1e-3)
@@ -1974,7 +2139,8 @@ var Voxelizer = class _Voxelizer {
     const radius = Math.max(0.5, thickness * 0.5);
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
-      _Voxelizer.fillSphere({ x: start.x + dx * t, y: start.y + dy * t, z: start.z + dz * t }, radius, mat, role, branchId, voxels);
+      const effectiveRole = t >= jinThreshold ? VoxelRole.SCAR : role;
+      _Voxelizer.fillSphere({ x: start.x + dx * t, y: start.y + dy * t, z: start.z + dz * t }, radius, mat, effectiveRole, branchId, voxels);
     }
   }
   static fillSphere(center, radius, mat, role, branchId, voxels) {
@@ -1995,7 +2161,13 @@ export {
   BonsaiTree,
   CareLogReplay,
   CareLogReplayError,
+  GrowthEngine,
   StatDeriver,
   Voxelizer,
-  buildCombatSnapshot
+  applyMoraleEvent,
+  buildCombatSnapshot,
+  createNewTreeMorale,
+  getMoraleAdmission,
+  getMoraleCareView,
+  readMoraleState
 };

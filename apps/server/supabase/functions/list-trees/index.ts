@@ -46,7 +46,10 @@ Deno.serve(async (req) => {
   // 1. Extract walletRowId from JWT — identical pattern to care-action:74
   //    walletRowId is NOT taken from the request; it comes from the verified JWT.
   // -------------------------------------------------------------------------
-  const walletRowId: string = user.user_metadata?.wallet_row_id ?? user.id;
+  const walletRowId: string | undefined = user.app_metadata?.wallet_row_id;
+  if (!walletRowId) {
+    return json({ error: 'Wallet authorization missing; sign in with your wallet again' }, 403);
+  }
 
   // -------------------------------------------------------------------------
   // 2. Fetch trees with service-role client (bypasses RLS, consistent with

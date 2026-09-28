@@ -1,6 +1,6 @@
 # Design Decision: Flower Guild Rank
 
-**Confirmed by Jeremy:** from GDD (v0.2, July 23 2026)
+**Confirmed by Jeremy:** from GDD (v0.2; Guild lore reconciled September 24, 2026)
 **Status: AUTHORITATIVE**
 
 ---
@@ -9,7 +9,9 @@
 
 Every kijonsai has a **Flower Guild Rank** — a publicly visible, algorithmically computed quality grade displayed on the NFT. It measures how closely the tree's actual growth matches the seed's **ideal form**: the theoretical perfect set of voxel coordinates that would maximize every stat cluster for that seed's favored bonsai style. Rank is the primary metric of caretaker skill and the main driver of NFT secondary market value.
 
-The Flower Guild Rank system is named after the historical Flower Guild tradition — guild masters who evaluated luxury penjing trees against established aesthetic standards at formal fairs. Gu Ahao's standard, applied algorithmically, is that same tradition made verifiable on-chain.
+The institution's formal in-world name is the **Decorative Tree Guild**; characters and players commonly call it the **Flower Guild**, so the public quality grade remains **Flower Guild Rank**. The exact organization, threshold ladder, and on-chain grading system are original Kijonsai fiction informed by real penjing and bonsai display and appraisal culture.
+
+> **Reason for the 2026-09-24 revision:** Earlier text called the game's Guild and grading system historical and tied its standard to the unapproved name Gu Ahao. Evidence did not support that exact historical claim, and the owner approved a fictional Guild seller instead. This wording preserves the familiar product term without inventing history or attaching the design to a living practitioner.
 
 ---
 
@@ -54,10 +56,10 @@ A tree that has grown exactly into the ideal form scores 100%. A randomly grown 
 | 50–65% | **Pruned** | Good caretaker who recognized the seed's style. Intentional cuts visible. |
 | 65–80% | **Styled** | Skilled deliberate pruning toward the ideal. The guild would notice. |
 | 80–90% | **Exhibition** | Master-level care over extended time. Worthy of display at a guild fair. |
-| 90–95% | **Master Work** | Near-perfect execution, hundreds of days of precise care. Gu Ahao would approve. |
-| 95–100% | **Living Painting** | The asymptote. A tree that recreates the brushstrokes of classical landscape painting on living wood — the very thing Gu Ahao invented. Effectively impossible by design. |
+| 90–95% | **Master Work** | Near-perfect execution, hundreds of days of precise care. The Guild recognizes mastery. |
+| 95–100% | **Living Painting** | The asymptote: living wood that evokes the brushstrokes of classical landscape painting. Effectively impossible by design. |
 
-The rank names trace the journey from raw beginner to the master's own standard. "Living Painting" at the top is deliberately unreachable — it's what Gu Ahao himself achieved, the horizon that the pursuit of mastery approaches but cannot touch.
+The rank names trace the journey from raw beginner toward the Guild's ideal. "Living Painting" at the top is deliberately unreachable: an artistic horizon rather than a claim that one master achieved mathematical perfection.
 
 ---
 
@@ -115,9 +117,9 @@ Periodic in-game events where trees are judged purely on Flower Guild Rank — n
 - Best taper adherence
 - Most faithful style execution
 
-Prizes for rank thresholds. This gives pure caretakers (who never fight) their own competitive outlet, validating the care loop as a standalone game. The grading is algorithmic, verifiable, and tied to the standard Gu Ahao established — not subjective jury opinion.
+Prizes for rank thresholds. This gives pure caretakers (who never fight) their own competitive outlet, validating the care loop as a standalone game. The grading is algorithmic, verifiable, and tied to the deterministic seed standard rather than subjective jury opinion.
 
-Exhibition Events are the direct descendant of the historical Flower Guild fairs. They are a **future feature, not yet implemented** in Phase 1.
+Exhibition Events are fictional Guild competitions informed by real penjing and bonsai display and appraisal culture. They are a **future feature, not yet implemented** in Phase 1.
 
 ---
 

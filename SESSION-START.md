@@ -49,6 +49,13 @@ Kijo-specific auditor checks (all mandatory):
 - Confirm STATE.md updated and matches task pointer
 - Confirm import boundaries: engine→shared only, voxelizer→shared+engine only
 
+## Trusted Developer Sources (search before inventing patterns)
+
+Individual devs: Proof of Play, dwi, jaatster, SageStarCodes, truongnguyenptn, HelgeSverre, martindevans, karpathy
+GitHub orgs: Ronin Builders, Sky Mavis (skymavis), Axie Infinity (axieinfinity)
+
+Every spec must cite applicable patterns or document "searched X, no applicable pattern found."
+
 ## Mainnet Blockers (do not deploy to mainnet until resolved)
 
 - **A3-1 (CRITICAL):** wallet-auth uses raw `personal_sign` with no chain ID — testnet auth signatures are valid on mainnet. Replace with `signTypedData` + EIP-712 domain separator including `chainId` before mainnet deploy. See `docs/pipeline/AUDIT-WEB3-PURCHASE-SECURITY-2026-08-17.md`.

@@ -54,6 +54,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createCombatPayload } from './combat-payload.mjs';
+import { moraleEnvelope } from '../_shared/morale-transport.mjs';
 import {
   CareLogReplay,
   CareLogReplayError,
@@ -171,7 +172,7 @@ Deno.serve(async (req) => {
   // -------------------------------------------------------------------------
   const { data: tree, error: treeErr } = await supabase
     .from('trees')
-    .select('id, seed, species, current_day')
+    .select('id, seed, species, current_day, spirit_morale')
     .eq('id', tree_id)
     .single();
 
@@ -215,8 +216,9 @@ Deno.serve(async (req) => {
     applyCurrentDayEntries(bonsai, currentEntries);
 
     const voxelization = Voxelizer.voxelize(bonsai);
+    const morale = moraleEnvelope(tree.spirit_morale);
     if (url.searchParams.get('include_morphology') === '1') {
-      return json({ ...(await createCombatPayload(bonsai, voxelization)), treeId: tree_id });
+      return json({ ...(await createCombatPayload(bonsai, voxelization)), treeId: tree_id, morale });
     }
     const { voxels, zones } = voxelization;
     const sheet = StatDeriver.derive(bonsai, voxels, tree.seed, bonsai.getAge(), zones);
@@ -230,6 +232,7 @@ Deno.serve(async (req) => {
       species: tree.species,
       ageDays: bonsai.getAge(),
       generatedAt: new Date().toISOString(),
+      morale,
       stats: {
         hp: sheet.hp,
         power: sheet.power,

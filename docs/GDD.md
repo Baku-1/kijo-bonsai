@@ -1,7 +1,7 @@
 # KIJO — Game Design Document
 
 **Version:** 0.2
-**Date:** July 13, 2026 (updated July 23, 2026)
+**Date:** July 13, 2026 (lore updated September 24, 2026)
 **Author:** Jeremy Gordon / Kingdom Koders
 **Status:** In Production — Phase 1 active (Saigon testnet)
 
@@ -33,23 +33,23 @@ The core thesis: **patience is power.** A kijonsai tended with intention over mo
 
 Yama-no-Kami, the mountain god of forests and harvests, rode through the glades between the mortal world and the spirit realm. In his passing, seeds fell from his satchel — divine seeds carrying the potential for spirits within them. Each seed holds a fragment of the mountain god's domain: the patience of stone, the fury of storms, the quiet growth of roots through rock.
 
-A penjing master named **Gu Ahao** found the seeds scattered across the glade floor. Where any other mortal would have seen ordinary seeds, Gu Ahao recognized their divine origin — because he had spent his life shaping living wood into ideal forms. He had studied under all three great schools: the **Yangzhou School's** flat-bough cloud styling with palm fiber ties, the **Sichuan School's** dramatic twisted trunks shaped by precise tie-downs, and the **Lingnan School's** strict clip-and-grow method that rejected wire entirely. He carried the knowledge of every tradition and the conviction that the art of shaping trees was the closest a mortal could come to divine creation.
+A fictional seller from the **Decorative Tree Guild**, commonly called the **Flower Guild**, finds the seeds scattered across the Glade floor. Trained in the living arts of penjing and bonsai, the seller recognizes that the seeds are no ordinary stock and entrusts them to mortals willing to cultivate them. The seller did not create their divinity; Yama-no-Kami is their source.
 
-> *Note: Gu Ahao is a fictional character. He is not a historical figure. His techniques and knowledge are grounded in the real penjing/bonsai traditions of the Yangzhou, Sichuan, and Lingnan Schools, which are historically documented. The three schools and their methods are real; the master who synthesized them is the game's creation.*
+**The Guild seller** is the game's storefront and tutorial guide. The character teaches care and documented shaping traditions, provides the first shear, and later offers imbued seeds, tools, and consumables. The seller's personal name, appearance, exact Guild title, and full knowledge of the sleeping spirits remain pending until the character is approved.
 
-**Gu Ahao** is the game's storefront and tutorial guide. He does not sell seeds as a merchant — he offers them as a master seeking students. He knows exactly what these seeds are and what sleeps inside them. The seeds are his test: can mortal hands tend what a god planted? During the tutorial, he demonstrates basic wiring on a sample tree, teaches the three schools and their technique bonuses, and gives the player their first shear. After the tutorial, he remains as the storefront where imbued seeds, shears, wire, and other tools are purchased.
+**Flower Guild Rank** is the common in-world name for the Decorative Tree Guild's algorithmic quality grade. The exact Guild, rank ladder, and on-chain grading system are original Kijonsai fiction informed by real penjing and bonsai culture; they are not presented as a recovered historical institution.
 
-The Flower Guild's grading tradition — where guild masters evaluated trees against established aesthetic standards — is the historical basis for the game's **Flower Guild Rank** system. The match percentage measures how closely a kijonsai matches the ideal growth form for its seed, graded algorithmically, verifiably, on-chain.
+> **Canon revision — 2026-09-24:** Earlier drafts used Tanaka Shōsuke and later Gu Ahao. Both names were removed because the first direction risked borrowing a living bonsai professional and the replacement name was never owner-approved. A fictional Guild seller preserves the intended cultural role without assigning invented history to a real person. The formal/common Guild distinction also preserves the established **Flower Guild Rank** label while avoiding an unsupported claim that the game's exact grading system existed historically.
 
 ### 2.2 The Kijo
 
-When a mortal tends a divine seed with patience and intention, the tree that grows becomes home to a kijo — a fierce feminine tree spirit. She is not summoned or created. She emerges. The tree is her body, her source, her sanctuary. Her strength is the tree's strength. Her scars are where the caretaker's shears cut. Her crown is the canopy the caretaker shaped.
+When a mortal tends a divine seed with patience and intention, the tree grows as a **shinboku**: a sacred individual tree in which divine presence dwells. In Kijonsai, the tree and the Kijo are one persistent living identity. She is not a separate creature installed in a vessel. The tree is her body, source, sanctuary, and memory. Her strength is the tree's strength. Her scars are the tree's located wounds. Her crown is the canopy the caretaker shaped.
 
 A kijo does not serve her caretaker — she partners with them. Neglect the tree and she withdraws. Send her into battle recklessly and she grows reluctant. Tend the tree with devotion and she fights with everything the tree has grown.
 
 ### 2.3 The Two Potions (SLP)
 
-When a kijo loses battles or suffers from neglect, her spirit becomes wrathful — she is, after all, a kijo. Two potions share the SLP name but serve different roles, different users, and different economies.
+When a Kijo loses battles or suffers from neglect, her morale and will to fight decline. Two potions share the SLP name but serve different roles, different users, and different economies.
 
 #### Soothing Leaf Potion (Caretaker's SLP)
 
@@ -172,7 +172,7 @@ Care operates on a **real-time day cycle** (1 game day = 8 real hours, adjustabl
 
 - **Weights (free/cheap tier)** — small stones or weight bags attached to a branch via twine, using gravity to pull the branch downward. Cheaper than wire, simpler to use, but **only bends downward** (gravity-dependent — you can't hang a weight upward). Allows twine to achieve up to **35% of wire's maximum bend arc** (~15-16° downward, compared to wire's full ±45° in any direction). The weight stays attached until the caretaker removes it. Over time, the downward bend gradually sets (similar to wire timing but slower — the branch adapts to the pull). Combined with twine: twine attaches the weight to the branch, the weight provides the sustained downward force. A free player with twine + weights can create the classic cascading branch (Kengai style) slowly and cheaply. Weights do NOT count as "wire" for technique classification — a player using only twine, weights, and shears is still Clip-and-Grow eligible, since weights use natural force (gravity), not metal shaping.
 
-**Premium Actions (consumable, purchased) — Gu Ahao's "Tied and Cut" Toolkit:**
+**Premium Actions (consumable, purchased) — the Guild seller's "Tied and Cut" toolkit:**
 
 The master's two techniques are the caretaker's two precision tools. Cut removes. Tie redirects. Together they are how a kijonsai is sculpted from raw growth into deliberate form.
 
@@ -199,7 +199,7 @@ The master's two techniques are the caretaker's two precision tools. Cut removes
 
   Stat implications: wire doesn't change total voxel count (same raw power), but it changes WHICH coordinates future voxels fill. A wired branch might move from a NEUTRAL-heavy terrain region into an HP-heavy one — or vice versa. The caretaker is navigating the stat terrain by steering the tree's growth direction. Shears navigate by removing obstacles. Wire navigates by changing course.
 
-  **Gu Ahao's Signature Wire Techniques** (advanced wire variants, higher skill/cost tiers):
+  **Guild Wire Techniques** (advanced wire variants, higher skill/cost tiers):
 
   - **Guy-Wire** — instead of bending a branch at its midpoint, a guy-wire PULLS a branch toward an anchor point. The caretaker selects a branch and then selects a target coordinate — the branch gradually curves toward that point over subsequent growth ticks. This is directional precision: "pull this branch toward (x, y, z)" rather than "rotate 30°." A caretaker who has mapped their seed's stat terrain can anchor a branch directly toward a high-value cluster. Higher cost per use than standard wire. Produces a gradual arc rather than a sharp bend — visually distinct and aesthetically valued by the Flower Guild Rank system.
 
@@ -270,7 +270,7 @@ Players may own and care for up to **5 trees simultaneously** (expandable via su
 
 ### 3.1 Awakening
 
-When a tree reaches minimum maturity (e.g., 60 game-days), the player can **awaken** its kijo — a tree spirit that manifests for combat. The kijo's form is generated from the tree's current state. The tree remains planted; the kijo emerges to fight and returns to its tree between battles.
+When a tree reaches minimum maturity (e.g., 60 game-days), the player can **awaken** its Kijo combat form. This fighter is the shinboku's embodied manifestation, generated from the same canonical tree state rather than treated as a second creature or generic avatar. The caretaker view retains the planted presentation while combat renders the same identity through voxel-derived trunk, intertwined branches, canopy crown, scars, age, and current condition.
 
 Awakening is not permanent unlocking — it's a capability that can be *lost*. A kijo that loses too many consecutive battles becomes reluctant (see Section 4.5). The caretaker must restore the tree's health and provide extra care to re-motivate the spirit.
 
@@ -385,7 +385,7 @@ This mirrors real bonsai mastery. The ideal form exists in the practitioner's mi
 
 **The Flower Guild Rank — the quality metric:**
 
-Each tree has a calculable **match percentage**: the overlap between its actual filled voxels and its seed's ideal form. This is a publicly visible metric on the NFT, displayed as a **Flower Guild Rank** — the same grading system the historical Flower Guild used to judge luxury penjing, now applied algorithmically by Gu Ahao's standard.
+Each tree has a calculable **match percentage**: the overlap between its actual filled voxels and its seed's ideal form. This is a publicly visible metric on the NFT, displayed as a **Flower Guild Rank** — the fictional Decorative Tree Guild's common quality label, applied algorithmically to the deterministic seed standard.
 
 | Match % | Flower Guild Rank | What It Means |
 |---|---|---|
@@ -394,10 +394,10 @@ Each tree has a calculable **match percentage**: the overlap between its actual 
 | 50–65% | **Pruned** | Good caretaker who recognized the seed's style. Intentional cuts visible. |
 | 65–80% | **Styled** | Skilled deliberate pruning toward the ideal. The guild would notice. |
 | 80–90% | **Exhibition** | Master-level care over extended time. Worthy of display at a guild fair. |
-| 90–95% | **Master Work** | Near-perfect execution, hundreds of days of precise care. Gu Ahao would approve. |
-| 95–100% | **Living Painting** | The asymptote. A tree that recreates the brushstrokes of classical landscape painting on living wood — the very thing Gu Ahao invented. Effectively impossible by design. |
+| 90–95% | **Master Work** | Near-perfect execution, hundreds of days of precise care. The Guild recognizes mastery. |
+| 95–100% | **Living Painting** | The asymptote: living wood that evokes the brushstrokes of classical landscape painting. Effectively impossible by design. |
 
-The rank names trace the journey from raw beginner to the master's own standard. "Living Painting" at the top is deliberately unreachable — it's what Gu Ahao himself achieved, the thing the Flower Guild held as the ultimate. A player who reaches "Exhibition" has accomplished something genuinely rare. "Master Work" is the stuff of legends. Nobody reaches "Living Painting," and that's the point — the master's standard is the horizon you chase.
+The rank names trace the journey from raw beginner toward the Guild's ideal. "Living Painting" at the top is deliberately unreachable: an artistic horizon rather than a claim that one fictional or historical master achieved mathematical perfection. A player who reaches "Exhibition" has accomplished something genuinely rare. "Master Work" is the stuff of legends. Nobody reaches "Living Painting," and that's the point — the ideal remains the horizon you chase.
 
 **Economic implications:**
 
@@ -409,11 +409,11 @@ Two kijo with identical voxel counts but different Flower Guild Ranks have diffe
 
 **The mastery fantasy:**
 
-This system creates the long-term engagement loop that bonsai culture itself runs on: the pursuit of an ideal that recedes as you approach it. A caretaker who hits **Pruned** and sees how much stronger their kijo could be at **Styled** has a clear, self-motivated goal that no content update needs to provide. The game generates its own endgame from the gap between real and ideal — the same gap Gu Ahao spent his life closing.
+This system creates the long-term engagement loop that bonsai culture itself runs on: the pursuit of an ideal that recedes as you approach it. A caretaker who hits **Pruned** and sees how much stronger their kijo could be at **Styled** has a clear, self-motivated goal that no content update needs to provide. The game generates its own endgame from the gap between real and ideal — the same pursuit that gives long-term penjing and bonsai practice its depth.
 
 **Exhibition Events (future feature):**
 
-Periodic events where trees are judged purely on Flower Guild Rank — no combat. Caretakers compete on craftsmanship: highest match %, best taper adherence, most faithful style execution. Prizes for rank thresholds. This is the direct descendant of the historical Flower Guild fairs where guild masters judged trees and awarded recognition. It gives pure caretakers (who never fight) their own competitive outlet, validating the care loop as a standalone game. The grading is algorithmic, verifiable, and tied to the standard Gu Ahao established — not subjective jury opinion.
+Periodic events where trees are judged purely on Flower Guild Rank — no combat. Caretakers compete on craftsmanship: highest match %, best taper adherence, most faithful style execution. Prizes for rank thresholds. These fictional Guild exhibitions are informed by real penjing and bonsai display, appraisal, and exhibition culture. It gives pure caretakers (who never fight) their own competitive outlet, validating the care loop as a standalone game. The grading is algorithmic, verifiable, and tied to the deterministic seed standard rather than subjective jury opinion.
 
 **Wisdom (unchanged):**
 
@@ -961,7 +961,7 @@ The only hand-crafted assets in the game:
 
 - **UI/UX** — menus, HUD, buttons, care interface
 - **VFX** — hit sparks, root eruption particles, leaf storm effects, Ki energy glow, SLP brewing animation
-- **Gu Ahao (the Master)** — the storefront character. Not a generic merchant — a legendary penjing master whose "tied and cut" technique defined the craft. One character design for the entire game, but he carries weight: his visual should communicate decades of mastery with living wood.
+- **The Guild seller (personal name pending)** — the storefront and tutorial character, and a fictional member of the Decorative Tree Guild. The design should communicate long practice with living wood while drawing respectfully from documented penjing and bonsai culture rather than copying a living practitioner.
 - **Yama-no-Kami** — lore splash art (optional, for story moments)
 
 Everything else is computed from the tree.
@@ -977,7 +977,7 @@ Four uses in the pipeline:
 | **Pot & soil mesh** | Extract the pot geometry and soil surface. Every kijonsai sits in the same base pot (or cosmetic variants derived from it). One purchase, infinite reuse. | Three.js care scene, voxel NFT viewer, marketplace preview |
 | **Bark & leaf materials** | 4K channel-packed PNGs + Substance .sbs source files. Real bark grain, real leaf surfaces. Tune per species via .sbs (rougher for hardwood, smoother for tropical, needle-like for evergreen). | Procedural branch/leaf texturing in Three.js — replaces placeholder brown cylinders with production-quality surfaces |
 | **Art direction target** | Screenshot the current Three.js tree next to this model. The visual gap = the quality roadmap. Match the lighting, bark detail, leaf density, and feel. | Internal art reference — not shipped directly, used to benchmark procedural output quality |
-| **Gu Ahao's masterpiece** | The merchant's shop displays one perfect static bonsai behind him — the specimen Gu Ahao grew himself, the standard all others are measured against. This is the ONE tree in the game not grown by a player. A pre-made model is correct here because the master's tree is singular and hand-crafted, not procedural. | Storefront scene / lore moment |
+| **The Guild exemplar** | The seller's shop displays one exceptional static bonsai used to teach the Guild's ideal. This is the ONE tree in the game not grown by a player. A pre-made model is correct here because it is a singular teaching specimen rather than a player-owned procedural tree. | Storefront scene / lore moment |
 
 ---
 

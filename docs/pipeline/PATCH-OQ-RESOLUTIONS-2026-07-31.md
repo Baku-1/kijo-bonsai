@@ -77,7 +77,7 @@ Already marked `[RESOLVED 2026-07-31]` in a prior patch (PATCH-TWINE-SCAR-CLARIF
 
 ### OQ-7 — LandscapeElementType completeness [RESOLVED]
 
-**Answer:** Phase 1 union confirmed: `'rock' | 'moss' | 'pot'` (basic store items sold by Gu Ahao). Phase 2+ NFT items (`water_feature`, `figurine`, `ceramic`) are earned through gameplay and out of Phase 1 scope.
+**Answer:** Phase 1 union confirmed: `'rock' | 'moss' | 'pot'` (basic store items sold by the fictional Guild seller). <!-- Lore terminology revised 2026-09-24; personal name pending. --> Phase 2+ NFT items (`water_feature`, `figurine`, `ceramic`) are earned through gameplay and out of Phase 1 scope.
 
 **Files changed:** `LandscapeElementType` updated to 3-literal union in ARCHITECT doc. All "5 literal values" references updated to "3 literal values (Phase 1)".
 

@@ -1,6 +1,7 @@
 export type SpeciesClass = 'hardwood' | 'evergreen' | 'tropical';
 
 export * from './spiritMorale.js';
+export * from './growth-v3.js';
 
 export interface Branch {
   id: number;
@@ -219,6 +220,40 @@ export interface Branch {
    *    pre-physics-field branches. When all creation paths set wireCount:0, remove the `?`.
    */
   wireCount?: number;
+
+  // ── Growth V3 Fields (2026-09-25) ──────────────────────────────────────────
+  // Specification: ARCH-GROWTH-V3-IMPLEMENTATION-2026-09-25.md §9.1, §5.4.
+
+  /**
+   * Immutable structural role assigned at birth or rebaseline.
+   * trunk = depth 0, arm/leg = depth 1 (sorted by attachmentY), digit = depth 2+.
+   * Voxelizer reads this; it never re-sorts the live population.
+   * Optional for backward-compat with pre-V3 branches.
+   */
+  stableRole?: import('./growth-v3.js').StableBranchRole;
+
+  /**
+   * Game-day index when this branch was born (forked or created at genesis).
+   * Used for canopy eligibility ("at least two completed game days old").
+   * 0 for branches present at tree genesis. Optional for pre-V3 compat.
+   */
+  birthDayIndex?: number;
+
+  /**
+   * Accumulated fork escrow in GU (decimal string).
+   * Fork sink allocation that couldn't afford a cylinder accumulates here
+   * across days until it can. Pruning/jinning cancels it.
+   * Optional for pre-V3 compat; absent = "0".
+   */
+  forkEscrowGU?: string;
+
+  /**
+   * Accumulated canopy escrow in GU (decimal string).
+   * Canopy sink allocation that couldn't afford a cell accumulates here
+   * across days until it can. Pruning/jinning cancels it.
+   * Optional for pre-V3 compat; absent = "0".
+   */
+  canopyEscrowGU?: string;
 }
 
 export interface TreeState {

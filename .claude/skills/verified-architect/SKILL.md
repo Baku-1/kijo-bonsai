@@ -241,10 +241,12 @@ OPEN QUESTIONS:
 - **Terminology canon:**
   - The game: **Kijo**
   - The tree NFT: **kijonsai** (lowercase)
-  - The spirit: **kijo** (lowercase)
-  - The merchant/master: **Gu Ahao** (fictional, noted as such)
+  - The spirit: **kijo** (lowercase); the Kijo and her bonsai are one persistent shinboku identity, not separate organisms
+  - The seller/guide: **the Guild seller** (fictional; personal name and exact title pending owner approval)
+  - The Guild: formal **Decorative Tree Guild**, commonly **Flower Guild**
   - The deity: **Yama-no-Kami**
-  - The ranking system: **Flower Guild Rank** (Seedling/Sapling/Pruned/Styled/Exhibition/Master Work/Living Painting)
+  - The ranking system: **Flower Guild Rank** (Seedling/Sapling/Pruned/Styled/Exhibition/Master Work/Living Painting); this exact Guild and ladder are Kijonsai fiction informed by real traditions, not a recovered historical system
+  - Canon revision note (2026-09-24): do not restore Tanaka Shōsuke or Gu Ahao as active canon; the role was made explicitly fictional to avoid borrowing a living practitioner's identity or inventing history for a real person
   - The stat terrain's ideal form measurement: **match percentage** (displayed as Flower Guild Rank)
   - Species: **Hardwood / Evergreen / Tropical** (capitalized as class names)
   - Techniques: **Bound-and-Cut / Clip-and-Grow / Jin / Water-and-Land** (hyphenated as shown)

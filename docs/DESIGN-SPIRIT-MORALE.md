@@ -196,13 +196,22 @@ Morale affects willingness, not power. A kijo who has fought, lost, recovered, a
 
 ## For Auditors
 
-### Implementation checkpoint (2026-09-16)
+### Implementation checkpoint (2026-09-22)
 
-`packages/shared/src/spiritMorale.ts` now provides the shared JSON-safe state, new-tree initializer at 50, refusal/recovery and expression rules, and pure care/combat/potion effects. Shared build/typecheck passed; the morale suite passed 13 test groups and the original shared suite passed 6 checks. These are unit-level results, not gameplay verification.
+The shared rules are now connected to the local server, caretaker, and Godot combat paths:
 
-This foundation is not connected to server persistence or the caretaker/Godot clients. Transactional deduplication, battle admission, potion inventory, burn confirmation and the exact Ronin diminishing-return policy remain integration work. The helper accepts only server-assessed facts by contract; calling it does not establish authorization or prevent duplicate credits.
+- `20260917000000_spirit_morale_care.sql` adds per-tree live morale, a persisted refusal latch, a deduplicated event ledger, request receipts, care revisions, and row-locking RPCs for atomic care commits and combat admission.
+- `care-action` reconstructs the canonical tree, validates that the requested care action actually took effect, assesses elapsed days once, and commits the care log, consumable spend, morale events, day advance, and response receipt in one transaction.
+- `combat-admission` checks the same persisted state and records an idempotent `battle-started` event before live combat. This event is what prevents a battle day from receiving the rest-day bonus.
+- `wallet-auth` moves the verified wallet-row binding into server-controlled `app_metadata`; care, tree creation, mint claims, and tree listing no longer authorize from user-editable metadata. Existing sessions must sign in once after deployment.
+- `get-tree` returns a qualitative morale envelope for `CareHud`; the main care UI displays no number. `derive-stats` attaches the same live envelope outside the immutable morphology hash.
+- Godot validates the envelope, changes eye intensity/head posture, waits for authenticated combat admission for remote trees, and blocks both the intro and control unlock when a spirit refuses. Offline fixtures are explicitly training data.
 
-Second Brain comparison: `wiki/patterns/SageStarCodes/guards-and-checks.md` maps to explicit field validation and reason-bearing admission checks; `wiki/patterns/SageStarCodes/event-handlers.md` maps to separating shared pure rules from authoritative event handling. Server event eligibility and transaction guarantees are not yet implemented by this module. See `packages/shared/README.md` for the comparison and verification commands.
+Verification on 2026-09-22: shared morale tests 13/13, server care-plan tests 7/7, web TypeScript check passed, Edge Function sources passed TypeScript syntax transpilation, and Summer Engine playtests confirmed both willing combat and a withdrawn fighter held at `started=false` with controls disabled. The SQL migration has not been executed against PostgreSQL in this workspace because Docker access and the Supabase CLI are unavailable; it remains a required pre-deployment verification. No function or migration has been deployed.
+
+Potion inventory, Soothing Leaf Potion consumption, Ronin burn confirmation, battle-result morale, and the exact Ronin diminishing-return window remain separate integration work. No local code treats an unverified client claim as a potion burn or battle result.
+
+Second Brain comparison: `wiki/patterns/SageStarCodes/guards-and-checks.md` maps to explicit field validation and reason-bearing admission checks; `wiki/patterns/SageStarCodes/event-handlers.md` maps to thin transport handlers delegating to shared rules and transactional storage. The local implementation now follows those boundaries; PostgreSQL execution remains the unverified deployment gate. See `packages/shared/README.md` for the comparison and verification commands.
 
 ### Gameplay invariants
 

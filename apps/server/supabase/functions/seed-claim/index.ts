@@ -20,6 +20,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createWalletClient, createPublicClient, http, defineChain } from 'npm:viem@2';
 import { privateKeyToAccount } from 'npm:viem@2/accounts';
+import { newTreeMorale } from '../_shared/morale-transport.mjs';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -206,7 +207,7 @@ Deno.serve(async (req) => {
   // -------------------------------------------------------------------------
   // 2. Resolve caller's Ronin wallet address for sender verification (check 4)
   // -------------------------------------------------------------------------
-  const walletRowId = user.user_metadata?.wallet_row_id as string | undefined;
+  const walletRowId = user.app_metadata?.wallet_row_id as string | undefined;
   if (!walletRowId) {
     return json({ error: 'Wallet not linked to account' }, 401);
   }
@@ -380,6 +381,7 @@ Deno.serve(async (req) => {
         current_day:    0,
         last_ticked_at: now,
         token_id:       Number(tokenId),
+        spirit_morale:  newTreeMorale(),
       })
       .select('id')
       .single();

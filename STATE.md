@@ -1,6 +1,6 @@
 # KIJO -- Project State
 
-**Last updated:** 2026-09-20 (Cost guard sweep: pipeline complete, 93/93 tests pass, two-layer validation on all numeric params, 44 new guard tests.)
+**Last updated:** 2026-09-21 (GH Ingestion Workflow: 5-stage pipeline COMPLETE. Skill at skills/gh-ingestion/SKILL.md. Linter CLEAN. Ready for first run against `dwi`.)
 
 ---
 
@@ -242,7 +242,7 @@ Supabase project: `xutjubkaskwchzyzwryk`. All functions deployed 2026-07-26.
 | Tutorial system | Not started |
 | ~~TechniqueClassifier~~ | **BUILT** -- `packages/engine/src/TechniqueClassifier.ts` with `classify()` implemented. CareAction types (jin, landscape, twine, twine-remove, weight, weight-remove) in shared/src/index.ts. Open: care-action server whitelist, ~~jin/landscape/twine/weight UI (#96)~~ **DONE (2026-08-30)**, metadata pipeline wiring (#95). |
 | ~~JinEngine~~ | **PIPELINE COMPLETE (2026-09-18)** -- Engine fully functional, server-GATED (removed from ALLOWED_ACTION_TYPES). Will be re-added after landscape handler lands. |
-| Landscape handler | Jin requires landscape handler before server gate is lifted. Next pipeline. |
+| ~~Landscape handler~~ | **PIPELINE COMPLETE (2026-09-21).** Full 5-stage pipeline. 1-line fix in CareLogReplay.ts: replaces throw with `tree.addLandscape(a.elementType, a.position)`. Linter CLEAN. 93/93 pass. See ARCH/CRITIC/AUDIT/LINT-LANDSCAPE-HANDLER docs. Jin + landscape server gate lift is next separate task. |
 | ~~Cost param guard sweep~~ | **PIPELINE COMPLETE (2026-09-20).** Full 5-stage pipeline. 44 new guard tests + 5 pre-existing test fixes. 93/93 pass. Engine-side guards (_guardBranchId, storedDegradeDays cap ≤20, NaN/Infinity/non-integer rejection). Server-side field validators + fail-closed + field stripping. See ARCH/CRITIC/AUDIT/LINT-COST-GUARDS-2026-09-19.md. |
 | GuildRankDisplay.tsx | Component not yet built |
 | ThreeCanvas raycaster + branch picking (#97) | Production view (ThreeCanvas.tsx) has no raycaster. Twine/weight buttons exist as mode toggles but cannot select branches. Requires: raycaster, branchId metadata on mesh segments, pointerdown handler mapping hits to branchIds. Follow main3d.ts lines 357-409 pattern adapted for production renderer. Unblocks twine/weight apply/remove in production view. |
@@ -288,6 +288,13 @@ Supabase project: `xutjubkaskwchzyzwryk`. All functions deployed 2026-07-26.
 26. **PIPELINE COMPLETE (2026-09-18):** JinEngine Phase 2. Full pipeline: Architect→Critic (2 blockers patched: B-1 extendAndFork return/continue, B-2 selectFloorTipId jinned skip)→Implementer→Auditor VERIFIED WITH CAVEATS→Linter CLEAN WITH FIXES. Comparison PASS (14 wiki patterns from 5 trusted dev collections). 46/46 test gates pass (JIN-1 through JIN-11). Files changed: shared/index.ts (Branch fields), JinEngine.ts (full rewrite), GrowthEngine.ts (3 skip checks + fork defaults), BonsaiTree.ts (physics skip), tree.ts (trunk defaults), voxelizer/index.ts (jinThreshold + SCAR + canopy gate). Linter fix: JIN-11 assert(true) padding replaced with real invariant check. **Comparison gaps:** GAP-1 jinCost no validation guard (Jeremy says ALL cost params need guards — sweep needed), GAP-2 iterative-cascade pattern not cataloged in wiki. **Server status:** Jin fully functional in engine but GATED (removed from ALLOWED_ACTION_TYPES). Will be re-added after landscape handler lands. Pipeline docs: ARCH-JINENGINE-PHASE2-2026-09-18.md, CRITIC-JINENGINE-PHASE2-2026-09-18.md, AUDIT-JINENGINE-PHASE2-2026-09-18.md, LINT-JINENGINE-PHASE2-2026-09-18.md, COMPARE-JINENGINE-PHASE2-2026-09-18.md. **Next:** Landscape handler pipeline, cost param guard sweep.
 
 ---
+
+## Trusted Developer Sources (search before inventing patterns)
+
+Individual devs: Proof of Play, dwi, jaatster, SageStarCodes, truongnguyenptn, HelgeSverre, martindevans, karpathy
+GitHub orgs (added 2026-09-20): Ronin Builders, Sky Mavis (skymavis), Axie Infinity (axieinfinity)
+
+Every spec must cite applicable patterns or document "searched X, no applicable pattern found."
 
 ## Key Docs
 

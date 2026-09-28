@@ -6,6 +6,7 @@
 // the JWT's identity before any DB write.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { newTreeMorale } from '../_shared/morale-transport.mjs';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
   }
 
   // Verify the JWT's wallet identity matches the claimed wallet_row_id
-  const jwtWalletRowId = user.user_metadata?.wallet_row_id ?? user.id;
+  const jwtWalletRowId = user.app_metadata?.wallet_row_id;
   if (jwtWalletRowId !== wallet_row_id) {
     return json({ error: 'Forbidden' }, 403);
   }
@@ -109,6 +110,7 @@ Deno.serve(async (req) => {
       born_at: now,
       current_day: 0,
       last_ticked_at: now,
+      spirit_morale: newTreeMorale(),
     })
     .select('id')
     .single();

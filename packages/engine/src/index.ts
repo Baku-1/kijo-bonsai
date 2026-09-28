@@ -22,3 +22,51 @@ export { TwineWeightEngine, TWINE_FORCE_PER_DAY, TWINE_MAX_ANGLE_DELTA, WEIGHT_D
 export { JinEngine } from './JinEngine.js';
 // Result types re-exported from shared for consumer convenience
 export type { TwineResult, TwineRejectReason, WeightResult, WeightRejectReason, JinResult, JinRejectReason } from '@kijo/shared';
+// Growth V3 modules
+export {
+  ceilDivBig, cylinderCostGU, thickeningCostGU, canopyCellCostGU,
+  maxDeltaWithinBudget,
+  healthBps, moistureBps, computeDailyBudgetGU,
+  largestRemainderAllocate, allocateSinks,
+  assertBranchConservation, assertDailyBudgetConservation,
+  splitSegments,
+} from './GrowthLedger.js';
+export type { DayStartFactors, AllocationEntry, AllocationResult, SinkAllocationResult } from './GrowthLedger.js';
+export {
+  canonicalJsonSerialize, canonicalJsonString,
+  canonicalHash, sha256Hex, contentAddressedId,
+} from './CanonicalHash.js';
+export {
+  computeBranchWeight, isLeaderBranch, selectSinkDemands,
+  scheduleSegmentEvents, sortEventsForOrdinal, createDayPlan,
+} from './GrowthPlanner.js';
+export type { BranchWeightInput, PlanInput } from './GrowthPlanner.js';
+export {
+  interpolateQ4, computeEventProgressPpm,
+  evaluateEvent, evaluateSegmentEvents,
+  findPendingBoundaries,
+  evaluateBranchGeometry, q4ToRenderValues,
+} from './GrowthMaterializer.js';
+export type { EvaluatedEvent, BoundaryKind, BoundaryResult } from './GrowthMaterializer.js';
+export {
+  compareVoxelOwners, sortVoxelOwners, buildVoxelCell,
+  addOwnerToCell, removeOwnersFromCell,
+  applyPruneStumpOverlay, packCoordinate, unpackCoordinate,
+  computePruneDelta, computeCancelledEventData, computeCancelledEscrow,
+  validatePruneReceiptInputs, assemblePruneReceipt,
+} from './PruneReceiptEngine.js';
+export {
+  assignDepthOneRoles, assignRoleByDepth,
+  assignAllRolesAtRebaseline, assignNewbornDepthOneRoles,
+} from './StableBranchRoles.js';
+export type { BranchRoleInput } from './StableBranchRoles.js';
+export {
+  deriveStructuralV3, deriveTerrainV3, deriveV3,
+} from './StatDeriverV3.js';
+export type { StructuralStatsV3 } from './StatDeriverV3.js';
+export {
+  compareCareEvents, compareDecimalStrings, sortCareEvents,
+  getInfluenceScope, partitionByInfluence, computeSplice,
+  validateCareEventV2,
+} from './CareReplayV2.js';
+export type { InfluenceScope, SpliceResult } from './CareReplayV2.js';

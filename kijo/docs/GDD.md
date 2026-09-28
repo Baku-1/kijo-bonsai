@@ -3,7 +3,7 @@
 **Version:** 0.1 (Draft)
 **Date:** July 13, 2026
 **Author:** Jeremy Gordon / Kingdom Koders
-**Status:** Pre-Production
+**Status:** Superseded reference — lore reconciled September 24, 2026
 
 ---
 
@@ -25,19 +25,21 @@ The core thesis: **patience is power.** A tree grown with intention over months 
 
 Yama-no-Kami, the mountain god of forests and harvests, rode through the glades between the mortal world and the spirit realm. In his passing, seeds fell from his satchel — divine seeds carrying the potential for spirits within them. Each seed holds a fragment of the mountain god's domain: the patience of stone, the fury of storms, the quiet growth of roots through rock.
 
-A wandering merchant named **Tanaka Shōsuke** discovered the seeds scattered across the glade floor. Recognizing their divine origin but unable to grow them himself (only mortal hands with the patience to tend can coax a kami-touched seed to root), he offers them to those willing to cultivate what grows.
+A fictional seller from the **Decorative Tree Guild**, commonly called the **Flower Guild**, discovers the seeds scattered across the Glade floor and offers them to mortals willing to cultivate what grows. The seller is trained in penjing and bonsai culture but did not create the divine seeds; Yama-no-Kami is their source.
 
-**Tanaka Shōsuke** is the game's storefront. Players purchase seeds from his dwindling supply. He does not create seeds — he found them. This matters for the economy's lore wrapper: scarcity is not artificial, it is the consequence of a god's carelessness. Tanaka is a humble trader, not a magician — he knows the seeds are special but not their full nature. He sells them honestly, unaware that each one holds a sleeping kijo.
+**The Guild seller** is the game's storefront and guide. The seller's personal name, exact title, appearance, and full knowledge of the sleeping spirits remain pending. Players purchase seeds and tools through this character, while their own patient care determines what each seed becomes.
+
+> **Canon revision — 2026-09-24:** The earlier Tanaka Shōsuke merchant and later Gu Ahao replacement are both superseded. The seller is deliberately fictional so the game does not borrow a living bonsai professional's identity or invent history for a real person. The exact Decorative Tree Guild and its commonly named Flower Guild Rank are Kijonsai fiction informed by real traditions, not claimed historical reconstructions.
 
 ### 2.2 The Kijo
 
-When a mortal tends a divine seed with patience and intention, the tree that grows becomes home to a kijo — a fierce feminine tree spirit. She is not summoned or created. She emerges. The tree is her body, her source, her sanctuary. Her strength is the tree's strength. Her scars are where the caretaker's shears cut. Her crown is the canopy the caretaker shaped.
+When a mortal tends a divine seed with patience and intention, the tree grows as a **shinboku**: a sacred individual tree in which divine presence dwells. In Kijonsai, the tree and the Kijo are one persistent living identity. The tree is her body, source, sanctuary, and memory; her scars and canopy belong to that same living form.
 
 A kijo does not serve her caretaker — she partners with them. Neglect the tree and she withdraws. Send her into battle recklessly and she grows reluctant. Tend the tree with devotion and she fights with everything the tree has grown.
 
 ### 2.3 The Two Potions (SLP)
 
-When a kijo loses battles or suffers from neglect, her spirit becomes wrathful — she is, after all, a kijo. Two potions share the SLP name but serve different roles, different users, and different economies.
+When a Kijo loses battles or suffers from neglect, her morale and will to fight decline. Two potions share the SLP name but serve different roles, different users, and different economies.
 
 #### Soothing Leaf Potion (Caretaker's SLP)
 
@@ -148,7 +150,7 @@ Players may own and care for up to **5 trees simultaneously** (expandable via su
 
 ### 3.1 Awakening
 
-When a tree reaches minimum maturity (e.g., 60 game-days), the player can **awaken** its kijo — a tree spirit that manifests for combat. The kijo's form is generated from the tree's current state. The tree remains planted; the kijo emerges to fight and returns to its tree between battles.
+When a tree reaches minimum maturity (e.g., 60 game-days), the player can **awaken** its Kijo combat form. The fighter is the shinboku's embodied manifestation, generated from the same canonical tree state and rendered through voxel-derived trunk, intertwined branches, canopy crown, scars, age, and condition.
 
 Awakening is not permanent unlocking — it's a capability that can be *lost*. A kijo that loses too many consecutive battles becomes reluctant (see Section 4.5). The caretaker must restore the tree's health and provide extra care to re-motivate the spirit.
 
@@ -834,7 +836,7 @@ The only hand-crafted assets in the game:
 - **UI/UX** — menus, HUD, buttons, care interface
 - **Environment** — glade backgrounds, pot designs, soil textures, combat arena backgrounds
 - **VFX** — hit sparks, root eruption particles, leaf storm effects, Ki energy glow, SLP brewing animation
-- **Tanaka Shōsuke (the Merchant)** — the storefront character (one character design for the entire game)
+- **The Guild seller (personal name pending)** — the fictional Decorative Tree Guild storefront and tutorial character (one character design for the entire game)
 - **Yama-no-Kami** — lore splash art (optional, for story moments)
 
 Everything else is computed from the tree.

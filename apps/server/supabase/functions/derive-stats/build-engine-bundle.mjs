@@ -54,7 +54,10 @@ const repoRoot = fileURLToPath(new URL('../../../../../', import.meta.url));
 const entryPoint = join(here, 'engine-entry.mjs');
 const outfile = join(here, 'engine.bundle.mjs');
 
-const REQUIRED_EXPORTS = ['CareLogReplay', 'StatDeriver', 'BonsaiTree', 'Voxelizer'];
+const REQUIRED_EXPORTS = [
+  'CareLogReplay', 'StatDeriver', 'BonsaiTree', 'GrowthEngine', 'Voxelizer',
+  'applyMoraleEvent', 'createNewTreeMorale', 'getMoraleAdmission', 'getMoraleCareView', 'readMoraleState',
+];
 
 try {
   await esbuild.build({

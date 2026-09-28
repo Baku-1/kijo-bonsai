@@ -20,6 +20,15 @@ export {
   CareLogReplayError,
   StatDeriver,
   BonsaiTree,
+  GrowthEngine,
 } from '../../../../../packages/engine/dist/index.js';
 
 export { Voxelizer, buildCombatSnapshot } from '../../../../../packages/voxelizer/dist/index.js';
+
+export {
+  applyMoraleEvent,
+  createNewTreeMorale,
+  getMoraleAdmission,
+  getMoraleCareView,
+  readMoraleState,
+} from '../../../../../packages/shared/dist/index.js';

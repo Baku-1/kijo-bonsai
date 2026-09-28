@@ -143,11 +143,7 @@ export class CareLogReplay {
             // Phase 1 stub: JinEngine.applyJin throws "not implemented".
             tree.applyJin(a.branchId, a.segmentIndex, a.jinCost);
           } else if (a.type === 'landscape') {
-            // Phase 1: landscape is not implemented in CareLogReplay.
-            // A care log containing landscape cannot be replayed until Phase 2.
-            throw new CareLogReplayError(
-              `'landscape' is not yet implemented and cannot be replayed (Phase 2).`
-            );
+            tree.addLandscape(a.elementType, a.position);
           } else {
             // Exhaustiveness guard: the TypeScript union is fully covered above,
             // but at runtime a crafted care log can include arbitrary type strings.

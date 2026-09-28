@@ -11,7 +11,7 @@ Twine and wire are NOT the same tool at different price points. They are two dif
 
 **Twine = free tier.** Available to everyone, including guests and non-paying players. Weaker shaping, impermanent, forgiving.
 
-**Wire = premium.** Costs money (purchased from Gu Ahao). Stronger shaping, permanent when used correctly, but carries a real downside if neglected.
+**Wire = premium.** Costs money (purchased from the fictional Guild seller). Stronger shaping, permanent when used correctly, but carries a real downside if neglected. <!-- Lore term revised 2026-09-24 because the seller's personal name remains unapproved. -->
 
 ---
 

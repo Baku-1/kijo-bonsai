@@ -1,10 +1,12 @@
 # KIJO — Product Requirements Document
 
 **Version:** 0.2
-**Date:** July 19, 2026 (updated July 23, 2026)
+**Date:** July 19, 2026 (lore updated September 24, 2026)
 **Author:** Jeremy Gordon / Kingdom Koders
 **Status:** In Production — Phase 1 active (Saigon testnet)
 **Parent Document:** KIJO-GDD.md
+
+> **Lore terminology revision — 2026-09-24:** The storefront character is an unnamed fictional member of the formal **Decorative Tree Guild**, commonly called the **Flower Guild**. This preserves the established Flower Guild Rank product label while avoiding use of a living artist's identity and avoiding unsupported claims that the game's exact Guild or grading ladder is historical.
 
 ---
 
@@ -407,7 +409,7 @@ Each kijonsai listing shows:
 | P7 | Accelerated tutorial | **First 7 game days at 4x speed, free for all players including guests.** Then drops to real 8-hour cycle. | Prevents "I planted a seed and nothing happened" first-session rejection. 7 game days at 4x ≈ 14 real hours — player sees trunk + first branches by evening of day 1. |
 | P8 | SLP burn mechanism | **Defer to Sky Mavis guidance.** Present options: (A) transfer to dead address, (B) approved burn contract. Document the interface as `burnSLP(amount, wallet) → txHash` and let Ronin team choose the mechanism. | They know their token's contract capabilities and how burns should appear in their ecosystem dashboards. |
 | P9 | IP ownership | **Player owns their kijonsai NFT and its art.** Kingdom Koders retains ownership of the game, brand, engine, and procedural generation system. Player can use their kijonsai image for personal or commercial use. Kingdom Koders can use any kijonsai image for marketing. Written into Terms of Service, not the smart contract. | Standard NFT IP model (BAYC precedent). One-page legal review needed — templated work, not novel. |
-| P10 | Cultural framing | **Respectful dual heritage.** Gu Ahao represents Chinese penjing origins. Yama-no-Kami represents Japanese spiritual tradition. The game shows the full lineage — penjing flowed from China to Japan and evolved. Frame in lore as historical continuity, not appropriation. Sanity check with bonsai community before marketing launch. | Historically accurate. Bonsai's Chinese roots predate the Japanese tradition by centuries. Acknowledging both is more respectful than erasing either. |
+| P10 | Cultural framing | **Respectful dual heritage.** The fictional Decorative Tree Guild seller carries documented Chinese penjing and Japanese bonsai influences; Yama-no-Kami and the shinboku foundation carry the Japanese spiritual frame. Present the Guild and Flower Guild Rank as Kijonsai fiction informed by real culture, and sanity-check the framing with penjing and bonsai communities before marketing launch. | Preserves real cultural lineage without borrowing a living master's identity, inventing a biography for a historical person, or claiming the game's exact Guild system is historical. |
 
 ---
 

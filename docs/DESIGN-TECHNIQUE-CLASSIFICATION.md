@@ -20,7 +20,7 @@ Technique × Species = the kijo's full combat archetype. See `DESIGN-SPECIES-TEC
 A tree has exactly one primary technique at any time.
 
 #### Bound-and-Cut
-- **Historical origin:** Traditional combined penjing method — the "tied and cut" tradition that Gu Ahao synthesized from all three schools.
+- **Cultural basis:** Combined tied-and-cut methods documented across penjing traditions. Kijonsai does not attribute their invention or synthesis to its fictional seller. <!-- Revised 2026-09-24 to avoid inventing a single historical originator. -->
 - **Care pattern:** Wire uses > 0 AND prune uses > 0. The caretaker used both precision tools.
 - **Combat archetype:** **Balanced** — moderate stats across the board, no exploitable weakness. Adaptable, well-rounded. The jack-of-all-trades.
 - **Default:** Bound-and-Cut is the default technique. Any tree that uses both tools and does not qualify for Clip-and-Grow lands here. A tree with no qualifying actions at all also defaults to Bound-and-Cut.

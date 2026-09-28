@@ -291,3 +291,10 @@ export class Voxelizer {
 }
 
 export { buildCombatSnapshot } from './CombatSnapshot.js';
+// Growth V3 canopy grammar
+export {
+  isInsideEllipsoid, enumerateCanopyCandidates,
+  sortCanopyCandidates, getCanopyCandidates,
+  isCanopyEligible,
+} from './CanopyGrammar.js';
+export type { CanopyCandidate, CanopyEligibilityInput } from './CanopyGrammar.js';

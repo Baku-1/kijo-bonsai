@@ -451,7 +451,7 @@ to the existing CareAction union. Also add `LandscapeElementType` as a new expor
  * Each placed element is a landscape action in the care log.
  * Threshold for Water-and-Land overlay: landscapeCount >= 3.
  *
- * Phase 1 (Gu Ahao basic store items): rock, moss, pot.
+ * Phase 1 (fictional Guild seller basic store items): rock, moss, pot. // Lore terminology revised 2026-09-24; personal name pending.
  * Phase 2+ (NFT collectible items — out of Phase 1 scope): water_feature, figurine, ceramic.
  * [RESOLVED 2026-07-31 OQ-7: confirmed 3-literal Phase 1 union per owner.]
  */
@@ -465,7 +465,7 @@ export type LandscapeElementType =
 - Snake_case for consistency with existing string literal types in shared (`'skill_point'`,
   `'neutral'` in StatType).
 - Phase 1 set confirmed by owner (2026-07-31): `'rock' | 'moss' | 'pot'` (basic store items
-  from Gu Ahao). Phase 2+ items (`water_feature`, `figurine`, `ceramic`) are earned NFT
+  from the fictional Guild seller). Phase 2+ items (`water_feature`, `figurine`, `ceramic`) are earned NFT
   collectibles — out of Phase 1 scope. Adding new literals later is non-breaking; removing is breaking.
 - Element type affects visual rendering and NFT metadata, not combat stats.
 
@@ -1061,6 +1061,6 @@ Not `string[]`. No further action required.
    class itself remains stateless; caching lives at the call site (viewer open handler).
 
 7. **[RESOLVED 2026-07-31] LandscapeElementType completeness.** Phase 1 union confirmed:
-   `'rock' | 'moss' | 'pot'` (basic store items sold by Gu Ahao). Phase 2+ NFT items
+   `'rock' | 'moss' | 'pot'` (basic store items sold by the fictional Guild seller). Phase 2+ NFT items
    (`water_feature`, `figurine`, `ceramic`) are earned through gameplay and out of Phase 1
    scope. LandscapeElementType updated to 3-literal union. See §1.1.

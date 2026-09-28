@@ -14,6 +14,7 @@
 // marketplace must be able to read any tree without requiring auth).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { moraleEnvelope } from '../_shared/morale-transport.mjs';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -45,7 +46,7 @@ Deno.serve(async (req) => {
   // -------------------------------------------------------------------------
   const { data: tree, error: treeErr } = await supabase
     .from('trees')
-    .select('id, seed, species, has_spirit, current_day, born_at')
+    .select('id, seed, species, has_spirit, current_day, born_at, spirit_morale')
     .eq('id', tree_id)
     .single();
 
@@ -79,6 +80,7 @@ Deno.serve(async (req) => {
     current_day: tree.current_day,
     has_spirit: tree.has_spirit,
     born_at: tree.born_at,
+    morale: moraleEnvelope(tree.spirit_morale),
     care_log: logRows ?? [],
   });
 });
